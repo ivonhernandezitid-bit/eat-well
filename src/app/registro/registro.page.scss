@@ -1,0 +1,110 @@
+ion-content {
+  --background: #F5FBF5;
+}
+
+.registro-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  width: 100%;
+  padding: 22px 16px;
+  box-sizing: border-box;
+}
+
+.registro-card {
+  background-color: #FFFFFF;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 28px;
+  border-radius: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.logo-container {
+  margin-bottom: 25px;
+  text-align: center;
+
+  .robot-logo {
+    width: 80px; /* Tamaño del robot según tu mockup */
+    height: auto;
+    margin-bottom: 10px;
+  }
+
+  .brand-name {
+    color: var(--eatwell-medium-green); /* #3EB489 */
+    font-family: var(--font-titles); /* Manrope */
+    font-weight: 800;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    margin: 0;
+  }
+}
+
+.form-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.input-group {
+  width: 100%;
+}
+
+.custom-field {
+  --background: #FFFFFF;
+  --color: var(--eatwell-main-text);
+  --padding-start: 14px;
+  border: 1px solid #C1C1C1;
+  border-radius: 12px;
+  height: 44px;
+  font-size: 0.95rem;
+}
+
+.btn-signup {
+  --background: var(--eatwell-dark-green); /* #1E4D2B */
+  --border-radius: 20px;
+  font-family: var(--font-titles);
+  font-weight: 600;
+  height: 44px;
+  width: 100%;
+  margin-top: 20px;
+  text-transform: none;
+}
+
+.navigation-links {
+  margin-top: 28px;
+  text-align: center;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .login-link,
+  .terms-link {
+    margin: 0;
+  }
+
+  .login-link {
+    color: #2F7557;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    span {
+      text-decoration: underline;
+      font-weight: 700;
+    }
+  }
+
+  .terms-link {
+    color: #8A8A8A;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+}

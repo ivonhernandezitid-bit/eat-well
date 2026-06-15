@@ -35,3 +35,23 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+:root {
+  --font-titles: 'Manrope', sans-serif;
+  --font-body: 'Karla', sans-serif;
+  
+  /* Paleta Oficial EatWell */
+  --eatwell-light-green: #A8E6CF;
+  --eatwell-medium-green: #3EB489;
+  --eatwell-dark-green: #1E4D2B;
+  --eatwell-light-neutral: #F5F5F5;
+  --eatwell-main-text: #333333;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-titles) !important;
+}
+
+body, p, ion-input, ion-button, ion-label {
+  font-family: var(--font-body) !important;
+}
