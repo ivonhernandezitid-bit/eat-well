@@ -1,2 +1,16 @@
 // For information on how to create your own theme, please refer to:
 // https://ionicframework.com/docs/theming/
+
+:root {
+  --eatwell-green-900: #164a35;
+  --eatwell-green-700: #2f7d59;
+  --eatwell-green-500: #67b86b;
+  --eatwell-lime: #cce86b;
+  --eatwell-mint: #f3fbf3;
+  --eatwell-ink: #183228;
+  --eatwell-muted: #6f8077;
+  --eatwell-card: #ffffff;
+  --eatwell-shadow: 0 18px 42px rgba(31, 68, 48, 0.14);
+  --eatwell-dark-green: var(--eatwell-green-900);
+  --eatwell-medium-green: var(--eatwell-green-700);
+}

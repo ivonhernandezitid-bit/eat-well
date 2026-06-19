@@ -1,0 +1,37 @@
+<ion-content class="ion-padding">
+  <div class="plan-wrapper">
+    <div class="topbar">
+      <ion-button fill="solid" class="filter-pill">
+        All
+        <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
+      </ion-button>
+
+      <div class="search-block">
+        <ion-input placeholder="Search ..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
+        <ion-icon name="search-outline" class="search-icon"></ion-icon>
+      </div>
+
+      <ion-button fill="clear" class="scanner-button" (click)="scanFood()">
+        <ion-icon name="scan-outline"></ion-icon>
+      </ion-button>
+    </div>
+
+    <h1 class="screen-title">MEAL PLAN</h1>
+
+    <div class="meal-list">
+      <div class="meal-card breakfast-card" *ngFor="let recipe of filteredRecipes">
+        <div class="meal-icon-box breakfast-icon">
+          <ion-icon name="restaurant-outline"></ion-icon>
+        </div>
+        <div class="meal-copy">
+          <h2>{{ recipe.title }}</h2>
+          <p>{{ recipe.description }}</p>
+        </div>
+        <div class="meal-meta">
+          <span>{{ recipe.calories }} kcal</span>
+          <span>{{ recipe.proteinGrams }}g protein</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</ion-content>

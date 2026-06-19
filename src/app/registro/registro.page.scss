@@ -1,0 +1,78 @@
+.registro-wrapper {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 82% 10%, rgba(103, 184, 107, 0.24), transparent 30%),
+    linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+}
+
+.registro-card {
+  width: min(100%, 390px);
+  padding: 30px 24px 24px;
+  border-radius: 28px;
+  background: var(--eatwell-card);
+  box-shadow: var(--eatwell-shadow);
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.robot-logo {
+  width: 96px;
+  max-width: 52%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
+
+.brand-name {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: var(--eatwell-green-900);
+}
+
+.form-box {
+  display: grid;
+  gap: 12px;
+}
+
+.input-group {
+  border-radius: 18px;
+  background: #f4f8f1;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  overflow: hidden;
+}
+
+.custom-field {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 13px;
+  --padding-bottom: 13px;
+  color: var(--eatwell-ink);
+}
+
+.btn-signup {
+  --background: var(--eatwell-green-700);
+  --background-activated: var(--eatwell-green-900);
+  --border-radius: 20px;
+  --box-shadow: none;
+  height: 52px;
+  margin-top: 8px;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.navigation-links {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--eatwell-muted);
+}
+
+.navigation-links span {
+  color: var(--eatwell-green-700);
+  font-weight: 800;
+}

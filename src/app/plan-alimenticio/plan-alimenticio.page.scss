@@ -1,0 +1,118 @@
+ion-content {
+  --background: #f7fff4;
+}
+
+.plan-wrapper {
+  max-width: 460px;
+  margin: 0 auto;
+  color: var(--eatwell-ink);
+}
+
+.topbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.filter-pill {
+  --background: var(--eatwell-green-700);
+  --border-radius: 18px;
+  --box-shadow: none;
+  min-height: 44px;
+  text-transform: none;
+  font-weight: 800;
+}
+
+.search-block {
+  position: relative;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(31, 68, 48, 0.08);
+}
+
+.search-input {
+  --padding-start: 16px;
+  --padding-end: 40px;
+}
+
+.search-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--eatwell-muted);
+  pointer-events: none;
+}
+
+.scanner-button {
+  --color: var(--eatwell-green-900);
+  --background: #fff;
+  --border-radius: 18px;
+  width: 46px;
+  height: 46px;
+}
+
+.screen-title {
+  margin: 28px 0 16px;
+  color: var(--eatwell-green-900);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.meal-list {
+  display: grid;
+  gap: 14px;
+}
+
+.meal-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+}
+
+.meal-icon-box {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+}
+
+.meal-icon-box ion-icon {
+  font-size: 28px;
+}
+
+.meal-copy h2 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--eatwell-green-900);
+}
+
+.meal-copy p {
+  margin: 0;
+  color: var(--eatwell-muted);
+  line-height: 1.35;
+}
+
+.meal-meta {
+  grid-column: 2;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.meal-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f1f7ed;
+  color: var(--eatwell-green-900);
+  font-size: 0.8rem;
+  font-weight: 800;
+}

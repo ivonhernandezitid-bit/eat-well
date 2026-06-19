@@ -1,0 +1,33 @@
+<ion-content class="activity-back-content" fullscreen>
+  <div class="activity-back-wrapper">
+    <h1 class="activity-title">PHYSICAL ACTIVITY</h1>
+
+    <div class="activity-image-box">
+      <img src="/assets/icon/Espalda.png" alt="Actividad espalda" class="activity-image" />
+      <button class="zone zone-neck" aria-label="Neck" (click)="selectZone('neck', 'Neck')"></button>
+      <button class="zone zone-shoulders" aria-label="Shoulders" (click)="selectZone('shoulders', 'Shoulders')"></button>
+      <button class="zone zone-back" aria-label="Back" (click)="selectZone('back', 'Back')"></button>
+      <button class="zone zone-arms-left" aria-label="Arms" (click)="selectZone('arms', 'Arms')"></button>
+      <button class="zone zone-arms-right" aria-label="Arms" (click)="selectZone('arms', 'Arms')"></button>
+      <button class="zone zone-hips" aria-label="Hips" (click)="selectZone('hips', 'Hips')"></button>
+      <button class="zone zone-legs-left" aria-label="Legs" (click)="selectZone('legs', 'Legs')"></button>
+      <button class="zone zone-legs-right" aria-label="Legs" (click)="selectZone('legs', 'Legs')"></button>
+      <button class="zone zone-calves-left" aria-label="Calves" (click)="selectZone('calves', 'Calves')"></button>
+      <button class="zone zone-calves-right" aria-label="Calves" (click)="selectZone('calves', 'Calves')"></button>
+    </div>
+
+    <div class="exercise-panel" *ngIf="hasSelectedZone">
+      <h2>{{ selectedZone }}</h2>
+      <p class="empty-state" *ngIf="exercises.length === 0">No exercises found. Check Apache and MySQL in XAMPP.</p>
+      <div class="exercise-card" *ngFor="let exercise of exercises">
+        <h3>{{ exercise.title }}</h3>
+        <p>{{ exercise.repetitions }} - {{ exercise.durationMinutes }} min</p>
+        <p>{{ exercise.recommendations }}</p>
+      </div>
+    </div>
+
+    <ion-button expand="block" class="btn-front" routerLink="/tabs/actividad-frente">
+      Front
+    </ion-button>
+  </div>
+</ion-content>

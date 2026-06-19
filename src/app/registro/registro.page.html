@@ -1,0 +1,40 @@
+<ion-content class="ion-padding">
+  <div class="registro-wrapper">
+    
+    <div class="registro-card">
+      
+      <div class="logo-container">
+        <img src="assets/icon/EatWell.png" alt="EatWell AI" class="robot-logo">
+        <h2 class="brand-name">EATWELL</h2>
+      </div>
+
+      <div class="form-box">
+        <div class="input-group">
+          <ion-input type="email" placeholder="Email" class="custom-field" [(ngModel)]="email"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="password" placeholder="Password" class="custom-field" [(ngModel)]="password"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="Full Name" class="custom-field" [(ngModel)]="fullName"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="User name" class="custom-field" [(ngModel)]="username"></ion-input>
+        </div>
+
+        <ion-button expand="block" class="btn-signup" (click)="register()">
+          Sign up
+        </ion-button>
+      </div>
+
+      <div class="navigation-links">
+        <p class="login-link" routerLink="/login">Do you have an account? <span>Log in</span></p>
+      </div>
+
+    </div>
+
+  </div>
+</ion-content>

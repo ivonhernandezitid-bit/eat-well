@@ -35,3 +35,23 @@
 /* @import "@ionic/angular/css/palettes/dark.always.css"; */
 /* @import "@ionic/angular/css/palettes/dark.class.css"; */
 @import "@ionic/angular/css/palettes/dark.system.css";
+
+html,
+body {
+  background: #dfe9dc;
+}
+
+ion-app {
+  width: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  background: #f7fff4;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.16);
+}
+
+@media (max-width: 430px) {
+  ion-app {
+    max-width: none;
+    box-shadow: none;
+  }
+}
