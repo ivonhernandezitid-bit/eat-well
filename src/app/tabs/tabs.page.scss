@@ -1,1 +1,18 @@
 
+ion-tab-bar {
+  --background: #ffffff;
+  --border: 1px solid rgba(47, 125, 89, 0.12);
+  padding-right: var(--ion-safe-area-right, 0px);
+  padding-bottom: var(--ion-safe-area-bottom, 0px);
+  padding-left: var(--ion-safe-area-left, 0px);
+}
+
+ion-tab-button {
+  --color: var(--eatwell-muted);
+  --color-selected: var(--eatwell-green-700);
+  min-height: 56px;
+}
+
+ion-tab-button ion-icon {
+  font-size: 24px;
+}

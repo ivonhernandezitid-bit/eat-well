@@ -1,5 +1,8 @@
 .home-wrapper {
   min-height: 100%;
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
   padding: 14px 4px 24px;
   color: var(--eatwell-ink);
 }
@@ -78,6 +81,10 @@ ion-content {
   font-weight: 700;
 }
 
+.tips-copy {
+  min-width: 0;
+}
+
 .tips-icon {
   width: 56px;
   height: 56px;
@@ -113,6 +120,33 @@ ion-content {
   background: #fff;
   box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
   font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 350px) {
+  .home-wrapper {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .tips-card,
+  .preference-card {
+    padding: 14px;
+    border-radius: 20px;
+  }
+
+  .tips-card {
+    gap: 10px;
+  }
+
+  .tips-icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .preferences-grid {
+    gap: 10px;
+  }
 }
 
 .preference-icon {

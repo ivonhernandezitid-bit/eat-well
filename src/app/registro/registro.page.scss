@@ -55,6 +55,35 @@
   color: var(--eatwell-ink);
 }
 
+@media (max-width: 360px) {
+  .registro-card {
+    padding: 22px 16px 20px;
+    border-radius: 22px;
+  }
+
+  .logo-container {
+    margin-bottom: 16px;
+  }
+
+  .navigation-links {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 720px) {
+  .registro-wrapper {
+    place-items: start center;
+  }
+
+  .registro-card {
+    padding-top: 18px;
+  }
+
+  .robot-logo {
+    width: 76px;
+  }
+}
+
 .btn-signup {
   --background: var(--eatwell-green-700);
   --background-activated: var(--eatwell-green-900);
