@@ -85,15 +85,25 @@ export interface Exercise {
 
 export interface FoodScanInput {
   imageBase64?: string;
-  imageUri?: string;
-  manualDescription?: string;
+}
+
+export interface SuggestedFoodRecipe {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  sourceUrl: string;
+  ingredients: string[];
+  instructions: string[];
+  detailsLoaded: boolean;
 }
 
 export interface FoodScanResult {
-  status: 'pending_api' | 'analyzed';
+  status: 'analyzed';
   foodName: string;
-  estimatedCalories: number;
+  detectedIngredients: string[];
   recommendation: string;
+  suggestedRecipes: SuggestedFoodRecipe[];
 }
 
 export interface AppDatabase {

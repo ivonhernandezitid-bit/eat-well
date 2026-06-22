@@ -55,6 +55,59 @@ ion-content {
   height: 46px;
 }
 
+.food-image-input {
+  display: none;
+}
+
+.scan-result {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+}
+
+.scan-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.scan-copy {
+  min-width: 0;
+}
+
+.scan-label {
+  color: var(--eatwell-green-700);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.scan-copy h2 {
+  margin: 4px 0 6px;
+  color: var(--eatwell-green-900);
+}
+
+.scan-copy p {
+  margin: 0;
+  color: var(--eatwell-muted);
+}
+.scan-copy .detected-ingredients {
+  margin-bottom: 5px;
+  color: var(--eatwell-green-900);
+  font-weight: 700;
+}
+
+.clear-scan {
+  --color: var(--eatwell-green-900);
+  margin: -8px -8px 0 0;
+}
+
 .screen-title {
   margin: 28px 0 16px;
   color: var(--eatwell-green-900);
@@ -68,13 +121,24 @@ ion-content {
 }
 
 .meal-card {
+  position: relative;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 14px;
   padding: 16px;
+  width: 100%;
+  border: 0;
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meal-card:active {
+  transform: scale(0.99);
 }
 
 .meal-icon-box {
@@ -108,22 +172,6 @@ ion-content {
   line-height: 1.35;
 }
 
-.meal-meta {
-  grid-column: 2;
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.meal-meta span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: #f1f7ed;
-  color: var(--eatwell-green-900);
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
 @media (max-width: 380px) {
   .topbar {
     grid-template-areas:
@@ -149,6 +197,88 @@ ion-content {
   .screen-title {
     margin-top: 22px;
   }
+
+  .scan-result {
+    grid-template-columns: 72px 1fr auto;
+    gap: 10px;
+  }
+
+  .scan-photo {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+.recipe-loading {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 20px;
+  height: 20px;
+  color: var(--eatwell-green-700);
+}
+
+ion-modal {
+  --width: min(100%, 560px);
+  --height: min(100%, 760px);
+  --border-radius: 8px;
+}
+
+.recipe-detail-content {
+  --background: #f7fff4;
+}
+
+.recipe-detail-image {
+  width: 100%;
+  max-height: 270px;
+  object-fit: cover;
+}
+
+.recipe-detail-body {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 20px 18px 40px;
+  color: var(--eatwell-ink);
+}
+
+.recipe-description,
+.empty-detail {
+  color: var(--eatwell-muted);
+  line-height: 1.5;
+}
+
+.recipe-section {
+  margin-top: 26px;
+}
+
+.recipe-section h2 {
+  margin: 0 0 12px;
+  color: var(--eatwell-green-900);
+  font-size: 1.2rem;
+}
+
+.recipe-section ul,
+.recipe-section ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 24px;
+  line-height: 1.45;
+}
+
+@media (max-width: 600px) {
+  ion-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0;
+  }
+}
+
+.meal-image {
+  width: 92px;
+  height: 76px;
+  border-radius: 18px;
+  object-fit: cover;
 }
 
 @media (max-width: 340px) {
@@ -162,7 +292,9 @@ ion-content {
     height: 44px;
   }
 
-  .meal-meta {
-    grid-column: 1 / -1;
+  .meal-image {
+    width: 72px;
+    height: 72px;
   }
+
 }

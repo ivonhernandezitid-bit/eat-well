@@ -11,27 +11,101 @@
         <ion-icon name="search-outline" class="search-icon"></ion-icon>
       </div>
 
-      <ion-button fill="clear" class="scanner-button" (click)="scanFood()">
-        <ion-icon name="scan-outline"></ion-icon>
+      <ion-button fill="clear" class="scanner-button" aria-label="Scan food" [disabled]="isScanning" (click)="scanFood()">
+        <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
+        <ng-template #scannerIcon>
+          <ion-icon name="scan-outline"></ion-icon>
+        </ng-template>
       </ion-button>
+      <input
+        #foodImageInput
+        class="food-image-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        capture="environment"
+        (change)="onFoodImageSelected($event)"
+      />
     </div>
+
+    <section class="scan-result" *ngIf="scanPreview">
+      <img class="scan-photo" [src]="scanPreview" alt="Scanned food" />
+      <div class="scan-copy">
+        <span class="scan-label">Scanned food</span>
+        <h2>{{ isScanning ? 'Analyzing...' : (scanResult?.foodName || 'Food') }}</h2>
+        <p class="detected-ingredients" *ngIf="scanResult?.detectedIngredients?.length">
+          {{ scanResult?.detectedIngredients?.join(', ') }}
+        </p>
+        <p *ngIf="scanResult">{{ scanResult.recommendation }}</p>
+      </div>
+      <ion-button fill="clear" class="clear-scan" aria-label="Remove scan" (click)="clearScan()">
+        <ion-icon name="close-outline"></ion-icon>
+      </ion-button>
+
+    </section>
 
     <h1 class="screen-title">MEAL PLAN</h1>
 
     <div class="meal-list">
-      <div class="meal-card breakfast-card" *ngFor="let recipe of filteredRecipes">
-        <div class="meal-icon-box breakfast-icon">
-          <ion-icon name="restaurant-outline"></ion-icon>
-        </div>
+      <button type="button" class="meal-card breakfast-card" *ngFor="let recipe of filteredMeals" (click)="openRecipe(recipe)">
+        <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+        <ng-template #defaultMealIcon>
+          <div class="meal-icon-box breakfast-icon">
+            <ion-icon name="restaurant-outline"></ion-icon>
+          </div>
+        </ng-template>
         <div class="meal-copy">
           <h2>{{ recipe.title }}</h2>
           <p>{{ recipe.description }}</p>
         </div>
-        <div class="meal-meta">
-          <span>{{ recipe.calories }} kcal</span>
-          <span>{{ recipe.proteinGrams }}g protein</span>
-        </div>
-      </div>
+        <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
+      </button>
     </div>
   </div>
 </ion-content>
+
+<ion-modal [isOpen]="isRecipeModalOpen" (didDismiss)="closeRecipe()">
+  <ng-template>
+    <ion-header>
+      <ion-toolbar>
+        <ion-title>{{ selectedRecipe?.title }}</ion-title>
+        <ion-buttons slot="end">
+          <ion-button aria-label="Close recipe" (click)="closeRecipe()">
+            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="recipe-detail-content">
+      <img
+        *ngIf="selectedRecipe?.imageUrl"
+        class="recipe-detail-image"
+        [src]="selectedRecipe?.imageUrl"
+        [alt]="selectedRecipe?.title"
+      />
+      <div class="recipe-detail-body">
+        <p class="recipe-description">{{ selectedRecipe?.description }}</p>
+
+        <section class="recipe-section">
+          <h2>Ingredients</h2>
+          <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients">
+            <li *ngFor="let ingredient of selectedRecipe?.ingredients">{{ ingredient }}</li>
+          </ul>
+          <ng-template #noIngredients>
+            <p class="empty-detail">Ingredients are not available for this recipe.</p>
+          </ng-template>
+        </section>
+
+        <section class="recipe-section">
+          <h2>Preparation</h2>
+          <ol *ngIf="selectedRecipe?.instructions?.length; else noInstructions">
+            <li *ngFor="let instruction of selectedRecipe?.instructions">{{ instruction }}</li>
+          </ol>
+          <ng-template #noInstructions>
+            <p class="empty-detail">Preparation steps are not available for this recipe.</p>
+          </ng-template>
+        </section>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

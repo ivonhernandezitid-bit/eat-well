@@ -9,6 +9,7 @@ import {
   FoodScanResult,
   LoginCredentials,
   Recipe,
+  SuggestedFoodRecipe,
   UserProfile,
   UserRegistrationData,
 } from './models';
@@ -29,6 +30,14 @@ interface ExercisesResponse {
 
 interface FoodScanResponse {
   result: FoodScanResult;
+}
+
+interface FoodRecommendationsResponse {
+  recipes: SuggestedFoodRecipe[];
+}
+
+interface FoodRecipeDetailResponse {
+  recipe: SuggestedFoodRecipe;
 }
 
 @Injectable({
@@ -93,6 +102,23 @@ export class EatWellService {
       userId: activeUser?.id,
     });
     return response.result;
+  }
+
+  async getSavedFoodRecommendations(): Promise<SuggestedFoodRecipe[]> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<FoodRecommendationsResponse>('scanner.recommendations', {
+      userId: activeUser.id,
+    });
+    return response.recipes;
+  }
+
+  async getSavedFoodRecipeDetail(recipeId: string): Promise<SuggestedFoodRecipe> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<FoodRecipeDetailResponse>('scanner.recipeDetail', {
+      userId: activeUser.id,
+      recipeId,
+    });
+    return response.recipe;
   }
 
   calculateImc(weightKg: number, heightCm: number): number {
