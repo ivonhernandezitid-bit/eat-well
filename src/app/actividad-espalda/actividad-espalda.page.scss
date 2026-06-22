@@ -25,8 +25,9 @@ ion-content {
 }
 
 .activity-image-box {
-  width: 100%;
+  width: min(100%, 300px, 32dvh);
   max-width: 300px;
+  aspect-ratio: 2 / 3;
   position: relative;
   display: flex;
   justify-content: center;
@@ -34,8 +35,7 @@ ion-content {
 
 .activity-image {
   width: 100%;
-  max-height: 48vh;
-  height: auto;
+  height: 100%;
   border-radius: 24px;
   object-fit: contain;
   box-shadow: 0 14px 32px rgba(31, 68, 48, 0.16);
@@ -48,6 +48,13 @@ ion-content {
   background: rgba(92, 167, 88, 0.28);
   min-width: 30px;
   min-height: 30px;
+  touch-action: manipulation;
+}
+
+.zone::after {
+  position: absolute;
+  inset: -7px;
+  content: "";
 }
 
 .zone:active {
@@ -99,4 +106,17 @@ ion-content {
   height: 48px;
   font-weight: 800;
   text-transform: none;
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .activity-image-box {
+    width: min(44vw, 300px);
+  }
+}
+
+@media (max-width: 350px) {
+  .activity-back-wrapper {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
 }

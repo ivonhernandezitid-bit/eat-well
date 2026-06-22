@@ -3,6 +3,7 @@ ion-content {
 }
 
 .perfil-wrapper {
+  width: 100%;
   max-width: 460px;
   min-height: 100%;
   margin: 0 auto;
@@ -105,6 +106,7 @@ ion-content {
 }
 
 .input-with-unit {
+  min-width: 0;
   width: 100%;
   display: grid;
   gap: 8px;
@@ -141,4 +143,23 @@ ion-content {
   height: 50px;
   font-weight: 800;
   text-transform: none;
+}
+
+@media (max-width: 370px) {
+  .perfil-wrapper {
+    padding: 16px 12px 88px;
+  }
+
+  .form-card {
+    padding: 12px;
+    border-radius: 20px;
+  }
+
+  .row-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .page-title {
+    margin: 18px 0 14px;
+  }
 }

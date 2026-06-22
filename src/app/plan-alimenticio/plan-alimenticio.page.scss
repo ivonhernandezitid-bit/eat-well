@@ -3,7 +3,8 @@ ion-content {
 }
 
 .plan-wrapper {
-  max-width: 460px;
+  width: 100%;
+  max-width: 620px;
   margin: 0 auto;
   color: var(--eatwell-ink);
 }
@@ -25,6 +26,7 @@ ion-content {
 }
 
 .search-block {
+  min-width: 0;
   position: relative;
   border-radius: 18px;
   background: #fff;
@@ -95,6 +97,11 @@ ion-content {
   color: var(--eatwell-green-900);
 }
 
+.meal-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .meal-copy p {
   margin: 0;
   color: var(--eatwell-muted);
@@ -115,4 +122,47 @@ ion-content {
   color: var(--eatwell-green-900);
   font-size: 0.8rem;
   font-weight: 800;
+}
+
+@media (max-width: 380px) {
+  .topbar {
+    grid-template-areas:
+      "filter scanner"
+      "search search";
+    grid-template-columns: 1fr auto;
+  }
+
+  .filter-pill {
+    grid-area: filter;
+    justify-self: start;
+  }
+
+  .search-block {
+    grid-area: search;
+  }
+
+  .scanner-button {
+    grid-area: scanner;
+    margin: 0;
+  }
+
+  .screen-title {
+    margin-top: 22px;
+  }
+}
+
+@media (max-width: 340px) {
+  .meal-card {
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .meal-icon-box {
+    width: 44px;
+    height: 44px;
+  }
+
+  .meal-meta {
+    grid-column: 1 / -1;
+  }
 }

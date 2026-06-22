@@ -47,6 +47,31 @@
   color: var(--eatwell-ink);
 }
 
+@media (max-width: 360px) {
+  .login-card {
+    padding: 26px 16px 22px;
+    border-radius: 22px;
+  }
+
+  .logo-container {
+    margin-bottom: 22px;
+  }
+
+  .navigation-links {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .login-wrapper {
+    place-items: start center;
+  }
+
+  .login-card {
+    padding-top: 22px;
+  }
+}
+
 .btn-login {
   --background: var(--eatwell-green-700);
   --background-activated: var(--eatwell-green-900);
