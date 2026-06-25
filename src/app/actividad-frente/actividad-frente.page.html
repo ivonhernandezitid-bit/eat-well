@@ -1,34 +1,225 @@
 <ion-content class="activity-front-content" fullscreen>
   <div class="activity-front-wrapper">
-    <h1 class="activity-title">PHYSICAL ACTIVITY</h1>
+    <h1 class="activity-title">ACTIVIDAD FÍSICA</h1>
 
     <div class="activity-image-box">
       <img src="/assets/icon/Frente.png" alt="Actividad frente" class="activity-image" />
-      <button class="zone zone-neck" aria-label="Neck" (click)="selectZone('neck', 'Neck')"></button>
-      <button class="zone zone-shoulders" aria-label="Shoulders" (click)="selectZone('shoulders', 'Shoulders')"></button>
-      <button class="zone zone-chest" aria-label="Chest" (click)="selectZone('chest', 'Chest')"></button>
-      <button class="zone zone-arms-left" aria-label="Arms" (click)="selectZone('arms', 'Arms')"></button>
-      <button class="zone zone-arms-right" aria-label="Arms" (click)="selectZone('arms', 'Arms')"></button>
-      <button class="zone zone-abdomen" aria-label="Abdomen" (click)="selectZone('abdomen', 'Abs')"></button>
-      <button class="zone zone-hips" aria-label="Hips" (click)="selectZone('hips', 'Hips')"></button>
-      <button class="zone zone-legs-left" aria-label="Legs" (click)="selectZone('legs', 'Legs')"></button>
-      <button class="zone zone-legs-right" aria-label="Legs" (click)="selectZone('legs', 'Legs')"></button>
-      <button class="zone zone-calves-left" aria-label="Calves" (click)="selectZone('calves', 'Calves')"></button>
-      <button class="zone zone-calves-right" aria-label="Calves" (click)="selectZone('calves', 'Calves')"></button>
+      
+      <!-- Interactive Muscles (Front view) -->
+      <button class="zone zone-shoulder-left" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')"></button>
+      <button class="zone zone-shoulder-right" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')"></button>
+      
+      <button class="zone zone-chest" [class.selected]="selectedMuscle === 'Pecho'" aria-label="Pecho" (click)="selectMuscle('Pecho')"></button>
+      
+      <button class="zone zone-biceps-left" [class.selected]="selectedMuscle === 'Bíceps'" aria-label="Bíceps" (click)="selectMuscle('Bíceps')"></button>
+      <button class="zone zone-biceps-right" [class.selected]="selectedMuscle === 'Bíceps'" aria-label="Bíceps" (click)="selectMuscle('Bíceps')"></button>
+      
+      <button class="zone zone-forearms-left" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')"></button>
+      <button class="zone zone-forearms-right" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')"></button>
+      
+      <button class="zone zone-abdomen" [class.selected]="selectedMuscle === 'Abdomen'" aria-label="Abdomen" (click)="selectMuscle('Abdomen')"></button>
+      
+      <button class="zone zone-quads-left" [class.selected]="selectedMuscle === 'Cuádriceps'" aria-label="Cuádriceps" (click)="selectMuscle('Cuádriceps')"></button>
+      <button class="zone zone-quads-right" [class.selected]="selectedMuscle === 'Cuádriceps'" aria-label="Cuádriceps" (click)="selectMuscle('Cuádriceps')"></button>
+      
+      <button class="zone zone-calves-left" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')"></button>
+      <button class="zone zone-calves-right" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')"></button>
     </div>
 
-    <div class="exercise-panel" *ngIf="hasSelectedZone">
-      <h2>{{ selectedZone }}</h2>
-      <p class="empty-state" *ngIf="exercises.length === 0">No exercises found. Check Apache and MySQL in XAMPP.</p>
-      <div class="exercise-card" *ngFor="let exercise of exercises">
-        <h3>{{ exercise.title }}</h3>
-        <p>{{ exercise.repetitions }} - {{ exercise.durationMinutes }} min</p>
-        <p>{{ exercise.recommendations }}</p>
+    <!-- Routine Action Row -->
+    <div class="routine-buttons-row">
+      <ion-button expand="block" (click)="openRoutineModal()" class="fab-generate-btn">
+        Generar Rutina
+      </ion-button>
+      <ion-button *ngIf="hasSavedRoutine" (click)="viewSavedRoutine()" class="fab-view-btn">
+        Ver Rutina
+      </ion-button>
+    </div>
+
+    <!-- Exercises Panel -->
+    <div class="exercise-panel" *ngIf="selectedMuscle">
+      <h2 class="section-title">Ejercicios: {{ selectedMuscle }}</h2>
+
+      <!-- Skeleton Loading for Gemini Exercises -->
+      <div *ngIf="isLoadingExercises">
+        <ion-card *ngFor="let item of [1,2,3,4,5,6]" class="exercise-card">
+          <ion-card-header>
+            <ion-skeleton-text animated style="width: 70%; height: 20px; border-radius: 4px;"></ion-skeleton-text>
+            <div class="badge-container">
+              <ion-skeleton-text animated style="width: 60px; height: 16px; border-radius: 4px;"></ion-skeleton-text>
+              <ion-skeleton-text animated style="width: 80px; height: 16px; border-radius: 4px;"></ion-skeleton-text>
+            </div>
+          </ion-card-header>
+          <ion-card-content>
+            <ion-skeleton-text animated style="width: 40%; height: 16px; border-radius: 4px;"></ion-skeleton-text>
+          </ion-card-content>
+        </ion-card>
+      </div>
+
+      <!-- Loaded Gemini Exercises -->
+      <div *ngIf="!isLoadingExercises">
+        <ion-card *ngFor="let exercise of exercises; let i = index" class="exercise-card" [class.expanded]="expandedExerciseIndex === i">
+          <ion-card-header>
+            <div class="card-header-row">
+              <h3 class="exercise-name">{{ exercise.nombre }}</h3>
+            </div>
+            <div class="badge-container">
+              <span class="badge-equipment">{{ exercise.equipo }}</span>
+              <span class="badge-difficulty" [class]="exercise.dificultad">{{ exercise.dificultad }}</span>
+            </div>
+          </ion-card-header>
+          <ion-card-content>
+            <p class="series-text">{{ exercise.series }} series x {{ exercise.repeticiones }}</p>
+            
+            <ion-button fill="clear" size="small" (click)="toggleExercise(i)" class="instructions-toggle-btn">
+              {{ expandedExerciseIndex === i ? 'Ocultar instrucciones' : 'Ver instrucciones' }}
+            </ion-button>
+
+            <!-- Expandable Instructions -->
+            <div class="instructions-container" *ngIf="expandedExerciseIndex === i">
+              <div *ngFor="let step of exercise.instrucciones; let stepIdx = index" class="instruction-step">
+                <span class="step-number">{{ stepIdx + 1 }}</span>
+                <p class="step-text">{{ step }}</p>
+              </div>
+            </div>
+          </ion-card-content>
+        </ion-card>
       </div>
     </div>
 
+    <!-- Navigation Switch to Back view -->
     <ion-button expand="block" class="btn-back" routerLink="/tabs/actividad-espalda">
-      Back
+      Ver Vista de Espalda
     </ion-button>
   </div>
+
+  <!-- Custom Routine Form Modal -->
+  <ion-modal cssClass="routine-form-modal" [isOpen]="isRoutineModalOpen" (didDismiss)="isRoutineModalOpen = false">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar class="modal-header-toolbar">
+          <ion-title class="modal-title">Generar rutina</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="isRoutineModalOpen = false" color="medium">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="modal-content-container">
+        <!-- Loader during routine generation -->
+        <div *ngIf="isLoadingRoutine" class="loading-routine-container">
+          <ion-spinner name="crescent" color="success" style="width: 50px; height: 50px;"></ion-spinner>
+          <p>Preparando tu rutina...</p>
+        </div>
+
+        <div *ngIf="!isLoadingRoutine" class="routine-form">
+          <div class="form-group">
+            <label>Objetivo</label>
+            <ion-select [(ngModel)]="formGoal" interface="popover" class="form-select">
+              <ion-select-option value="Perder peso">Perder peso</ion-select-option>
+              <ion-select-option value="Ganar músculo">Ganar músculo</ion-select-option>
+              <ion-select-option value="Tonificar">Tonificar</ion-select-option>
+              <ion-select-option value="Mejorar resistencia">Mejorar resistencia</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
+            <label>Días de entrenamiento por semana</label>
+            <ion-select [(ngModel)]="formDays" interface="popover" class="form-select">
+              <ion-select-option [value]="2">2 días</ion-select-option>
+              <ion-select-option [value]="3">3 días</ion-select-option>
+              <ion-select-option [value]="4">4 días</ion-select-option>
+              <ion-select-option [value]="5">5 días</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
+            <label>Nivel de intensidad</label>
+            <ion-select [(ngModel)]="formLevel" interface="popover" class="form-select">
+              <ion-select-option value="Principiante">Principiante</ion-select-option>
+              <ion-select-option value="Intermedio">Intermedio</ion-select-option>
+              <ion-select-option value="Avanzado">Avanzado</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
+            <label>Equipo disponible</label>
+            <ion-select [(ngModel)]="formEquipment" interface="popover" class="form-select">
+              <ion-select-option value="Sin equipo">Sin equipo (Corporal)</ion-select-option>
+              <ion-select-option value="Mancuernas">Mancuernas</ion-select-option>
+              <ion-select-option value="Gimnasio completo">Gimnasio completo</ion-select-option>
+            </ion-select>
+          </div>
+
+          <div class="form-group">
+            <label>Músculos a enfocar</label>
+            <div class="muscles-chip-grid">
+              <ion-chip *ngFor="let muscle of muscleList"
+                        [outline]="!formMuscles[muscle]"
+                        [color]="formMuscles[muscle] ? 'success' : 'medium'"
+                        (click)="toggleMuscle(muscle)"
+                        class="muscle-chip">
+                <ion-icon name="checkmark-circle" *ngIf="formMuscles[muscle]"></ion-icon>
+                <ion-label>{{ muscle }}</ion-label>
+              </ion-chip>
+            </div>
+          </div>
+
+          <ion-button expand="block" (click)="submitRoutineForm()" class="submit-btn">
+            Generar rutina
+          </ion-button>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <!-- Custom Routine Result Modal -->
+  <ion-modal cssClass="routine-result-modal" [isOpen]="isResultModalOpen" (didDismiss)="isResultModalOpen = false">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar class="modal-header-toolbar">
+          <ion-title class="modal-title">Rutina</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="isResultModalOpen = false" color="medium">Cerrar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="modal-content-container">
+        <div *ngIf="generatedRoutine">
+          <ion-accordion-group>
+            <ion-accordion *ngFor="let item of generatedRoutine.planSemanal" [value]="item.dia">
+              <ion-item slot="header" color="light">
+                <ion-label class="day-accordion-header">
+                  {{ item.dia }} <span>- {{ item.enfoque }}</span>
+                </ion-label>
+              </ion-item>
+              <div class="routine-day-content" slot="content">
+                <div *ngFor="let ex of item.ejercicios" class="routine-exercise-card">
+                  <h4>{{ ex.nombre }}</h4>
+                  <div class="exercise-meta">
+                    <span class="meta-badge">{{ ex.musculo }}</span>
+                    <span class="meta-badge">{{ ex.equipo }}</span>
+                    <span class="meta-badge rest">Descanso: {{ ex.descanso }}</span>
+                  </div>
+                  <p class="routine-prescription">
+                    {{ ex.series }} series x {{ ex.repeticiones }}
+                  </p>
+                  <div class="routine-instructions">
+                    <p *ngFor="let step of ex.instrucciones; let idx = index">
+                      {{ idx + 1 }}. {{ step }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </ion-accordion>
+          </ion-accordion-group>
+
+          <ion-button expand="block" (click)="saveRoutine()" class="save-routine-btn">
+            Guardar rutina
+          </ion-button>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>

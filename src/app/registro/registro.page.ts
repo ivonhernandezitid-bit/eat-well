@@ -37,7 +37,7 @@ export class RegistroPage implements OnInit {
         password: this.password,
         username: this.username,
       });
-      await this.router.navigateByUrl('/datos-perfil');
+      await this.router.navigateByUrl('/datos-perfil?onboarding=1');
     } catch (error) {
       await this.showAlert('Sign up failed', error instanceof Error ? error.message : 'Please try again.');
     }

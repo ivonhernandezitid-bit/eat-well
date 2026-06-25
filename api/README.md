@@ -30,7 +30,12 @@ POST index.php?action=auth.register
 POST index.php?action=auth.login
 GET  index.php?action=profile.get&userId=1
 POST index.php?action=profile.update
+GET  index.php?action=preferences.get&userId=1
+POST index.php?action=preferences.save
 GET  index.php?action=recipes.recommendations&userId=1
+GET  index.php?action=favorites.list&userId=1
+POST index.php?action=favorites.add
+POST index.php?action=favorites.remove
 GET  index.php?action=exercises.byZone&bodyZone=abdomen
 POST index.php?action=scanner.analyze
 GET  index.php?action=scanner.recommendations&userId=1
@@ -45,12 +50,16 @@ envia a Ionic ni se incluye en el APK.
 
 Gemini identifica los ingredientes visibles y genera cuatro recetas completas en
 espanol. No se solicitan ni muestran calorias, macros o porcentajes de confianza.
-Cada escaneo y sus recetas se guardan inmediatamente en `food_scans` y
-`ai_generated_recipes`.
+Cada analisis se registra en `food_scans`, pero las recetas se mantienen en la
+sesion hasta que la persona las agrega a favoritos. Solo esos favoritos se
+conservan en `favorite_recipes`.
 
-La aplicacion recupera las recetas del ultimo escaneo con
-`scanner.recommendations`. `scanner.recipeDetail` lee ingredientes y preparacion
-desde MySQL, por lo que abrir una receta guardada no consume otra llamada de IA.
+## Personalizacion
+
+Las preferencias de alimentacion, frutas, verduras, alergias, alimentos no
+deseados y tiempo para cocinar se guardan en `food_preferences`. Las
+recomendaciones de Meal Plan se almacenan por version de preferencias para no
+generarlas de nuevo en cada visita.
 
 Si Google responde que el proyecto no tiene acceso, crea una clave nueva desde Google AI Studio con un proyecto habilitado para Gemini API.
 ## Nota

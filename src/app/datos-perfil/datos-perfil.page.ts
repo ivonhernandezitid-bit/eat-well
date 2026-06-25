@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
 
@@ -27,14 +27,17 @@ export class DatosPerfilPage implements OnInit {
   age = 18;
   imc = 24.22;
   profileImage: string | null = null;
+  isOnboarding = false;
 
   constructor(
     private readonly eatWellService: EatWellService,
     private readonly router: Router,
+    private readonly route: ActivatedRoute,
     private readonly alertController: AlertController,
   ) { }
 
   ngOnInit() {
+    this.isOnboarding = this.route.snapshot.queryParamMap.get('onboarding') === '1';
     const activeUser = this.eatWellService.getActiveUser();
 
     if (!activeUser) {
@@ -137,7 +140,7 @@ export class DatosPerfilPage implements OnInit {
         age: Number(this.age),
         profileImage: this.profileImage,
       });
-      await this.router.navigateByUrl('/tabs/home');
+      await this.router.navigateByUrl(this.isOnboarding ? '/preferencias-alimentarias' : '/tabs/home');
     } catch (error) {
       await this.showAlert('Profile error', error instanceof Error ? error.message : 'Please try again.');
     }

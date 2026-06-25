@@ -19,9 +19,10 @@ ion-content {
 .activity-title {
   margin: 0;
   font-weight: 900;
-  font-size: 1.28rem;
+  font-size: 1.35rem;
   color: var(--eatwell-green-900);
   text-align: center;
+  letter-spacing: 0.5px;
 }
 
 .activity-image-box {
@@ -41,62 +42,19 @@ ion-content {
   box-shadow: 0 14px 32px rgba(31, 68, 48, 0.16);
 }
 
-.zone {
-  position: absolute;
-  border: 2px solid rgba(255, 255, 255, 0.95);
-  border-radius: 999px;
-  background: rgba(92, 167, 88, 0.28);
-  min-width: 30px;
-  min-height: 30px;
-  touch-action: manipulation;
-}
-
-.zone::after {
-  position: absolute;
-  inset: -7px;
-  content: "";
-}
-
-.zone:active {
-  background: rgba(92, 167, 88, 0.55);
-}
-
-.zone-neck { top: 13%; left: 45%; width: 10%; height: 6%; }
-.zone-shoulders { top: 20%; left: 31%; width: 38%; height: 8%; }
-.zone-back { top: 30%; left: 36%; width: 28%; height: 22%; }
-.zone-arms-left { top: 29%; left: 21%; width: 13%; height: 24%; }
-.zone-arms-right { top: 29%; right: 21%; width: 13%; height: 24%; }
-.zone-hips { top: 54%; left: 36%; width: 28%; height: 10%; }
-.zone-legs-left { top: 64%; left: 36%; width: 12%; height: 19%; }
-.zone-legs-right { top: 64%; right: 36%; width: 12%; height: 19%; }
-.zone-calves-left { top: 82%; left: 37%; width: 11%; height: 12%; }
-.zone-calves-right { top: 82%; right: 37%; width: 11%; height: 12%; }
-
-.exercise-panel {
-  width: 100%;
-  color: var(--eatwell-green-900);
-}
-
-.exercise-panel h2,
-.exercise-card h3 {
-  margin: 0 0 8px;
-}
-
-.exercise-card,
-.empty-state {
-  margin-top: 10px;
-  padding: 14px;
-  border-radius: 18px;
-  background: #fff;
-  box-shadow: 0 10px 24px rgba(31, 68, 48, 0.1);
-}
-
-.exercise-card p,
-.empty-state {
-  margin: 4px 0;
-  color: var(--eatwell-muted);
-  font-size: 0.9rem;
-}
+// Coordinates for Espalda.png muscles
+.zone-back { top: 24%; left: 35%; width: 30%; height: 29%; border-radius: 16px; }
+.zone-shoulder-left { top: 21%; left: 27%; width: 11%; height: 9%; border-radius: 50%; }
+.zone-shoulder-right { top: 21%; right: 27%; width: 11%; height: 9%; border-radius: 50%; }
+.zone-triceps-left { top: 29%; left: 20%; width: 12%; height: 12%; border-radius: 50%; }
+.zone-triceps-right { top: 29%; right: 20%; width: 12%; height: 12%; border-radius: 50%; }
+.zone-forearms-left { top: 41%; left: 17%; width: 12%; height: 12%; border-radius: 12px; }
+.zone-forearms-right { top: 41%; right: 17%; width: 12%; height: 12%; border-radius: 12px; }
+.zone-glutes { top: 53%; left: 34%; width: 32%; height: 11%; border-radius: 14px; }
+.zone-hamstrings-left { top: 64%; left: 34%; width: 15%; height: 17%; border-radius: 16px; }
+.zone-hamstrings-right { top: 64%; right: 34%; width: 15%; height: 17%; border-radius: 16px; }
+.zone-calves-left { top: 81%; left: 35%; width: 13%; height: 13%; border-radius: 14px; }
+.zone-calves-right { top: 81%; right: 35%; width: 13%; height: 13%; border-radius: 14px; }
 
 .btn-front {
   --background: var(--eatwell-green-700);
@@ -106,6 +64,7 @@ ion-content {
   height: 48px;
   font-weight: 800;
   text-transform: none;
+  margin-top: 20px;
 }
 
 @media (orientation: landscape) and (max-height: 600px) {

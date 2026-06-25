@@ -110,3 +110,62 @@ export interface AppDatabase {
   users: UserAccount[];
   activeUserId: string | null;
 }
+
+export interface GeminiExercise {
+  nombre: string;
+  musculo: string;
+  equipo: string;
+  dificultad: 'Principiante' | 'Intermedio' | 'Avanzado';
+  series: number;
+  repeticiones: string;
+  instrucciones: string[];
+}
+
+export interface RoutineExercise {
+  nombre: string;
+  musculo: string;
+  equipo: string;
+  series: number;
+  repeticiones: string;
+  descanso: string;
+  instrucciones: string[];
+}
+
+export interface RoutineDay {
+  dia: string;
+  enfoque: string;
+  ejercicios: RoutineExercise[];
+}
+
+export interface RoutineResult {
+  planSemanal: RoutineDay[];
+}
+
+export type DietType = 'omnivore' | 'vegetarian' | 'vegan' | 'pescatarian';
+
+export interface FoodPreferences {
+  dietType: DietType;
+  preferredFruits: string[];
+  preferredVegetables: string[];
+  allergies: string[];
+  dislikedFoods: string[];
+  cookingTimeMinutes: number;
+  completed: boolean;
+}
+
+export interface FavoriteRecipe extends SuggestedFoodRecipe {
+  favoriteId: string;
+}
+
+export interface CustomRoutineForm {
+  edad: number;
+  peso: number;
+  altura: number;
+  imc: number;
+  actividad: ActivityLevel;
+  objetivo: 'Perder peso' | 'Ganar músculo' | 'Tonificar' | 'Mejorar resistencia';
+  dias: number;
+  nivel: 'Principiante' | 'Intermedio' | 'Avanzado';
+  equipo: 'Sin equipo' | 'Mancuernas' | 'Gimnasio completo';
+  musculos: string[];
+}

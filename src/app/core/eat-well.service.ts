@@ -5,6 +5,8 @@ import { environment } from '../../environments/environment';
 import {
   BodyZone,
   Exercise,
+  FavoriteRecipe,
+  FoodPreferences,
   FoodScanInput,
   FoodScanResult,
   LoginCredentials,
@@ -12,9 +14,19 @@ import {
   SuggestedFoodRecipe,
   UserProfile,
   UserRegistrationData,
+  GeminiExercise,
+  RoutineResult,
+  CustomRoutineForm,
 } from './models';
 
 const ACTIVE_USER_KEY = 'eat-well-active-user';
+const EXERCISE_CACHE_KEY = 'eat-well-generated-exercises';
+const EXERCISE_CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
+
+interface ExerciseCacheEntry {
+  expiresAt: number;
+  exercises: GeminiExercise[];
+}
 
 interface UserResponse {
   user: UserProfile;
@@ -38,6 +50,18 @@ interface FoodRecommendationsResponse {
 
 interface FoodRecipeDetailResponse {
   recipe: SuggestedFoodRecipe;
+}
+
+interface FoodPreferencesResponse {
+  preferences: FoodPreferences;
+}
+
+interface FavoriteRecipesResponse {
+  recipes: FavoriteRecipe[];
+}
+
+interface FavoriteRecipeResponse {
+  recipe: FavoriteRecipe;
 }
 
 @Injectable({
@@ -121,6 +145,91 @@ export class EatWellService {
     return response.recipe;
   }
 
+  async generateExercisesByMuscle(muscle: string): Promise<GeminiExercise[]> {
+    const cache = this.loadExerciseCache();
+    const cachedEntry = cache[muscle];
+
+    if (cachedEntry && cachedEntry.expiresAt > Date.now()) {
+      return cachedEntry.exercises;
+    }
+
+    let exercises: GeminiExercise[];
+
+    try {
+      const response = await this.post<{ exercises: GeminiExercise[] }>('exercises.generate', {
+        muscle,
+      });
+      exercises = response.exercises;
+    } catch (error) {
+      const storedExercises = await this.getStoredExercisesForMuscle(muscle);
+
+      if (storedExercises.length === 0) {
+        throw error;
+      }
+
+      return storedExercises;
+    }
+
+    cache[muscle] = {
+      expiresAt: Date.now() + EXERCISE_CACHE_DURATION_MS,
+      exercises,
+    };
+    localStorage.setItem(EXERCISE_CACHE_KEY, JSON.stringify(cache));
+    return exercises;
+  }
+
+  async getFoodPreferences(): Promise<FoodPreferences> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<FoodPreferencesResponse>('preferences.get', {
+      userId: activeUser.id,
+    });
+    return response.preferences;
+  }
+
+  async saveFoodPreferences(preferences: FoodPreferences): Promise<FoodPreferences> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.post<FoodPreferencesResponse>('preferences.save', {
+      userId: activeUser.id,
+      ...preferences,
+    });
+    return response.preferences;
+  }
+
+  async getFavoriteRecipes(): Promise<FavoriteRecipe[]> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<FavoriteRecipesResponse>('favorites.list', {
+      userId: activeUser.id,
+    });
+    return response.recipes;
+  }
+
+  async addFavoriteRecipe(recipe: SuggestedFoodRecipe, sourceType: string): Promise<FavoriteRecipe> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.post<FavoriteRecipeResponse>('favorites.add', {
+      userId: activeUser.id,
+      title: recipe.title,
+      description: recipe.description,
+      imageUrl: recipe.imageUrl,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+      sourceType,
+    });
+    return response.recipe;
+  }
+
+  async removeFavoriteRecipe(favoriteId: string): Promise<void> {
+    const activeUser = this.getRequiredActiveUser();
+    await this.post<{ removed: boolean }>('favorites.remove', {
+      userId: activeUser.id,
+      favoriteId,
+    });
+  }
+
+  async generateCustomRoutine(form: CustomRoutineForm): Promise<RoutineResult> {
+    const response = await this.post<{ routine: RoutineResult }>('routines.generate', form);
+    return response.routine;
+  }
+
   calculateImc(weightKg: number, heightCm: number): number {
     const heightMeters = heightCm / 100;
     return Number((weightKg / (heightMeters * heightMeters)).toFixed(2));
@@ -175,6 +284,59 @@ export class EatWellService {
   private loadActiveUser(): UserProfile | null {
     const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
     return savedUser ? JSON.parse(savedUser) as UserProfile : null;
+  }
+
+  private loadExerciseCache(): Record<string, ExerciseCacheEntry> {
+    const savedCache = localStorage.getItem(EXERCISE_CACHE_KEY);
+
+    if (!savedCache) {
+      return {};
+    }
+
+    try {
+      return JSON.parse(savedCache) as Record<string, ExerciseCacheEntry>;
+    } catch {
+      localStorage.removeItem(EXERCISE_CACHE_KEY);
+      return {};
+    }
+  }
+
+  private async getStoredExercisesForMuscle(muscle: string): Promise<GeminiExercise[]> {
+    const zoneByMuscle: Record<string, BodyZone> = {
+      Pecho: 'chest',
+      Espalda: 'back',
+      Hombros: 'shoulders',
+      'Bíceps': 'arms',
+      'Tríceps': 'arms',
+      Antebrazos: 'arms',
+      Abdomen: 'abdomen',
+      'Glúteos': 'hips',
+      'Cuádriceps': 'legs',
+      Isquiotibiales: 'legs',
+      Pantorrillas: 'calves',
+    };
+    const zone = zoneByMuscle[muscle];
+
+    if (!zone) {
+      return [];
+    }
+
+    const difficultyLabels: Record<Exercise['difficulty'], GeminiExercise['dificultad']> = {
+      beginner: 'Principiante',
+      intermediate: 'Intermedio',
+      advanced: 'Avanzado',
+    };
+    const exercises = await this.getExercisesByBodyZone(zone);
+
+    return exercises.map(exercise => ({
+      nombre: exercise.title,
+      musculo: muscle,
+      equipo: 'Sin equipo',
+      dificultad: difficultyLabels[exercise.difficulty],
+      series: 3,
+      repeticiones: exercise.repetitions,
+      instrucciones: exercise.instructions,
+    }));
   }
 
   private getApiErrorMessage(error: unknown): string {

@@ -20,6 +20,10 @@ const routes: Routes = [
     loadChildren: () => import('./datos-perfil/datos-perfil.module').then(m => m.DatosPerfilPageModule)
   },
   {
+    path: 'preferencias-alimentarias',
+    loadChildren: () => import('./preferencias-alimentarias/preferencias-alimentarias.module').then(m => m.PreferenciasAlimentariasPageModule)
+  },
+  {
     path: 'tabs',
     loadChildren: () => import('./tabs/tabs.module').then(m => m.TabsPageModule)
   }

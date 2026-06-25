@@ -1,13 +1,14 @@
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AlertController } from '@ionic/angular';
-import { EatWellService, FoodScanResult, Recipe, SuggestedFoodRecipe } from '../core';
+import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe } from '../core';
 
 interface MealCardView {
   id: string;
   title: string;
   description: string;
   imageUrl: string | null;
-  source: 'local' | 'ai';
+  source: 'local' | 'ai' | 'favorite';
+  favoriteId: string | null;
   ingredients: string[];
   instructions: string[];
 }
@@ -23,6 +24,7 @@ export class PlanAlimenticioPage implements OnInit {
 
   recipes: Recipe[] = [];
   scanRecipes: SuggestedFoodRecipe[] = [];
+  favoriteRecipes: FavoriteRecipe[] = [];
   searchTerm = '';
   isScanning = false;
   scanPreview: string | null = null;
@@ -37,8 +39,10 @@ export class PlanAlimenticioPage implements OnInit {
   ) { }
 
   async ngOnInit(): Promise<void> {
-    this.recipes = await this.eatWellService.getPersonalizedRecipes();
-    this.scanRecipes = await this.eatWellService.getSavedFoodRecommendations();
+    [this.recipes, this.favoriteRecipes] = await Promise.all([
+      this.eatWellService.getPersonalizedRecipes(),
+      this.eatWellService.getFavoriteRecipes(),
+    ]);
   }
 
   get filteredMeals(): MealCardView[] {
@@ -50,18 +54,34 @@ export class PlanAlimenticioPage implements OnInit {
         description: recipe.description,
         imageUrl: recipe.imageUrl || null,
         source: 'ai',
+        favoriteId: this.findFavoriteId(recipe.title),
         ingredients: recipe.ingredients,
         instructions: recipe.instructions,
       }))
-      : this.recipes.map(recipe => ({
+      : [
+        ...this.favoriteRecipes.map(recipe => ({
+          id: recipe.id,
+          title: recipe.title,
+          description: recipe.description,
+          imageUrl: recipe.imageUrl || null,
+          source: 'favorite' as const,
+          favoriteId: recipe.favoriteId,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+        })),
+        ...this.recipes
+          .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
+          .map(recipe => ({
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
         imageUrl: null,
-        source: 'local',
+        source: 'local' as const,
+        favoriteId: this.findFavoriteId(recipe.title),
         ingredients: recipe.ingredients,
         instructions: recipe.instructions,
-      }));
+          })),
+      ];
 
     if (!term) {
       return meals;
@@ -114,6 +134,33 @@ export class PlanAlimenticioPage implements OnInit {
   clearScan(): void {
     this.scanPreview = null;
     this.scanResult = null;
+    this.scanRecipes = [];
+  }
+
+  async toggleFavorite(recipe: MealCardView, event: Event): Promise<void> {
+    event.stopPropagation();
+
+    try {
+      if (recipe.favoriteId) {
+        await this.eatWellService.removeFavoriteRecipe(recipe.favoriteId);
+        this.favoriteRecipes = this.favoriteRecipes.filter(item => item.favoriteId !== recipe.favoriteId);
+        return;
+      }
+
+      const favorite = await this.eatWellService.addFavoriteRecipe({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        imageUrl: recipe.imageUrl ?? '',
+        sourceUrl: '',
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+        detailsLoaded: true,
+      }, recipe.source);
+      this.favoriteRecipes = [favorite, ...this.favoriteRecipes.filter(item => item.title !== favorite.title)];
+    } catch (error) {
+      await this.showError(error instanceof Error ? error.message : 'No se pudo actualizar favoritos.');
+    }
   }
 
   async openRecipe(recipe: MealCardView): Promise<void> {
@@ -140,6 +187,7 @@ export class PlanAlimenticioPage implements OnInit {
         description: details.description,
         imageUrl: details.imageUrl || null,
         source: 'ai',
+        favoriteId: this.findFavoriteId(details.title),
         ingredients: details.ingredients,
         instructions: details.instructions,
       };
@@ -154,6 +202,10 @@ export class PlanAlimenticioPage implements OnInit {
   closeRecipe(): void {
     this.isRecipeModalOpen = false;
     this.selectedRecipe = null;
+  }
+
+  private findFavoriteId(title: string): string | null {
+    return this.favoriteRecipes.find(recipe => recipe.title === title)?.favoriteId ?? null;
   }
 
   private resizeFoodImage(file: File): Promise<string> {

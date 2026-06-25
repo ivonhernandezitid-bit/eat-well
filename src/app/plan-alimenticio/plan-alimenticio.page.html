@@ -46,19 +46,29 @@
     <h1 class="screen-title">MEAL PLAN</h1>
 
     <div class="meal-list">
-      <button type="button" class="meal-card breakfast-card" *ngFor="let recipe of filteredMeals" (click)="openRecipe(recipe)">
-        <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
-        <ng-template #defaultMealIcon>
-          <div class="meal-icon-box breakfast-icon">
-            <ion-icon name="restaurant-outline"></ion-icon>
+      <article class="meal-card breakfast-card" *ngFor="let recipe of filteredMeals">
+        <button type="button" class="meal-open" (click)="openRecipe(recipe)">
+          <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+          <ng-template #defaultMealIcon>
+            <div class="meal-icon-box breakfast-icon">
+              <ion-icon name="restaurant-outline"></ion-icon>
+            </div>
+          </ng-template>
+          <div class="meal-copy">
+            <h2>{{ recipe.title }}</h2>
+            <p>{{ recipe.description }}</p>
           </div>
-        </ng-template>
-        <div class="meal-copy">
-          <h2>{{ recipe.title }}</h2>
-          <p>{{ recipe.description }}</p>
-        </div>
+        </button>
+        <ion-button
+          fill="clear"
+          class="favorite-button"
+          [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+          (click)="toggleFavorite(recipe, $event)"
+        >
+          <ion-icon slot="icon-only" [name]="recipe.favoriteId ? 'heart' : 'heart-outline'"></ion-icon>
+        </ion-button>
         <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
-      </button>
+      </article>
     </div>
   </div>
 </ion-content>

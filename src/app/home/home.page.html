@@ -20,24 +20,24 @@
     <div class="tips-card">
       <div class="tips-copy">
         <span class="tips-label">Daily Tips</span>
-        <p>Drink 5 liter of water everyday.</p>
+        <p>{{ dailyTip }}</p>
       </div>
       <div class="tips-icon">
-        <ion-icon name="water-outline"></ion-icon>
+        <ion-icon [name]="dailyTipIcon"></ion-icon>
       </div>
     </div>
 
     <div class="section-title">Choose your food preferences</div>
 
     <div class="preferences-grid">
-      <button class="preference-card vegetables">
+      <button class="preference-card vegetables" routerLink="/preferencias-alimentarias">
         <div class="preference-icon">
           <ion-icon name="leaf-outline"></ion-icon>
         </div>
         <span>Vegetables</span>
       </button>
 
-      <button class="preference-card fruits">
+      <button class="preference-card fruits" routerLink="/preferencias-alimentarias">
         <div class="preference-icon">
           <ion-icon name="nutrition-outline"></ion-icon>
         </div>

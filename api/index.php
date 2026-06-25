@@ -55,11 +55,37 @@ try {
         case 'profile.update':
             updateProfile($pdo, $input);
             break;
+        case 'preferences.get':
+            getFoodPreferences($pdo, (int)($_GET['userId'] ?? 0));
+            break;
+        case 'preferences.save':
+            saveFoodPreferences($pdo, $input);
+            break;
         case 'recipes.recommendations':
-            getRecipeRecommendations($pdo, (int)($_GET['userId'] ?? 0));
+            getRecipeRecommendations(
+                $pdo,
+                (int)($_GET['userId'] ?? 0),
+                $geminiApiKey,
+                $geminiModel,
+            );
+            break;
+        case 'favorites.list':
+            getFavoriteRecipes($pdo, (int)($_GET['userId'] ?? 0));
+            break;
+        case 'favorites.add':
+            addFavoriteRecipe($pdo, $input);
+            break;
+        case 'favorites.remove':
+            removeFavoriteRecipe($pdo, $input);
             break;
         case 'exercises.byZone':
             getExercisesByZone($pdo, (string)($_GET['bodyZone'] ?? 'full_body'));
+            break;
+        case 'exercises.generate':
+            generateExercises($pdo, $input, $geminiApiKey, $geminiModel);
+            break;
+        case 'routines.generate':
+            generateRoutine($pdo, $input, $geminiApiKey, $geminiModel);
             break;
         case 'scanner.analyze':
             analyzeFood($pdo, $input, $geminiApiKey, $geminiModel);
@@ -175,9 +201,157 @@ function updateProfile(PDO $pdo, array $input): void
     sendJson(['user' => mapUser(getUserById($pdo, $userId))]);
 }
 
-function getRecipeRecommendations(PDO $pdo, int $userId): void
+function getFoodPreferences(PDO $pdo, int $userId): void
+{
+    getUserById($pdo, $userId);
+    sendJson(['preferences' => mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId))]);
+}
+
+function saveFoodPreferences(PDO $pdo, array $input): void
+{
+    $userId = (int)($input['userId'] ?? 0);
+    getUserById($pdo, $userId);
+    $dietType = (string)($input['dietType'] ?? 'omnivore');
+    $allowedDietTypes = ['omnivore', 'vegetarian', 'vegan', 'pescatarian'];
+
+    if (!in_array($dietType, $allowedDietTypes, true)) {
+        $dietType = 'omnivore';
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO food_preferences
+         (user_id, diet_type, preferred_fruits, preferred_vegetables, allergies,
+          disliked_foods, cooking_time_minutes, completed_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE
+           diet_type = VALUES(diet_type),
+           preferred_fruits = VALUES(preferred_fruits),
+           preferred_vegetables = VALUES(preferred_vegetables),
+           allergies = VALUES(allergies),
+           disliked_foods = VALUES(disliked_foods),
+           cooking_time_minutes = VALUES(cooking_time_minutes),
+           completed_at = CURRENT_TIMESTAMP',
+    );
+    $statement->execute([
+        $userId,
+        $dietType,
+        json_encode(cleanStringList($input['preferredFruits'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredVegetables'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['allergies'] ?? [], 20), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['dislikedFoods'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+        max(10, min(120, (int)($input['cookingTimeMinutes'] ?? 30))),
+    ]);
+
+    sendJson(['preferences' => mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId))]);
+}
+
+function getFoodPreferencesRecord(PDO $pdo, int $userId): array
+{
+    $statement = $pdo->prepare('SELECT * FROM food_preferences WHERE user_id = ? LIMIT 1');
+    $statement->execute([$userId]);
+    $preferences = $statement->fetch();
+
+    return $preferences ?: [
+        'user_id' => $userId,
+        'diet_type' => 'omnivore',
+        'preferred_fruits' => '[]',
+        'preferred_vegetables' => '[]',
+        'allergies' => '[]',
+        'disliked_foods' => '[]',
+        'cooking_time_minutes' => 30,
+        'completed_at' => null,
+    ];
+}
+
+function mapFoodPreferences(array $preferences): array
+{
+    return [
+        'dietType' => $preferences['diet_type'],
+        'preferredFruits' => decodeJsonList($preferences['preferred_fruits']),
+        'preferredVegetables' => decodeJsonList($preferences['preferred_vegetables']),
+        'allergies' => decodeJsonList($preferences['allergies']),
+        'dislikedFoods' => decodeJsonList($preferences['disliked_foods']),
+        'cookingTimeMinutes' => (int)$preferences['cooking_time_minutes'],
+        'completed' => $preferences['completed_at'] !== null,
+    ];
+}
+
+function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string $model): void
 {
     $user = getUserById($pdo, $userId);
+    $preferences = getFoodPreferencesRecord($pdo, $userId);
+    $preferenceHash = hash('sha256', json_encode([
+        $user['goal'],
+        $user['imc'],
+        mapFoodPreferences($preferences),
+    ], JSON_UNESCAPED_UNICODE));
+    $cachedStatement = $pdo->prepare(
+        'SELECT * FROM personalized_recipes
+         WHERE user_id = ? AND preference_hash = ? ORDER BY id ASC LIMIT 6',
+    );
+    $cachedStatement->execute([$userId, $preferenceHash]);
+    $cachedRecipes = $cachedStatement->fetchAll();
+
+    if (count($cachedRecipes) > 0) {
+        sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedRecipes)]);
+    }
+
+    $mappedPreferences = mapFoodPreferences($preferences);
+
+    if ($mappedPreferences['completed'] && $apiKey !== '') {
+        $prompt = "Genera 4 recetas practicas en espanol para este perfil. "
+            . "Objetivo: {$user['goal']}. IMC: {$user['imc']}. "
+            . "Tipo de alimentacion: {$mappedPreferences['dietType']}. "
+            . "Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . ". "
+            . "Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . ". "
+            . "Alergias: " . implode(', ', $mappedPreferences['allergies']) . ". "
+            . "Alimentos no deseados: " . implode(', ', $mappedPreferences['dislikedFoods']) . ". "
+            . "Tiempo maximo aproximado: {$mappedPreferences['cookingTimeMinutes']} minutos. "
+            . "Nunca incluyas alergenos ni alimentos no deseados. "
+            . "Devuelve unicamente un array JSON con 4 objetos. "
+            . "Cada receta debe tener title, description, ingredients e instructions.";
+        $schema = [
+            'type' => 'ARRAY',
+            'items' => [
+                'type' => 'OBJECT',
+                'required' => ['title', 'description', 'ingredients', 'instructions'],
+                'properties' => [
+                    'title' => ['type' => 'STRING'],
+                    'description' => ['type' => 'STRING'],
+                    'ingredients' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
+                    'instructions' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
+                ],
+            ],
+        ];
+        $generatedRecipes = requestGeminiText($apiKey, $model, $prompt, $schema, true);
+
+        if (count($generatedRecipes) > 0) {
+            $insert = $pdo->prepare(
+                'INSERT INTO personalized_recipes
+                 (user_id, preference_hash, title, description, ingredients, instructions)
+                 VALUES (?, ?, ?, ?, ?, ?)',
+            );
+
+            foreach (array_slice($generatedRecipes, 0, 4) as $recipe) {
+                if (!is_array($recipe)) {
+                    continue;
+                }
+
+                $insert->execute([
+                    $userId,
+                    $preferenceHash,
+                    cleanText($recipe['title'] ?? 'Receta sugerida', 180),
+                    cleanText($recipe['description'] ?? 'Recomendacion segun tus preferencias.', 255),
+                    json_encode(cleanStringList($recipe['ingredients'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+                    json_encode(cleanStringList($recipe['instructions'] ?? [], 20), JSON_UNESCAPED_UNICODE),
+                ]);
+            }
+
+            $cachedStatement->execute([$userId, $preferenceHash]);
+            sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedStatement->fetchAll())]);
+        }
+    }
+
     $statement = $pdo->prepare(
         'SELECT * FROM recipes
          WHERE goal = ?
@@ -189,6 +363,92 @@ function getRecipeRecommendations(PDO $pdo, int $userId): void
     $recipes = array_map('mapRecipe', $statement->fetchAll());
 
     sendJson(['recipes' => $recipes]);
+}
+
+function mapPersonalizedRecipe(array $recipe): array
+{
+    return [
+        'id' => 'personalized-' . $recipe['id'],
+        'title' => $recipe['title'],
+        'description' => $recipe['description'],
+        'calories' => 0,
+        'proteinGrams' => 0,
+        'carbsGrams' => 0,
+        'fatGrams' => 0,
+        'ingredients' => decodeJsonList($recipe['ingredients']),
+        'instructions' => decodeJsonList($recipe['instructions']),
+        'goals' => [],
+    ];
+}
+
+function getFavoriteRecipes(PDO $pdo, int $userId): void
+{
+    getUserById($pdo, $userId);
+    $statement = $pdo->prepare(
+        'SELECT * FROM favorite_recipes WHERE user_id = ? ORDER BY created_at DESC',
+    );
+    $statement->execute([$userId]);
+    sendJson(['recipes' => array_map('mapFavoriteRecipe', $statement->fetchAll())]);
+}
+
+function addFavoriteRecipe(PDO $pdo, array $input): void
+{
+    $userId = (int)($input['userId'] ?? 0);
+    getUserById($pdo, $userId);
+    $title = cleanText($input['title'] ?? '', 180);
+
+    if ($title === '') {
+        sendError('La receta no es valida.', 422);
+    }
+
+    $statement = $pdo->prepare(
+        'INSERT INTO favorite_recipes
+         (user_id, title, description, image_url, ingredients, instructions, source_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE
+           description = VALUES(description),
+           image_url = VALUES(image_url),
+           ingredients = VALUES(ingredients),
+           instructions = VALUES(instructions),
+           source_type = VALUES(source_type)',
+    );
+    $statement->execute([
+        $userId,
+        $title,
+        cleanText($input['description'] ?? '', 255),
+        cleanText($input['imageUrl'] ?? '', 2000) ?: null,
+        json_encode(cleanStringList($input['ingredients'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['instructions'] ?? [], 20), JSON_UNESCAPED_UNICODE),
+        cleanText($input['sourceType'] ?? 'generated', 30),
+    ]);
+    $select = $pdo->prepare('SELECT * FROM favorite_recipes WHERE user_id = ? AND title = ? LIMIT 1');
+    $select->execute([$userId, $title]);
+    sendJson(['recipe' => mapFavoriteRecipe($select->fetch())], 201);
+}
+
+function removeFavoriteRecipe(PDO $pdo, array $input): void
+{
+    $userId = (int)($input['userId'] ?? 0);
+    $favoriteId = (int)($input['favoriteId'] ?? 0);
+    getUserById($pdo, $userId);
+    $statement = $pdo->prepare('DELETE FROM favorite_recipes WHERE id = ? AND user_id = ?');
+    $statement->execute([$favoriteId, $userId]);
+    sendJson(['removed' => true]);
+}
+
+function mapFavoriteRecipe(array $recipe): array
+{
+    return [
+        'id' => 'favorite-' . $recipe['id'],
+        'favoriteId' => (string)$recipe['id'],
+        'title' => $recipe['title'],
+        'description' => $recipe['description'],
+        'imageUrl' => $recipe['image_url'] ?? '',
+        'sourceUrl' => '',
+        'ingredients' => decodeJsonList($recipe['ingredients']),
+        'instructions' => decodeJsonList($recipe['instructions']),
+        'detailsLoaded' => true,
+    ];
 }
 
 function getExercisesByZone(PDO $pdo, string $bodyZone): void
@@ -215,9 +475,17 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
     }
 
     $user = getUserById($pdo, $userId);
+    $preferences = mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId));
     $imageBase64 = trim((string)($input['imageBase64'] ?? ''));
     [$imageBytes, $mimeType] = decodeFoodImage($imageBase64);
-    $geminiResult = requestGeminiFoodAnalysis($apiKey, $model, $imageBytes, $mimeType, $user);
+    $geminiResult = requestGeminiFoodAnalysis(
+        $apiKey,
+        $model,
+        $imageBytes,
+        $mimeType,
+        $user,
+        $preferences,
+    );
     $foodName = cleanText($geminiResult['foodName'] ?? 'Ingredientes detectados', 150);
     $detectedIngredients = cleanStringList($geminiResult['detectedIngredients'] ?? [], 20);
     $recommendation = cleanText(
@@ -254,50 +522,32 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
         sendError('No fue posible generar recetas completas con esta imagen. Prueba con una foto mas clara.', 422);
     }
 
-    $pdo->beginTransaction();
+    $statement = $pdo->prepare(
+        'INSERT INTO food_scans
+         (user_id, detected_food, detected_ingredients, ai_recommendation, ai_provider)
+         VALUES (?, ?, ?, ?, ?)',
+    );
+    $statement->execute([
+        $userId,
+        $foodName,
+        json_encode($detectedIngredients, JSON_UNESCAPED_UNICODE),
+        $recommendation,
+        'gemini',
+    ]);
+    $scanId = (int)$pdo->lastInsertId();
+    $suggestedRecipes = [];
 
-    try {
-        $statement = $pdo->prepare(
-            'INSERT INTO food_scans
-             (user_id, detected_food, detected_ingredients, ai_recommendation, ai_provider)
-             VALUES (?, ?, ?, ?, ?)',
-        );
-        $statement->execute([
-            $userId,
-            $foodName,
-            json_encode($detectedIngredients, JSON_UNESCAPED_UNICODE),
-            $recommendation,
-            'gemini',
-        ]);
-        $scanId = (int)$pdo->lastInsertId();
-        $recipeStatement = $pdo->prepare(
-            'INSERT INTO ai_generated_recipes
-             (scan_id, user_id, title, description, ingredients, instructions, ai_provider, ai_model)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        );
-        $suggestedRecipes = [];
-
-        foreach ($generatedRecipes as $recipe) {
-            $recipeStatement->execute([
-                $scanId,
-                $userId,
-                $recipe['title'],
-                $recipe['description'],
-                json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE),
-                json_encode($recipe['instructions'], JSON_UNESCAPED_UNICODE),
-                'gemini',
-                $model,
-            ]);
-            $suggestedRecipes[] = mapGeneratedRecipe([
-                'id' => (int)$pdo->lastInsertId(),
-                ...$recipe,
-            ]);
-        }
-
-        $pdo->commit();
-    } catch (Throwable $exception) {
-        $pdo->rollBack();
-        throw $exception;
+    foreach ($generatedRecipes as $index => $recipe) {
+        $suggestedRecipes[] = [
+            'id' => "scan-{$scanId}-{$index}",
+            'title' => $recipe['title'],
+            'description' => $recipe['description'],
+            'imageUrl' => '',
+            'sourceUrl' => '',
+            'ingredients' => $recipe['ingredients'],
+            'instructions' => $recipe['instructions'],
+            'detailsLoaded' => true,
+        ];
     }
 
     sendJson([
@@ -434,6 +684,7 @@ function requestGeminiFoodAnalysis(
     string $imageBytes,
     string $mimeType,
     array $user,
+    array $preferences,
 ): array {
     if (!function_exists('curl_init')) {
         sendError('La extension cURL de PHP no esta activa en XAMPP.', 500);
@@ -446,9 +697,16 @@ function requestGeminiFoodAnalysis(
         'improve_health' => 'mejorar su salud',
     ];
     $goal = $goalLabels[$user['goal'] ?? ''] ?? 'comer de forma equilibrada';
+    $preferenceContext = "Tipo de alimentacion: {$preferences['dietType']}. "
+        . "Frutas preferidas: " . implode(', ', $preferences['preferredFruits']) . ". "
+        . "Verduras preferidas: " . implode(', ', $preferences['preferredVegetables']) . ". "
+        . "Alergias: " . implode(', ', $preferences['allergies']) . ". "
+        . "Alimentos no deseados: " . implode(', ', $preferences['dislikedFoods']) . ". ";
     $prompt = "Analiza la fotografia de alimentos o ingredientes. Responde en espanol. "
         . "Identifica solamente ingredientes que sean razonablemente visibles. Despues crea exactamente cuatro "
         . "recetas practicas que aprovechen esos ingredientes para una persona cuyo objetivo es {$goal}. "
+        . $preferenceContext
+        . "Nunca incluyas alergenos ni alimentos no deseados; usa sustituciones seguras cuando sea necesario. "
         . "Puedes agregar agua, sal y una pequena cantidad de aceite como basicos de despensa. "
         . "No incluyas calorias, macronutrientes, porcentajes de confianza ni afirmaciones medicas. "
         . "Cada receta debe incluir una descripcion breve, ingredientes con cantidades y pasos completos.";
@@ -640,4 +898,281 @@ function sendJson(array $data, int $statusCode = 200): void
 function sendError(string $message, int $statusCode = 400): void
 {
     sendJson(['error' => $message], $statusCode);
+}
+
+function generateExercises(PDO $pdo, array $input, string $apiKey, string $model): void
+{
+    $muscle = trim((string)($input['muscle'] ?? ''));
+
+    if ($muscle === '') {
+        sendError('El musculo a consultar es obligatorio.', 422);
+    }
+
+    if ($apiKey === '') {
+        sendError('Google AI Studio no esta configurado en el servidor.', 503);
+    }
+
+    $prompt = "Genera 6 ejercicios para {$muscle}. "
+        . "Devuelve ÚNICAMENTE un array JSON válido sin markdown, sin explicaciones, solo el array. "
+        . "Cada objeto debe tener:\n"
+        . "- nombre: nombre del ejercicio en español\n"
+        . "- musculo: músculo objetivo en español\n"
+        . "- equipo: equipo necesario en español (usar 'Sin equipo' si no se necesita nada)\n"
+        . "- dificultad: 'Principiante', 'Intermedio' o 'Avanzado'\n"
+        . "- series: número (ej. 3)\n"
+        . "- repeticiones: string (ej. '10-12' o '30 segundos')\n"
+        . "- instrucciones: array de 3-4 strings en español explicando cómo realizarlo";
+
+    $schema = [
+        'type' => 'ARRAY',
+        'minItems' => 6,
+        'maxItems' => 6,
+        'items' => [
+            'type' => 'OBJECT',
+            'required' => ['nombre', 'musculo', 'equipo', 'dificultad', 'series', 'repeticiones', 'instrucciones'],
+            'properties' => [
+                'nombre' => ['type' => 'STRING'],
+                'musculo' => ['type' => 'STRING'],
+                'equipo' => ['type' => 'STRING'],
+                'dificultad' => [
+                    'type' => 'STRING',
+                    'enum' => ['Principiante', 'Intermedio', 'Avanzado']
+                ],
+                'series' => ['type' => 'INTEGER'],
+                'repeticiones' => ['type' => 'STRING'],
+                'instrucciones' => [
+                    'type' => 'ARRAY',
+                    'items' => ['type' => 'STRING']
+                ]
+            ]
+        ]
+    ];
+
+    $exercises = requestGeminiText($apiKey, $model, $prompt, $schema);
+
+    sendJson(['exercises' => $exercises]);
+}
+
+function generateRoutine(PDO $pdo, array $input, string $apiKey, string $model): void
+{
+    $edad = max(13, min(100, (int)($input['edad'] ?? 18)));
+    $peso = max(30, min(300, (float)($input['peso'] ?? 70)));
+    $altura = max(120, min(230, (float)($input['altura'] ?? 170)));
+    $imc = max(10, min(70, (float)($input['imc'] ?? 24)));
+    $actividad = trim((string)($input['actividad'] ?? 'moderate'));
+    $objetivo = trim((string)($input['objetivo'] ?? 'Mejorar resistencia'));
+    $dias = (int)($input['dias'] ?? 3);
+    $nivel = trim((string)($input['nivel'] ?? 'Principiante'));
+    $equipo = trim((string)($input['equipo'] ?? 'Sin equipo'));
+    $musculosList = is_array($input['musculos'] ?? null) ? $input['musculos'] : [];
+    $musculos = implode(', ', $musculosList);
+
+    if ($apiKey === '') {
+        sendError('Google AI Studio no esta configurado en el servidor.', 503);
+    }
+
+    $prompt = "Crea una rutina de entrenamiento semanal en español con estas preferencias:\n"
+        . "- Edad: {$edad} años\n"
+        . "- Peso: {$peso} kg\n"
+        . "- Altura: {$altura} cm\n"
+        . "- IMC: {$imc}\n"
+        . "- Actividad habitual: {$actividad}\n"
+        . "- Objetivo: {$objetivo}\n"
+        . "- Días disponibles por semana: {$dias}\n"
+        . "- Nivel: {$nivel}\n"
+        . "- Equipo disponible: {$equipo}\n"
+        . "- Músculos a enfocar: {$musculos}\n\n"
+        . "Devuelve ÚNICAMENTE un objeto JSON válido sin markdown, sin explicaciones, solo el objeto.\n"
+        . "Estructura:\n"
+        . "{\n"
+        . "  'planSemanal': [\n"
+        . "    {\n"
+        . "      'dia': 'Lunes',\n"
+        . "      'enfoque': 'nombre del grupo muscular',\n"
+        . "      'ejercicios': [\n"
+        . "        {\n"
+        . "          'nombre': string,\n"
+        . "          'musculo': string,\n"
+        . "          'equipo': string,\n"
+        . "          'series': number,\n"
+        . "          'repeticiones': string,\n"
+        . "          'descanso': '60 segundos',\n"
+        . "          'instrucciones': string[]\n"
+        . "        }\n"
+        . "      ]\n"
+        . "    }\n"
+        . "  ]\n"
+        . "}";
+
+    $schema = [
+        'type' => 'OBJECT',
+        'required' => ['planSemanal'],
+        'properties' => [
+            'planSemanal' => [
+                'type' => 'ARRAY',
+                'items' => [
+                    'type' => 'OBJECT',
+                    'required' => ['dia', 'enfoque', 'ejercicios'],
+                    'properties' => [
+                        'dia' => ['type' => 'STRING'],
+                        'enfoque' => ['type' => 'STRING'],
+                        'ejercicios' => [
+                            'type' => 'ARRAY',
+                            'items' => [
+                                'type' => 'OBJECT',
+                                'required' => ['nombre', 'musculo', 'equipo', 'series', 'repeticiones', 'descanso', 'instrucciones'],
+                                'properties' => [
+                                    'nombre' => ['type' => 'STRING'],
+                                    'musculo' => ['type' => 'STRING'],
+                                    'equipo' => ['type' => 'STRING'],
+                                    'series' => ['type' => 'INTEGER'],
+                                    'repeticiones' => ['type' => 'STRING'],
+                                    'descanso' => ['type' => 'STRING'],
+                                    'instrucciones' => [
+                                        'type' => 'ARRAY',
+                                        'items' => ['type' => 'STRING']
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ]
+                ]
+            ]
+        ]
+    ];
+
+    $routine = requestGeminiText($apiKey, $model, $prompt, $schema);
+
+    sendJson(['routine' => $routine]);
+}
+
+function requestGeminiText(
+    string $apiKey,
+    string $model,
+    string $prompt,
+    array $schema,
+    bool $allowFailure = false,
+): array {
+    if (!function_exists('curl_init')) {
+        sendError('La extension cURL de PHP no esta activa en XAMPP.', 500);
+    }
+
+    $payload = [
+        'contents' => [[
+            'role' => 'user',
+            'parts' => [
+                ['text' => $prompt]
+            ],
+        ]],
+        'generationConfig' => [
+            'temperature' => 0.4,
+            'maxOutputTokens' => ($schema['type'] ?? '') === 'ARRAY' ? 2500 : 5000,
+            'responseMimeType' => 'application/json',
+        ],
+    ];
+
+    $preferredModel = preg_replace('#^models/#', '', trim($model)) ?: 'gemini-3.5-flash';
+    $modelCandidates = [
+        'gemini-2.5-flash',
+        $preferredModel,
+        'gemini-2.5-flash-lite',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+    ];
+    $responseBody = false;
+    $response = [];
+    $statusCode = 0;
+    $curlError = '';
+
+    foreach ($modelCandidates as $index => $modelName) {
+        $url = 'https://generativelanguage.googleapis.com/v1beta/models/'
+            . rawurlencode($modelName) . ':generateContent';
+        $curl = curl_init($url);
+        curl_setopt_array($curl, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+                'x-goog-api-key: ' . $apiKey,
+            ],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 75,
+        ]);
+
+        $responseBody = curl_exec($curl);
+        $statusCode = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $curlError = curl_error($curl);
+        curl_close($curl);
+        $response = is_string($responseBody) ? json_decode($responseBody, true) : [];
+        $response = is_array($response) ? $response : [];
+
+        if ($responseBody !== false && $statusCode >= 200 && $statusCode < 300) {
+            break;
+        }
+
+        $apiMessage = strtolower((string)($response['error']['message'] ?? ''));
+        $isTemporaryFailure = $responseBody === false
+            || in_array($statusCode, [429, 500, 502, 503, 504], true)
+            || str_contains($apiMessage, 'high demand');
+        $hasFallback = $index < count($modelCandidates) - 1;
+
+        if (!$isTemporaryFailure || !$hasFallback) {
+            break;
+        }
+
+        usleep(750000);
+    }
+
+    if ($responseBody === false) {
+        if ($allowFailure) {
+            return [];
+        }
+        sendError('No se pudo conectar con el servicio de generacion: ' . $curlError, 502);
+    }
+
+    if ($statusCode === 429) {
+        if ($allowFailure) {
+            return [];
+        }
+        sendError('El servicio de generacion esta ocupado. Intenta de nuevo en un momento.', 429);
+    }
+
+    if ($statusCode === 400 || $statusCode === 401 || $statusCode === 403) {
+        if ($allowFailure) {
+            return [];
+        }
+        $apiMessage = cleanText($response['error']['message'] ?? 'Revisa la clave y el modelo configurado.', 300);
+        sendError('No se pudo usar el servicio de generacion: ' . $apiMessage, 502);
+    }
+
+    if ($statusCode < 200 || $statusCode >= 300) {
+        if ($allowFailure) {
+            return [];
+        }
+        $apiMessage = cleanText($response['error']['message'] ?? 'No se pudo generar el contenido.', 300);
+        sendError('No se pudo generar el contenido: ' . $apiMessage, 502);
+    }
+
+    $parts = $response['candidates'][0]['content']['parts'] ?? [];
+    $jsonText = '';
+    foreach ($parts as $part) {
+        if (is_array($part)) {
+            $jsonText .= (string)($part['text'] ?? '');
+        }
+    }
+
+    $cleanJsonText = preg_replace('/```json|```/i', '', $jsonText);
+    $cleanJsonText = trim($cleanJsonText);
+
+    $result = json_decode($cleanJsonText, true);
+    if (!is_array($result)) {
+        if ($allowFailure) {
+            return [];
+        }
+        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar como JSON: ' . json_last_error_msg() . ' | Raw: ' . substr($jsonText, 0, 100), 502);
+    }
+
+    return $result;
 }
