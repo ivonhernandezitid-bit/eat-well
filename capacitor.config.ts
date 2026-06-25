@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'EAT WELL',
   webDir: 'www',
   server: {
-    url: 'https://ira-upstanding-zonally.ngrok-free.dev',
+    url: 'https://miffiest-confirmingly-kora.ngrok-free.dev/eat-well/www',
     cleartext: true
   }
 };

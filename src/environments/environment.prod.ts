@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://your-production-api.com/index.php'
+  apiUrl: 'https://miffiest-confirmingly-kora.ngrok-free.dev/eat-well/api/index.php'
 };
