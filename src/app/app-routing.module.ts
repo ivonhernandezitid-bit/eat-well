@@ -9,22 +9,25 @@ const routes: Routes = [
   },
   {
     path: 'login',
-    loadChildren: () => import('./login/login.module').then( m => m.LoginPageModule)
+    loadChildren: () => import('./login/login.module').then(m => m.LoginPageModule)
   },
   {
     path: 'registro',
-    loadChildren: () => import('./registro/registro.module').then( m => m.RegistroPageModule)
+    loadChildren: () => import('./registro/registro.module').then(m => m.RegistroPageModule)
   },
   {
     path: 'datos-perfil',
-    loadChildren: () => import('./datos-perfil/datos-perfil.module').then( m => m.DatosPerfilPageModule)
+    loadChildren: () => import('./datos-perfil/datos-perfil.module').then(m => m.DatosPerfilPageModule)
+  },
+  {
+    path: 'preferencias-alimentarias',
+    loadChildren: () => import('./preferencias-alimentarias/preferencias-alimentarias.module').then(m => m.PreferenciasAlimentariasPageModule)
   },
   {
     path: 'tabs',
     loadChildren: () => import('./tabs/tabs.module').then(m => m.TabsPageModule)
   }
 ];
-
 @NgModule({
   imports: [
     RouterModule.forRoot(routes, { preloadingStrategy: PreloadAllModules })

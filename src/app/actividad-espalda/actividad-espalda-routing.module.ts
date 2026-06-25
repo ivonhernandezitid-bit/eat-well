@@ -1,13 +1,12 @@
 import { NgModule } from '@angular/core';
-import { Routes, RouterModule } from '@angular/router';
-
+import { RouterModule, Routes } from '@angular/router';
 import { ActividadEspaldaPage } from './actividad-espalda.page';
 
 const routes: Routes = [
   {
     path: '',
-    component: ActividadEspaldaPage
-  }
+    component: ActividadEspaldaPage,
+  },
 ];
 
 @NgModule({

@@ -9,21 +9,20 @@
 
       <div class="form-box">
         <div class="input-group">
-          <ion-input type="email" placeholder="Email" class="custom-field"></ion-input>
+          <ion-input type="text" placeholder="Email or username" class="custom-field" [(ngModel)]="email"></ion-input>
         </div>
 
         <div class="input-group">
-          <ion-input type="password" placeholder="Password" class="custom-field"></ion-input>
+          <ion-input type="password" placeholder="Password" class="custom-field" [(ngModel)]="password"></ion-input>
         </div>
 
-        <ion-button expand="block" class="btn-login" routerLink="/tabs/home">
+        <ion-button expand="block" class="btn-login" (click)="login()">
           Login
         </ion-button>
       </div>
 
       <div class="navigation-links">
         <p class="signup-link" routerLink="/registro">Don't have an account? <span>Sign up</span></p>
-        <p class="terms-link">Terms and Conditions</p>
       </div>
 
     </div>

@@ -1,53 +1,81 @@
 ion-content {
-  --background: #F5FBF5;
+  --background: #f5fbf5;
 }
 
 .activity-front-wrapper {
-  min-height: 100vh;
+  min-height: 100%;
   width: 100%;
   max-width: 420px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
-  padding: 40px 16px 30px;
+  padding: 22px 16px 96px;
   box-sizing: border-box;
-  gap: 24px;
+  gap: 16px;
 }
 
 .activity-title {
   margin: 0;
-  font-family: var(--font-titles);
-  font-weight: 800;
+  font-weight: 900;
   font-size: 1.35rem;
-  color: var(--eatwell-dark-green);
-  letter-spacing: 1px;
+  color: var(--eatwell-green-900);
   text-align: center;
+  letter-spacing: 0.5px;
 }
 
 .activity-image-box {
-  width: 100%;
-  max-width: 360px;
+  width: min(100%, 300px, 32dvh);
+  max-width: 300px;
+  aspect-ratio: 2 / 3;
+  position: relative;
   display: flex;
   justify-content: center;
 }
 
 .activity-image {
   width: 100%;
-  height: auto;
-  border-radius: 28px;
+  height: 100%;
+  border-radius: 24px;
   object-fit: contain;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 14px 32px rgba(31, 68, 48, 0.16);
 }
 
+// Coordinates for Frente.png muscles
+.zone-shoulder-left { top: 20%; left: 28%; width: 11%; height: 9%; border-radius: 50%; }
+.zone-shoulder-right { top: 20%; right: 28%; width: 11%; height: 9%; border-radius: 50%; }
+.zone-chest { top: 26%; left: 37%; width: 26%; height: 11%; border-radius: 12px; }
+.zone-biceps-left { top: 29%; left: 22%; width: 10%; height: 11%; border-radius: 50%; }
+.zone-biceps-right { top: 29%; right: 22%; width: 10%; height: 11%; border-radius: 50%; }
+.zone-forearms-left { top: 39%; left: 17%; width: 10%; height: 12%; border-radius: 12px; }
+.zone-forearms-right { top: 39%; right: 17%; width: 10%; height: 12%; border-radius: 12px; }
+.zone-abdomen { top: 38%; left: 38%; width: 24%; height: 16%; border-radius: 10px; }
+.zone-quads-left { top: 57%; left: 35%; width: 13%; height: 21%; border-radius: 16px; }
+.zone-quads-right { top: 57%; right: 35%; width: 13%; height: 21%; border-radius: 16px; }
+.zone-calves-left { top: 79%; left: 36%; width: 12%; height: 13%; border-radius: 14px; }
+.zone-calves-right { top: 79%; right: 36%; width: 12%; height: 13%; border-radius: 14px; }
+
 .btn-back {
-  --background: var(--eatwell-medium-green);
-  --border-radius: 24px;
+  --background: var(--eatwell-green-700);
+  --border-radius: 22px;
   --box-shadow: none;
-  font-family: var(--font-titles);
-  font-weight: 700;
-  height: 50px;
+  width: 100%;
+  height: 48px;
+  font-weight: 800;
   text-transform: none;
-  display: block;
+  margin-top: 20px;
+}
+
+@media (orientation: landscape) and (max-height: 600px) {
+  .activity-image-box {
+    width: min(44vw, 300px);
+  }
+}
+
+@media (max-width: 350px) {
+  .activity-front-wrapper {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
 }

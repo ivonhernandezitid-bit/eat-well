@@ -1,110 +1,107 @@
-ion-content {
-  --background: #F5FBF5;
-}
-
 .registro-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  width: 100%;
-  padding: 22px 16px;
-  box-sizing: border-box;
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 82% 10%, rgba(103, 184, 107, 0.24), transparent 30%),
+    linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
 }
 
 .registro-card {
-  background-color: #FFFFFF;
-  width: 100%;
-  max-width: 420px;
-  padding: 36px 28px;
+  width: min(100%, 390px);
+  padding: 30px 24px 24px;
   border-radius: 28px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: var(--eatwell-card);
+  box-shadow: var(--eatwell-shadow);
 }
 
 .logo-container {
-  margin-bottom: 25px;
   text-align: center;
+  margin-bottom: 22px;
+}
 
-  .robot-logo {
-    width: 80px; /* Tamaño del robot según tu mockup */
-    height: auto;
-    margin-bottom: 10px;
-  }
+.robot-logo {
+  width: 96px;
+  max-width: 52%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
 
-  .brand-name {
-    color: var(--eatwell-medium-green); /* #3EB489 */
-    font-family: var(--font-titles); /* Manrope */
-    font-weight: 800;
-    font-size: 1.8rem;
-    letter-spacing: 2px;
-    margin: 0;
-  }
+.brand-name {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: var(--eatwell-green-900);
 }
 
 .form-box {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  display: grid;
+  gap: 12px;
 }
 
 .input-group {
-  width: 100%;
+  border-radius: 18px;
+  background: #f4f8f1;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  overflow: hidden;
 }
 
 .custom-field {
-  --background: #FFFFFF;
-  --color: var(--eatwell-main-text);
-  --padding-start: 14px;
-  border: 1px solid #C1C1C1;
-  border-radius: 12px;
-  height: 44px;
-  font-size: 0.95rem;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 13px;
+  --padding-bottom: 13px;
+  color: var(--eatwell-ink);
+}
+
+@media (max-width: 360px) {
+  .registro-card {
+    padding: 22px 16px 20px;
+    border-radius: 22px;
+  }
+
+  .logo-container {
+    margin-bottom: 16px;
+  }
+
+  .navigation-links {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 720px) {
+  .registro-wrapper {
+    place-items: start center;
+  }
+
+  .registro-card {
+    padding-top: 18px;
+  }
+
+  .robot-logo {
+    width: 76px;
+  }
 }
 
 .btn-signup {
-  --background: var(--eatwell-dark-green); /* #1E4D2B */
+  --background: var(--eatwell-green-700);
+  --background-activated: var(--eatwell-green-900);
   --border-radius: 20px;
-  font-family: var(--font-titles);
-  font-weight: 600;
-  height: 44px;
-  width: 100%;
-  margin-top: 20px;
+  --box-shadow: none;
+  height: 52px;
+  margin-top: 8px;
+  font-weight: 800;
   text-transform: none;
 }
 
 .navigation-links {
-  margin-top: 28px;
   text-align: center;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  margin-top: 20px;
+  color: var(--eatwell-muted);
+}
 
-  .login-link,
-  .terms-link {
-    margin: 0;
-  }
-
-  .login-link {
-    color: #2F7557;
-    font-size: 0.92rem;
-    font-weight: 600;
-    cursor: pointer;
-
-    span {
-      text-decoration: underline;
-      font-weight: 700;
-    }
-  }
-
-  .terms-link {
-    color: #8A8A8A;
-    font-size: 0.82rem;
-    line-height: 1.4;
-  }
+.navigation-links span {
+  color: var(--eatwell-green-700);
+  font-weight: 800;
 }

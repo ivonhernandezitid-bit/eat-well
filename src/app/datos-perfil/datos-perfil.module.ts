@@ -1,11 +1,8 @@
-import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-
 import { IonicModule } from '@ionic/angular';
-
 import { DatosPerfilPageRoutingModule } from './datos-perfil-routing.module';
-
 import { DatosPerfilPage } from './datos-perfil.page';
 
 @NgModule({
@@ -13,8 +10,8 @@ import { DatosPerfilPage } from './datos-perfil.page';
     CommonModule,
     FormsModule,
     IonicModule,
-    DatosPerfilPageRoutingModule
+    DatosPerfilPageRoutingModule,
   ],
-  declarations: [DatosPerfilPage]
+  declarations: [DatosPerfilPage],
 })
 export class DatosPerfilPageModule {}

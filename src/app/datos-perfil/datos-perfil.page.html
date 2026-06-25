@@ -1,71 +1,88 @@
 <ion-content class="perfil-content">
   <div class="perfil-wrapper">
     <div class="perfil-top">
-      <div class="avatar-card">
+      <button type="button" class="avatar-card" (click)="openPhotoPicker()">
         <div class="avatar-frame">
-          <ion-icon name="person-circle-outline"></ion-icon>
+          <img *ngIf="profileImage; else defaultAvatar" [src]="profileImage" alt="Profile photo" />
+          <ng-template #defaultAvatar>
+            <ion-icon name="person-circle-outline"></ion-icon>
+          </ng-template>
         </div>
         <div class="camera-badge">
           <ion-icon name="camera-outline"></ion-icon>
         </div>
+      </button>
+      <input
+        #photoInput
+        class="hidden-file-input"
+        type="file"
+        accept="image/*"
+        capture="environment"
+        (change)="onPhotoSelected($event)"
+      />
+    </div>
+
+    <h1 class="page-title">Hi {{ fullName || 'User' }}, complete your information.</h1>
+
+    <div class="form-card">
+      <ion-item class="field-item">
+        <ion-label position="stacked">Full Name</ion-label>
+        <ion-input type="text" placeholder="Gabriel Alonso" [(ngModel)]="fullName"></ion-input>
+      </ion-item>
+
+      <ion-item class="field-item">
+        <ion-label position="stacked">Email</ion-label>
+        <ion-input type="email" placeholder="ejemplo123@gmail.com" [(ngModel)]="email" [readonly]="true"></ion-input>
+      </ion-item>
+
+      <div class="row-fields">
+        <ion-item class="field-item half">
+          <ion-label position="stacked">Weight</ion-label>
+          <div class="input-with-unit">
+            <ion-input type="number" placeholder="70" [ngModel]="displayWeight" (ngModelChange)="onWeightChange($event)"></ion-input>
+            <div class="unit-toggle">
+              <button type="button" [class.active]="weightUnit === 'kg'" (click)="setWeightUnit('kg')">KG</button>
+              <button type="button" [class.active]="weightUnit === 'lbs'" (click)="setWeightUnit('lbs')">LBS</button>
+            </div>
+          </div>
+        </ion-item>
+
+        <ion-item class="field-item half">
+          <ion-label position="stacked">Height</ion-label>
+          <div class="input-with-unit">
+            <ion-input type="number" placeholder="170" [ngModel]="displayHeight" (ngModelChange)="onHeightChange($event)"></ion-input>
+            <div class="unit-toggle">
+              <button type="button" [class.active]="heightUnit === 'cm'" (click)="setHeightUnit('cm')">CM</button>
+              <button type="button" [class.active]="heightUnit === 'ft'" (click)="setHeightUnit('ft')">FT</button>
+            </div>
+          </div>
+        </ion-item>
       </div>
+
+      <ion-item class="field-item">
+        <ion-label position="stacked">Gender</ion-label>
+        <ion-select placeholder="Male" interface="popover" toggle-icon="chevron-down-outline" [(ngModel)]="gender">
+          <ion-select-option value="male">Male</ion-select-option>
+          <ion-select-option value="female">Female</ion-select-option>
+          <ion-select-option value="other">Other</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <div class="row-fields">
+        <ion-item class="field-item half">
+          <ion-label position="stacked">Age</ion-label>
+          <ion-input type="number" placeholder="25" [(ngModel)]="age"></ion-input>
+        </ion-item>
+
+        <ion-item class="field-item half">
+          <ion-label position="stacked">Level IMC</ion-label>
+          <ion-input placeholder="IMC" [value]="imc" [readonly]="true"></ion-input>
+        </ion-item>
+      </div>
+
+      <ion-button fill="solid" class="btn-next" (click)="saveProfile()">
+        Save and continue
+      </ion-button>
     </div>
-
-  <h1 class="page-title">Hi Gabriel, complete your information.</h1>
-
-  <div class="form-card">
-    <ion-item class="field-item">
-      <ion-label position="stacked">Full Name</ion-label>
-      <ion-input type="text" placeholder="Gabriel Alonso"></ion-input>
-    </ion-item>
-
-    <ion-item class="field-item">
-      <ion-label position="stacked">Email</ion-label>
-      <ion-input type="email" placeholder="ejemplo123@gmail.com"></ion-input>
-    </ion-item>
-
-    <div class="row-fields">
-      <ion-item class="field-item half">
-        <ion-label position="stacked">Weight</ion-label>
-        <div class="input-with-unit">
-          <ion-input type="number" placeholder="55"></ion-input>
-          <span class="unit-pill">LBS KG</span>
-        </div>
-      </ion-item>
-
-      <ion-item class="field-item half">
-        <ion-label position="stacked">Height</ion-label>
-        <div class="input-with-unit">
-          <ion-input type="number" placeholder="170"></ion-input>
-          <span class="unit-pill">FEET CM</span>
-        </div>
-      </ion-item>
-    </div>
-
-    <ion-item class="field-item">
-      <ion-label position="stacked">Gender</ion-label>
-      <ion-select placeholder="Male" interface="popover" toggle-icon="chevron-down-outline">
-        <ion-select-option value="male">Male</ion-select-option>
-        <ion-select-option value="female">Female</ion-select-option>
-        <ion-select-option value="other">Other</ion-select-option>
-      </ion-select>
-    </ion-item>
-
-    <div class="row-fields">
-      <ion-item class="field-item half">
-        <ion-label position="stacked">Age</ion-label>
-        <ion-input type="number" placeholder="25"></ion-input>
-      </ion-item>
-
-      <ion-item class="field-item half">
-        <ion-label position="stacked">Level IMC</ion-label>
-        <ion-input placeholder="IMC"></ion-input>
-      </ion-item>
-    </div>
-
-    <ion-button fill="solid" class="btn-next" routerLink="/tabs/home">
-      Save and continue
-    </ion-button>
   </div>
-</div>
 </ion-content>
