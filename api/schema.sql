@@ -52,12 +52,74 @@ CREATE TABLE IF NOT EXISTS food_scans (
   user_id INT NOT NULL,
   image_url TEXT NULL,
   detected_food VARCHAR(150) NULL,
+  detected_ingredients LONGTEXT NULL,
   estimated_calories INT NULL,
   ai_recommendation TEXT NULL,
+  ai_provider VARCHAR(40) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+ALTER TABLE food_scans ADD COLUMN IF NOT EXISTS detected_ingredients LONGTEXT NULL AFTER detected_food;
+ALTER TABLE food_scans ADD COLUMN IF NOT EXISTS ai_provider VARCHAR(40) NULL AFTER ai_recommendation;
+
+CREATE TABLE IF NOT EXISTS ai_generated_recipes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  scan_id INT NOT NULL,
+  user_id INT NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  ingredients LONGTEXT NOT NULL,
+  instructions LONGTEXT NOT NULL,
+  ai_provider VARCHAR(40) NOT NULL DEFAULT 'gemini',
+  ai_model VARCHAR(80) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_ai_generated_recipes_scan (scan_id, id),
+  INDEX idx_ai_generated_recipes_user (user_id, created_at),
+  FOREIGN KEY (scan_id) REFERENCES food_scans(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS food_preferences (
+  user_id INT PRIMARY KEY,
+  diet_type VARCHAR(30) NOT NULL DEFAULT 'omnivore',
+  preferred_fruits LONGTEXT NOT NULL,
+  preferred_vegetables LONGTEXT NOT NULL,
+  allergies LONGTEXT NOT NULL,
+  disliked_foods LONGTEXT NOT NULL,
+  cooking_time_minutes INT NOT NULL DEFAULT 30,
+  completed_at TIMESTAMP NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS favorite_recipes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  image_url TEXT NULL,
+  ingredients LONGTEXT NOT NULL,
+  instructions LONGTEXT NOT NULL,
+  source_type VARCHAR(30) NOT NULL DEFAULT 'generated',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_user_favorite_title (user_id, title),
+  INDEX idx_favorite_recipes_user (user_id, created_at),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS personalized_recipes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT NOT NULL,
+  preference_hash CHAR(64) NOT NULL,
+  title VARCHAR(180) NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  ingredients LONGTEXT NOT NULL,
+  instructions LONGTEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_personalized_recipes_user_hash (user_id, preference_hash),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 INSERT INTO recipes (title, description, calories, protein_grams, carbs_grams, fat_grams, ingredients, instructions, goal, min_imc, max_imc)
 SELECT 'Bowl balanceado de pollo', 'Comida alta en proteina para mantener energia durante el dia.', 520, 38, 48, 16, 'Pechuga de pollo|Arroz integral|Brocoli|Zanahoria|Aguacate', 'Cocina el arroz integral.|Asa el pollo.|Sirve con verduras y aguacate.', 'improve_health', 18.5, NULL
 WHERE NOT EXISTS (SELECT 1 FROM recipes WHERE title = 'Bowl balanceado de pollo');
