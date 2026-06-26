@@ -54,7 +54,7 @@ export class ActividadEspaldaPage implements OnInit {
   }
 
   loadSavedRoutine() {
-    const saved = localStorage.getItem(this.getSavedRoutineKey());
+    const saved = localStorage.getItem('eatwell-saved-routine');
     if (saved) {
       try {
         this.savedRoutine = JSON.parse(saved);
@@ -148,7 +148,7 @@ export class ActividadEspaldaPage implements OnInit {
 
   saveRoutine() {
     if (this.generatedRoutine) {
-      localStorage.setItem(this.getSavedRoutineKey(), JSON.stringify(this.generatedRoutine));
+      localStorage.setItem('eatwell-saved-routine', JSON.stringify(this.generatedRoutine));
       this.savedRoutine = this.generatedRoutine;
       this.hasSavedRoutine = true;
       this.showSuccessToast('¡Rutina guardada correctamente!');
@@ -184,10 +184,5 @@ export class ActividadEspaldaPage implements OnInit {
       color: 'success'
     });
     await toast.present();
-  }
-
-  private getSavedRoutineKey(): string {
-    const activeUser = this.eatWellService.getActiveUser();
-    return activeUser ? `eatwell-saved-routine-${activeUser.id}` : 'eatwell-saved-routine-guest';
   }
 }

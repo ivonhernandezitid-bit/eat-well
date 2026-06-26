@@ -13,57 +13,6 @@ interface MealCardView {
   instructions: string[];
 }
 
-const BACKUP_RECIPES: Recipe[] = [
-  {
-    id: 'backup-wrap-pollo',
-    title: 'Wrap integral de pollo',
-    description: 'Opción práctica con pollo, verduras frescas y tortilla integral.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Tortilla integral', 'Pechuga de pollo', 'Lechuga', 'Jitomate', 'Aguacate'],
-    instructions: ['Asa el pollo con poco aceite.', 'Calienta la tortilla integral.', 'Rellena con verduras y aguacate.'],
-    goals: ['improve_health', 'maintain'],
-  },
-  {
-    id: 'backup-ensalada-garbanzos',
-    title: 'Ensalada de garbanzos',
-    description: 'Receta fresca con legumbres, verduras y preparación rápida.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Garbanzos', 'Pepino', 'Jitomate', 'Espinaca', 'Limón'],
-    instructions: ['Enjuaga los garbanzos.', 'Mezcla con las verduras picadas.', 'Agrega limón y sirve fresco.'],
-    goals: ['lose_weight', 'improve_health'],
-  },
-  {
-    id: 'backup-yogurt-fruta',
-    title: 'Yogurt con fruta y semillas',
-    description: 'Idea sencilla para desayuno o colación con ingredientes fáciles.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Yogurt natural', 'Fresas', 'Plátano', 'Semillas de chía', 'Canela'],
-    instructions: ['Sirve el yogurt en un tazón.', 'Agrega fruta picada.', 'Termina con semillas y canela.'],
-    goals: ['maintain', 'improve_health'],
-  },
-  {
-    id: 'backup-omelette-verduras',
-    title: 'Omelette con verduras',
-    description: 'Preparación rápida para una comida ligera y completa.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Huevo', 'Espinaca', 'Champiñones', 'Jitomate', 'Queso fresco'],
-    instructions: ['Bate el huevo.', 'Saltea las verduras.', 'Cocina todo junto y sirve caliente.'],
-    goals: ['gain_muscle', 'maintain'],
-  },
-];
-
 @Component({
   selector: 'app-plan-alimenticio',
   templateUrl: './plan-alimenticio.page.html',
@@ -90,73 +39,49 @@ export class PlanAlimenticioPage implements OnInit {
   ) { }
 
   async ngOnInit(): Promise<void> {
-    try {
-      const [recipes, favorites] = await Promise.all([
-        this.eatWellService.getPersonalizedRecipes(),
-        this.eatWellService.getFavoriteRecipes(),
-      ]);
-      this.recipes = recipes;
-      this.favoriteRecipes = favorites;
-    } catch (error) {
-      this.recipes = [];
-      await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar las recomendaciones.');
-    }
+    [this.recipes, this.favoriteRecipes] = await Promise.all([
+      this.eatWellService.getPersonalizedRecipes(),
+      this.eatWellService.getFavoriteRecipes(),
+    ]);
   }
 
-  get scannerMeals(): MealCardView[] {
-    return this.filterMeals(this.scanRecipes.map(recipe => ({
-      id: recipe.id,
-      title: recipe.title,
-      description: recipe.description,
-      imageUrl: recipe.imageUrl || null,
-      source: 'ai',
-      favoriteId: this.findFavoriteId(recipe.title),
-      ingredients: recipe.ingredients,
-      instructions: recipe.instructions,
-    })));
-  }
-
-  get personalizedMeals(): MealCardView[] {
-    return this.filterMeals([
-      ...this.favoriteRecipes.map(recipe => ({
+  get filteredMeals(): MealCardView[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    const meals: MealCardView[] = this.scanRecipes.length > 0
+      ? this.scanRecipes.map(recipe => ({
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
         imageUrl: recipe.imageUrl || null,
-        source: 'favorite' as const,
-        favoriteId: recipe.favoriteId,
+        source: 'ai',
+        favoriteId: this.findFavoriteId(recipe.title),
         ingredients: recipe.ingredients,
         instructions: recipe.instructions,
-      })),
-      ...this.recipes
-        .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
-        .map(recipe => this.mapRecipeToMeal(recipe)),
-    ]);
-  }
-
-  get backupMeals(): MealCardView[] {
-    return this.filterMeals(
-      BACKUP_RECIPES
-        .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
-        .map(recipe => this.mapRecipeToMeal(recipe)),
-    );
-  }
-
-  private mapRecipeToMeal(recipe: Recipe): MealCardView {
-    return {
-      id: recipe.id,
-      title: recipe.title,
-      description: recipe.description,
-      imageUrl: null,
-      source: 'local',
-      favoriteId: this.findFavoriteId(recipe.title),
-      ingredients: recipe.ingredients,
-      instructions: recipe.instructions,
-    };
-  }
-
-  private filterMeals(meals: MealCardView[]): MealCardView[] {
-    const term = this.searchTerm.trim().toLowerCase();
+      }))
+      : [
+        ...this.favoriteRecipes.map(recipe => ({
+          id: recipe.id,
+          title: recipe.title,
+          description: recipe.description,
+          imageUrl: recipe.imageUrl || null,
+          source: 'favorite' as const,
+          favoriteId: recipe.favoriteId,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+        })),
+        ...this.recipes
+          .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
+          .map(recipe => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        imageUrl: null,
+        source: 'local' as const,
+        favoriteId: this.findFavoriteId(recipe.title),
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+          })),
+      ];
 
     if (!term) {
       return meals;
