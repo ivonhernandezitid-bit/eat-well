@@ -1041,9 +1041,69 @@ function generateRoutine(PDO $pdo, array $input, string $apiKey, string $model):
         ]
     ];
 
-    $routine = requestGeminiText($apiKey, $model, $prompt, $schema);
+    $routine = requestGeminiText($apiKey, $model, $prompt, $schema, true);
+
+    if (!isset($routine['planSemanal']) || !is_array($routine['planSemanal']) || count($routine['planSemanal']) === 0) {
+        $routine = buildFallbackRoutine($musculosList, $dias, $nivel, $equipo);
+    }
 
     sendJson(['routine' => $routine]);
+}
+
+function buildFallbackRoutine(array $musculosList, int $dias, string $nivel, string $equipo): array
+{
+    $days = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    $selectedMuscles = array_values(array_filter(
+        array_map(static fn($muscle) => trim((string)$muscle), $musculosList),
+        static fn($muscle) => $muscle !== ''
+    ));
+
+    if (count($selectedMuscles) === 0) {
+        $selectedMuscles = ['Piernas', 'Abdomen', 'Espalda'];
+    }
+
+    $series = strtolower($nivel) === 'avanzado' ? 4 : 3;
+    $repetitions = strtolower($nivel) === 'principiante' ? '10 a 12 repeticiones' : '12 a 15 repeticiones';
+    $availableDays = max(1, min(6, $dias));
+    $plan = [];
+
+    for ($index = 0; $index < $availableDays; $index++) {
+        $muscle = $selectedMuscles[$index % count($selectedMuscles)];
+        $plan[] = [
+            'dia' => $days[$index],
+            'enfoque' => $muscle,
+            'ejercicios' => [
+                [
+                    'nombre' => 'Activación de ' . $muscle,
+                    'musculo' => $muscle,
+                    'equipo' => $equipo,
+                    'series' => $series,
+                    'repeticiones' => $repetitions,
+                    'descanso' => '60 segundos',
+                    'instrucciones' => [
+                        'Calienta de 5 a 8 minutos antes de iniciar.',
+                        'Realiza el movimiento de forma controlada.',
+                        'Mantén una respiración constante durante cada serie.',
+                    ],
+                ],
+                [
+                    'nombre' => 'Trabajo principal de ' . $muscle,
+                    'musculo' => $muscle,
+                    'equipo' => $equipo,
+                    'series' => $series,
+                    'repeticiones' => $repetitions,
+                    'descanso' => '75 segundos',
+                    'instrucciones' => [
+                        'Ajusta la intensidad a tu nivel actual.',
+                        'Evita forzar articulaciones o zona lumbar.',
+                        'Termina con estiramientos suaves.',
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    return ['planSemanal' => $plan];
 }
 
 function requestGeminiText(
@@ -1163,15 +1223,79 @@ function requestGeminiText(
         }
     }
 
-    $cleanJsonText = preg_replace('/```json|```/i', '', $jsonText);
-    $cleanJsonText = trim($cleanJsonText);
-
-    $result = json_decode($cleanJsonText, true);
+    $result = decodeGeminiJson($jsonText);
     if (!is_array($result)) {
         if ($allowFailure) {
             return [];
         }
-        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar como JSON: ' . json_last_error_msg() . ' | Raw: ' . substr($jsonText, 0, 100), 502);
+        sendError('Google AI Studio devolvió una respuesta que no se pudo interpretar como JSON: ' . json_last_error_msg() . ' | Respuesta: ' . substr($jsonText, 0, 100), 502);
+    }
+
+    return $result;
+}
+
+function decodeGeminiJson(string $jsonText): ?array
+{
+    $cleanJsonText = preg_replace('/```json|```/i', '', $jsonText) ?? $jsonText;
+    $cleanJsonText = trim(extractJsonCandidate($cleanJsonText));
+
+    $result = json_decode($cleanJsonText, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
+    if (is_array($result)) {
+        return $result;
+    }
+
+    $safeJsonText = escapeControlCharactersInsideJsonStrings($cleanJsonText);
+    $result = json_decode($safeJsonText, true, 512, JSON_INVALID_UTF8_SUBSTITUTE);
+
+    return is_array($result) ? $result : null;
+}
+
+function extractJsonCandidate(string $text): string
+{
+    $startObject = strpos($text, '{');
+    $startArray = strpos($text, '[');
+    $starts = array_filter([$startObject, $startArray], static fn($value) => $value !== false);
+
+    if (count($starts) === 0) {
+        return $text;
+    }
+
+    $start = min($starts);
+    $endObject = strrpos($text, '}');
+    $endArray = strrpos($text, ']');
+    $end = max($endObject === false ? -1 : $endObject, $endArray === false ? -1 : $endArray);
+
+    return $end >= $start ? substr($text, $start, $end - $start + 1) : substr($text, $start);
+}
+
+function escapeControlCharactersInsideJsonStrings(string $text): string
+{
+    $result = '';
+    $inString = false;
+    $isEscaped = false;
+    $length = strlen($text);
+
+    for ($index = 0; $index < $length; $index++) {
+        $char = $text[$index];
+        $code = ord($char);
+
+        if ($char === '"' && !$isEscaped) {
+            $inString = !$inString;
+            $result .= $char;
+            continue;
+        }
+
+        if ($inString && $code < 32) {
+            $result .= $char === "\n" || $char === "\r" ? '\\n' : ' ';
+            $isEscaped = false;
+            continue;
+        }
+
+        $result .= $char;
+        $isEscaped = $char === '\\' && !$isEscaped;
+        if ($char !== '\\') {
+            $isEscaped = false;
+        }
     }
 
     return $result;
