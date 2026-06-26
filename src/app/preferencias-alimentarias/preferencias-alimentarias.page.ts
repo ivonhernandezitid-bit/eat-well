@@ -98,7 +98,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
     const alert = await this.alertController.create({
       header: 'Preferencias',
       message,
-      buttons: ['OK'],
+      buttons: ['Aceptar'],
     });
     await alert.present();
   }

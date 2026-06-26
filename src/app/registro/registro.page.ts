@@ -26,7 +26,7 @@ export class RegistroPage implements OnInit {
 
   async register(): Promise<void> {
     if (!this.email.trim() || !this.password.trim() || !this.fullName.trim()) {
-      await this.showAlert('Missing data', 'Please enter your name, email and password.');
+      await this.showAlert('Datos incompletos', 'Ingresa tu nombre, correo y contraseña.');
       return;
     }
 
@@ -39,7 +39,7 @@ export class RegistroPage implements OnInit {
       });
       await this.router.navigateByUrl('/datos-perfil?onboarding=1');
     } catch (error) {
-      await this.showAlert('Sign up failed', error instanceof Error ? error.message : 'Please try again.');
+      await this.showAlert('No se pudo registrar', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }
   }
 
@@ -47,7 +47,7 @@ export class RegistroPage implements OnInit {
     const alert = await this.alertController.create({
       header,
       message,
-      buttons: ['OK'],
+      buttons: ['Aceptar'],
     });
     await alert.present();
   }

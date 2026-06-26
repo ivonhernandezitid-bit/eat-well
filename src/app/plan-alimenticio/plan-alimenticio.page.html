@@ -2,16 +2,16 @@
   <div class="plan-wrapper">
     <div class="topbar">
       <ion-button fill="solid" class="filter-pill">
-        All
+        Todo
         <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
       </ion-button>
 
       <div class="search-block">
-        <ion-input placeholder="Search ..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
+        <ion-input placeholder="Buscar..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
         <ion-icon name="search-outline" class="search-icon"></ion-icon>
       </div>
 
-      <ion-button fill="clear" class="scanner-button" aria-label="Scan food" [disabled]="isScanning" (click)="scanFood()">
+      <ion-button fill="clear" class="scanner-button" aria-label="Escanear comida" [disabled]="isScanning" (click)="scanFood()">
         <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
         <ng-template #scannerIcon>
           <ion-icon name="scan-outline"></ion-icon>
@@ -28,22 +28,22 @@
     </div>
 
     <section class="scan-result" *ngIf="scanPreview">
-      <img class="scan-photo" [src]="scanPreview" alt="Scanned food" />
+      <img class="scan-photo" [src]="scanPreview" alt="Comida escaneada" />
       <div class="scan-copy">
-        <span class="scan-label">Scanned food</span>
-        <h2>{{ isScanning ? 'Analyzing...' : (scanResult?.foodName || 'Food') }}</h2>
+        <span class="scan-label">Comida escaneada</span>
+        <h2>{{ isScanning ? 'Analizando...' : (scanResult?.foodName || 'Comida') }}</h2>
         <p class="detected-ingredients" *ngIf="scanResult?.detectedIngredients?.length">
           {{ scanResult?.detectedIngredients?.join(', ') }}
         </p>
         <p *ngIf="scanResult">{{ scanResult.recommendation }}</p>
       </div>
-      <ion-button fill="clear" class="clear-scan" aria-label="Remove scan" (click)="clearScan()">
+      <ion-button fill="clear" class="clear-scan" aria-label="Quitar escaneo" (click)="clearScan()">
         <ion-icon name="close-outline"></ion-icon>
       </ion-button>
 
     </section>
 
-    <h1 class="screen-title">MEAL PLAN</h1>
+    <h1 class="screen-title">PLAN ALIMENTICIO</h1>
 
     <div class="meal-list">
       <article class="meal-card breakfast-card" *ngFor="let recipe of filteredMeals">
@@ -79,7 +79,7 @@
       <ion-toolbar>
         <ion-title>{{ selectedRecipe?.title }}</ion-title>
         <ion-buttons slot="end">
-          <ion-button aria-label="Close recipe" (click)="closeRecipe()">
+          <ion-button aria-label="Cerrar receta" (click)="closeRecipe()">
             <ion-icon slot="icon-only" name="close-outline"></ion-icon>
           </ion-button>
         </ion-buttons>
@@ -97,22 +97,22 @@
         <p class="recipe-description">{{ selectedRecipe?.description }}</p>
 
         <section class="recipe-section">
-          <h2>Ingredients</h2>
+          <h2>Ingredientes</h2>
           <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients">
             <li *ngFor="let ingredient of selectedRecipe?.ingredients">{{ ingredient }}</li>
           </ul>
           <ng-template #noIngredients>
-            <p class="empty-detail">Ingredients are not available for this recipe.</p>
+            <p class="empty-detail">Los ingredientes no están disponibles para esta receta.</p>
           </ng-template>
         </section>
 
         <section class="recipe-section">
-          <h2>Preparation</h2>
+          <h2>Preparación</h2>
           <ol *ngIf="selectedRecipe?.instructions?.length; else noInstructions">
             <li *ngFor="let instruction of selectedRecipe?.instructions">{{ instruction }}</li>
           </ol>
           <ng-template #noInstructions>
-            <p class="empty-detail">Preparation steps are not available for this recipe.</p>
+            <p class="empty-detail">Los pasos de preparación no están disponibles para esta receta.</p>
           </ng-template>
         </section>
       </div>

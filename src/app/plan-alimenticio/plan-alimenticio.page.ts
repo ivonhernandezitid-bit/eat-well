@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+﻿import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe } from '../core';
 
@@ -247,10 +247,11 @@ export class PlanAlimenticioPage implements OnInit {
 
   private async showError(message: string): Promise<void> {
     const alert = await this.alertController.create({
-      header: 'Food scanner',
+      header: 'Escáner de alimentos',
       message,
-      buttons: ['OK'],
+      buttons: ['Aceptar'],
     });
     await alert.present();
   }
 }
+
