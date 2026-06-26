@@ -1,6 +1,5 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular';
-import { Subscription } from 'rxjs';
 import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from '../core';
 
 @Component({
@@ -9,7 +8,7 @@ import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from
   styleUrls: ['./actividad-frente.page.scss'],
   standalone: false
 })
-export class ActividadFrentePage implements OnInit, OnDestroy {
+export class ActividadFrentePage implements OnInit {
   selectedMuscle: string | null = null;
   exercises: GeminiExercise[] = [];
   isLoadingExercises = false;
@@ -44,8 +43,6 @@ export class ActividadFrentePage implements OnInit, OnDestroy {
   savedRoutine: RoutineResult | null = null;
   hasSavedRoutine = false;
   generatedRoutine: RoutineResult | null = null;
-  private activeUserId: string | null = null;
-  private activeUserSubscription?: Subscription;
 
   constructor(
     private readonly eatWellService: EatWellService,
@@ -53,21 +50,7 @@ export class ActividadFrentePage implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit() {
-    this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {
-      const nextUserId = user?.id ?? null;
-
-      if (nextUserId === this.activeUserId) {
-        return;
-      }
-
-      this.activeUserId = nextUserId;
-      this.generatedRoutine = null;
-      this.loadSavedRoutine();
-    });
-  }
-
-  ngOnDestroy() {
-    this.activeUserSubscription?.unsubscribe();
+    this.loadSavedRoutine();
   }
 
   loadSavedRoutine() {
@@ -77,11 +60,9 @@ export class ActividadFrentePage implements OnInit, OnDestroy {
         this.savedRoutine = JSON.parse(saved);
         this.hasSavedRoutine = true;
       } catch {
-        this.savedRoutine = null;
         this.hasSavedRoutine = false;
       }
     } else {
-      this.savedRoutine = null;
       this.hasSavedRoutine = false;
     }
   }

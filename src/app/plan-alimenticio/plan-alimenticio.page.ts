@@ -1,7 +1,6 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+﻿import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { AlertController } from '@ionic/angular';
-import { Subscription } from 'rxjs';
-import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile } from '../core';
+import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe } from '../core';
 
 interface MealCardView {
   id: string;
@@ -14,111 +13,16 @@ interface MealCardView {
   instructions: string[];
 }
 
-const BACKUP_RECIPES: Recipe[] = [
-  {
-    id: 'backup-wrap-pollo',
-    title: 'Wrap integral de pollo',
-    description: 'Una opcion practica con pollo, verduras frescas y tortilla integral.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: [
-      '1 tortilla integral',
-      'Pollo cocido deshebrado',
-      'Lechuga',
-      'Tomate',
-      'Aguacate',
-      'Yogurt natural o aderezo ligero',
-    ],
-    instructions: [
-      'Calienta la tortilla unos segundos.',
-      'Coloca el pollo, las verduras y el aguacate al centro.',
-      'Agrega un poco de yogurt natural o aderezo ligero.',
-      'Enrolla el wrap y sirve.',
-    ],
-    goals: ['maintain', 'improve_health', 'gain_muscle'],
-  },
-  {
-    id: 'backup-ensalada-garbanzos',
-    title: 'Ensalada de garbanzos',
-    description: 'Receta fresca con garbanzos, pepino, tomate y un toque de limon.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: [
-      'Garbanzos cocidos',
-      'Pepino',
-      'Tomate',
-      'Cebolla morada',
-      'Limon',
-      'Aceite de oliva',
-    ],
-    instructions: [
-      'Mezcla los garbanzos con las verduras picadas.',
-      'Agrega limon, aceite de oliva y sal al gusto.',
-      'Refrigera unos minutos antes de servir si la prefieres fresca.',
-    ],
-    goals: ['maintain', 'improve_health', 'lose_weight'],
-  },
-  {
-    id: 'backup-yogurt-fruta',
-    title: 'Yogurt con fruta y semillas',
-    description: 'Desayuno o snack sencillo con fruta, yogurt natural y semillas.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: [
-      'Yogurt natural',
-      'Fruta de temporada',
-      'Avena',
-      'Semillas de chia',
-      'Canela',
-    ],
-    instructions: [
-      'Sirve el yogurt en un bowl.',
-      'Agrega la fruta picada, avena y semillas.',
-      'Termina con un poco de canela.',
-    ],
-    goals: ['maintain', 'improve_health', 'lose_weight'],
-  },
-  {
-    id: 'backup-omelette-verduras',
-    title: 'Omelette con verduras',
-    description: 'Omelette rapido con huevo y verduras para una comida completa.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: [
-      '2 huevos',
-      'Espinaca',
-      'Champinones',
-      'Pimiento',
-      'Queso fresco',
-    ],
-    instructions: [
-      'Bate los huevos en un recipiente.',
-      'Saltea las verduras por unos minutos.',
-      'Agrega el huevo batido y cocina a fuego medio.',
-      'Dobla el omelette y sirve con queso fresco.',
-    ],
-    goals: ['maintain', 'improve_health', 'gain_muscle'],
-  },
-];
-
 @Component({
   selector: 'app-plan-alimenticio',
   templateUrl: './plan-alimenticio.page.html',
   styleUrls: ['./plan-alimenticio.page.scss'],
   standalone: false
 })
-export class PlanAlimenticioPage implements OnInit, OnDestroy {
+export class PlanAlimenticioPage implements OnInit {
   @ViewChild('foodImageInput') foodImageInput?: ElementRef<HTMLInputElement>;
 
-  recipes: Recipe[] = BACKUP_RECIPES;
+  recipes: Recipe[] = [];
   scanRecipes: SuggestedFoodRecipe[] = [];
   favoriteRecipes: FavoriteRecipe[] = [];
   searchTerm = '';
@@ -129,33 +33,16 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   loadingRecipeId: string | null = null;
   isRecipeModalOpen = false;
 
-  private activeUserId: string | null = null;
-  private activeUserSubscription?: Subscription;
-
   constructor(
     private readonly eatWellService: EatWellService,
     private readonly alertController: AlertController,
   ) { }
 
-  ngOnInit(): void {
-    this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {
-      const nextUserId = user?.id ?? null;
-
-      if (nextUserId === this.activeUserId) {
-        return;
-      }
-
-      this.activeUserId = nextUserId;
-      this.resetMealState();
-
-      if (user) {
-        void this.loadMealsForUser(user);
-      }
-    });
-  }
-
-  ngOnDestroy(): void {
-    this.activeUserSubscription?.unsubscribe();
+  async ngOnInit(): Promise<void> {
+    [this.recipes, this.favoriteRecipes] = await Promise.all([
+      this.eatWellService.getPersonalizedRecipes(),
+      this.eatWellService.getFavoriteRecipes(),
+    ]);
   }
 
   get filteredMeals(): MealCardView[] {
@@ -185,14 +72,14 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         ...this.recipes
           .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
           .map(recipe => ({
-            id: recipe.id,
-            title: recipe.title,
-            description: recipe.description,
-            imageUrl: null,
-            source: 'local' as const,
-            favoriteId: this.findFavoriteId(recipe.title),
-            ingredients: recipe.ingredients,
-            instructions: recipe.instructions,
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        imageUrl: null,
+        source: 'local' as const,
+        favoriteId: this.findFavoriteId(recipe.title),
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
           })),
       ];
 
@@ -321,38 +208,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     return this.favoriteRecipes.find(recipe => recipe.title === title)?.favoriteId ?? null;
   }
 
-  private resetMealState(): void {
-    this.recipes = BACKUP_RECIPES;
-    this.scanRecipes = [];
-    this.favoriteRecipes = [];
-    this.scanPreview = null;
-    this.scanResult = null;
-    this.selectedRecipe = null;
-    this.loadingRecipeId = null;
-    this.isRecipeModalOpen = false;
-  }
-
-  private async loadMealsForUser(user: UserProfile): Promise<void> {
-    try {
-      const [recipes, favorites] = await Promise.all([
-        this.eatWellService.getPersonalizedRecipes(user),
-        this.eatWellService.getFavoriteRecipes(),
-      ]);
-
-      if (this.activeUserId !== user.id) {
-        return;
-      }
-
-      this.recipes = recipes.length > 0 ? recipes : BACKUP_RECIPES;
-      this.favoriteRecipes = favorites;
-    } catch (error) {
-      if (this.activeUserId === user.id) {
-        this.recipes = BACKUP_RECIPES;
-        await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar las recetas.');
-      }
-    }
-  }
-
   private resizeFoodImage(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
       const objectUrl = URL.createObjectURL(file);
@@ -392,10 +247,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   private async showError(message: string): Promise<void> {
     const alert = await this.alertController.create({
-      header: 'Escaner de alimentos',
+      header: 'Escáner de alimentos',
       message,
       buttons: ['Aceptar'],
     });
     await alert.present();
   }
 }
+
