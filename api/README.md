@@ -58,7 +58,7 @@ conservan en `favorite_recipes`.
 
 Las preferencias de alimentacion, frutas, verduras, alergias, alimentos no
 deseados y tiempo para cocinar se guardan en `food_preferences`. Las
-recomendaciones de Meal Plan se almacenan por version de preferencias para no
+recomendaciones de Plan alimenticio se almacenan por version de preferencias para no
 generarlas de nuevo en cada visita.
 
 Si Google responde que el proyecto no tiene acceso, crea una clave nueva desde Google AI Studio con un proyecto habilitado para Gemini API.

@@ -811,7 +811,7 @@ function requestGeminiFoodAnalysis(
     $result = json_decode(trim($jsonText), true);
 
     if (!is_array($result)) {
-        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar.', 502);
+        sendError('Google AI Studio devolvió una respuesta que no se pudo interpretar.', 502);
     }
 
     return $result;
@@ -1171,7 +1171,7 @@ function requestGeminiText(
         if ($allowFailure) {
             return [];
         }
-        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar como JSON: ' . json_last_error_msg() . ' | Raw: ' . substr($jsonText, 0, 100), 502);
+        sendError('Google AI Studio devolvió una respuesta que no se pudo interpretar como JSON: ' . json_last_error_msg() . ' | Respuesta: ' . substr($jsonText, 0, 100), 502);
     }
 
     return $result;
