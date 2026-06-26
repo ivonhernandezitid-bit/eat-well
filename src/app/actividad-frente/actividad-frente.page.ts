@@ -54,7 +54,7 @@ export class ActividadFrentePage implements OnInit {
   }
 
   loadSavedRoutine() {
-    const saved = localStorage.getItem('eatwell-saved-routine');
+    const saved = localStorage.getItem(this.getSavedRoutineKey());
     if (saved) {
       try {
         this.savedRoutine = JSON.parse(saved);
@@ -148,7 +148,7 @@ export class ActividadFrentePage implements OnInit {
 
   saveRoutine() {
     if (this.generatedRoutine) {
-      localStorage.setItem('eatwell-saved-routine', JSON.stringify(this.generatedRoutine));
+      localStorage.setItem(this.getSavedRoutineKey(), JSON.stringify(this.generatedRoutine));
       this.savedRoutine = this.generatedRoutine;
       this.hasSavedRoutine = true;
       this.showSuccessToast('¡Rutina guardada correctamente!');
@@ -184,5 +184,10 @@ export class ActividadFrentePage implements OnInit {
       color: 'success'
     });
     await toast.present();
+  }
+
+  private getSavedRoutineKey(): string {
+    const activeUser = this.eatWellService.getActiveUser();
+    return activeUser ? `eatwell-saved-routine-${activeUser.id}` : 'eatwell-saved-routine-guest';
   }
 }
