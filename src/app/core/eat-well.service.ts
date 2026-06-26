@@ -256,7 +256,7 @@ export class EatWellService {
   }
 
   private buildUrl(action: string, params: Record<string, string | number> = {}): string {
-    const url = new URL(environment.apiUrl);
+    const url = new URL(environment.apiUrl, window.location.origin);
     url.searchParams.set('action', action);
 
     Object.entries(params).forEach(([key, value]) => {
