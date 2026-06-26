@@ -3,7 +3,7 @@
     <div class="perfil-top">
       <button type="button" class="avatar-card" (click)="openPhotoPicker()">
         <div class="avatar-frame">
-          <img *ngIf="profileImage; else defaultAvatar" [src]="profileImage" alt="Profile photo" />
+          <img *ngIf="profileImage; else defaultAvatar" [src]="profileImage" alt="Foto de perfil" />
           <ng-template #defaultAvatar>
             <ion-icon name="person-circle-outline"></ion-icon>
           </ng-template>
@@ -22,22 +22,22 @@
       />
     </div>
 
-    <h1 class="page-title">Hi {{ fullName || 'User' }}, complete your information.</h1>
+    <h1 class="page-title">Hola {{ fullName || 'usuario' }}, completa tu información.</h1>
 
     <div class="form-card">
       <ion-item class="field-item">
-        <ion-label position="stacked">Full Name</ion-label>
+        <ion-label position="stacked">Nombre completo</ion-label>
         <ion-input type="text" placeholder="Gabriel Alonso" [(ngModel)]="fullName"></ion-input>
       </ion-item>
 
       <ion-item class="field-item">
-        <ion-label position="stacked">Email</ion-label>
+        <ion-label position="stacked">Correo</ion-label>
         <ion-input type="email" placeholder="ejemplo123@gmail.com" [(ngModel)]="email" [readonly]="true"></ion-input>
       </ion-item>
 
       <div class="row-fields">
         <ion-item class="field-item half">
-          <ion-label position="stacked">Weight</ion-label>
+          <ion-label position="stacked">Peso</ion-label>
           <div class="input-with-unit">
             <ion-input type="number" placeholder="70" [ngModel]="displayWeight" (ngModelChange)="onWeightChange($event)"></ion-input>
             <div class="unit-toggle">
@@ -48,7 +48,7 @@
         </ion-item>
 
         <ion-item class="field-item half">
-          <ion-label position="stacked">Height</ion-label>
+          <ion-label position="stacked">Altura</ion-label>
           <div class="input-with-unit">
             <ion-input type="number" placeholder="170" [ngModel]="displayHeight" (ngModelChange)="onHeightChange($event)"></ion-input>
             <div class="unit-toggle">
@@ -60,28 +60,28 @@
       </div>
 
       <ion-item class="field-item">
-        <ion-label position="stacked">Gender</ion-label>
-        <ion-select placeholder="Male" interface="popover" toggle-icon="chevron-down-outline" [(ngModel)]="gender">
-          <ion-select-option value="male">Male</ion-select-option>
-          <ion-select-option value="female">Female</ion-select-option>
-          <ion-select-option value="other">Other</ion-select-option>
+        <ion-label position="stacked">Género</ion-label>
+        <ion-select placeholder="Masculino" interface="popover" toggle-icon="chevron-down-outline" [(ngModel)]="gender">
+          <ion-select-option value="male">Masculino</ion-select-option>
+          <ion-select-option value="female">Femenino</ion-select-option>
+          <ion-select-option value="other">Otro</ion-select-option>
         </ion-select>
       </ion-item>
 
       <div class="row-fields">
         <ion-item class="field-item half">
-          <ion-label position="stacked">Age</ion-label>
+          <ion-label position="stacked">Edad</ion-label>
           <ion-input type="number" placeholder="25" [(ngModel)]="age"></ion-input>
         </ion-item>
 
         <ion-item class="field-item half">
-          <ion-label position="stacked">Level IMC</ion-label>
+          <ion-label position="stacked">Nivel de IMC</ion-label>
           <ion-input placeholder="IMC" [value]="imc" [readonly]="true"></ion-input>
         </ion-item>
       </div>
 
       <ion-button fill="solid" class="btn-next" (click)="saveProfile()">
-        Save and continue
+        Guardar y continuar
       </ion-button>
     </div>
   </div>

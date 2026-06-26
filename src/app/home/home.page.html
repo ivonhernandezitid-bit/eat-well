@@ -2,7 +2,7 @@
   <div class="home-wrapper">
     <div class="topbar">
       <ion-button fill="clear" class="profile-button" routerLink="/datos-perfil">
-        <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Profile photo" />
+        <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Foto de perfil" />
         <ng-template #profileIcon>
           <ion-icon name="person-circle-outline"></ion-icon>
         </ng-template>
@@ -13,13 +13,13 @@
     </div>
 
     <div class="hero-section">
-      <h1 class="hero-title">Hello {{ user?.name || 'User' }},</h1>
-      <p class="hero-subtitle">Find, track and eat healthy food.</p>
+      <h1 class="hero-title">Hola {{ user?.name || 'usuario' }},</h1>
+      <p class="hero-subtitle">Encuentra, organiza y disfruta comida saludable.</p>
     </div>
 
     <div class="tips-card">
       <div class="tips-copy">
-        <span class="tips-label">Daily Tips</span>
+        <span class="tips-label">Consejo del día</span>
         <p>{{ dailyTip }}</p>
       </div>
       <div class="tips-icon">
@@ -27,21 +27,21 @@
       </div>
     </div>
 
-    <div class="section-title">Choose your food preferences</div>
+    <div class="section-title">Elige tus preferencias de comida</div>
 
     <div class="preferences-grid">
       <button class="preference-card vegetables" routerLink="/preferencias-alimentarias">
         <div class="preference-icon">
           <ion-icon name="leaf-outline"></ion-icon>
         </div>
-        <span>Vegetables</span>
+        <span>Verduras</span>
       </button>
 
       <button class="preference-card fruits" routerLink="/preferencias-alimentarias">
         <div class="preference-icon">
           <ion-icon name="nutrition-outline"></ion-icon>
         </div>
-        <span>Fruits</span>
+        <span>Frutas</span>
       </button>
     </div>
   </div>

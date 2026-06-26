@@ -69,7 +69,7 @@ export class DatosPerfilPage implements OnInit {
     }
 
     if (!file.type.startsWith('image/')) {
-      await this.showAlert('Invalid file', 'Please select an image.');
+      await this.showAlert('Archivo inválido', 'Selecciona una imagen.');
       return;
     }
 
@@ -127,7 +127,7 @@ export class DatosPerfilPage implements OnInit {
 
   async saveProfile(): Promise<void> {
     if (!this.fullName.trim() || this.weightKg <= 0 || this.heightCm <= 0 || this.age <= 0) {
-      await this.showAlert('Missing data', 'Please complete your profile information.');
+      await this.showAlert('Datos incompletos', 'Completa la información de tu perfil.');
       return;
     }
 
@@ -142,7 +142,7 @@ export class DatosPerfilPage implements OnInit {
       });
       await this.router.navigateByUrl(this.isOnboarding ? '/preferencias-alimentarias' : '/tabs/home');
     } catch (error) {
-      await this.showAlert('Profile error', error instanceof Error ? error.message : 'Please try again.');
+      await this.showAlert('Error de perfil', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }
   }
 
@@ -155,7 +155,7 @@ export class DatosPerfilPage implements OnInit {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error('Could not read image.'));
+      reader.onerror = () => reject(new Error('No se pudo leer la imagen.'));
       reader.readAsDataURL(file);
     });
   }
@@ -168,7 +168,7 @@ export class DatosPerfilPage implements OnInit {
     const alert = await this.alertController.create({
       header,
       message,
-      buttons: ['OK'],
+      buttons: ['Aceptar'],
     });
     await alert.present();
   }

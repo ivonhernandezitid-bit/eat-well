@@ -23,7 +23,7 @@ export class LoginPage implements OnInit {
 
   async login(): Promise<void> {
     if (!this.email.trim() || !this.password.trim()) {
-      await this.showAlert('Missing data', 'Please enter your email and password.');
+      await this.showAlert('Datos incompletos', 'Ingresa tu correo o usuario y contraseña.');
       return;
     }
 
@@ -34,7 +34,7 @@ export class LoginPage implements OnInit {
       });
       await this.router.navigateByUrl('/tabs/home');
     } catch (error) {
-      await this.showAlert('Login failed', error instanceof Error ? error.message : 'Please try again.');
+      await this.showAlert('No se pudo iniciar sesión', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }
   }
 
@@ -42,7 +42,7 @@ export class LoginPage implements OnInit {
     const alert = await this.alertController.create({
       header,
       message,
-      buttons: ['OK'],
+      buttons: ['Aceptar'],
     });
     await alert.present();
   }
