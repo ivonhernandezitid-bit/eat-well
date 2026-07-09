@@ -15,6 +15,9 @@ export class RegistroPage implements OnInit {
   fullName = '';
   username = '';
 
+  hasMinLength = false;
+  hasLetterAndNumber = false;
+
   constructor(
     private readonly eatWellService: EatWellService,
     private readonly router: Router,
@@ -24,9 +27,20 @@ export class RegistroPage implements OnInit {
   ngOnInit() {
   }
 
+  validatePasswordStrength(): void {
+    const pw = this.password || '';
+    this.hasMinLength = pw.length >= 8;
+    this.hasLetterAndNumber = /[a-zA-Z]/.test(pw) && /[0-9]/.test(pw);
+  }
+
   async register(): Promise<void> {
     if (!this.email.trim() || !this.password.trim() || !this.fullName.trim()) {
       await this.showAlert('Datos incompletos', 'Ingresa tu nombre, correo y contraseña.');
+      return;
+    }
+
+    if (!this.hasMinLength || !this.hasLetterAndNumber) {
+      await this.showAlert('Contraseña débil', 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.');
       return;
     }
 

@@ -14,7 +14,18 @@
         </div>
 
         <div class="input-group">
-          <ion-input type="password" placeholder="Contraseña" class="custom-field" [(ngModel)]="password"></ion-input>
+          <ion-input type="password" placeholder="Contraseña" class="custom-field" [(ngModel)]="password" (ionInput)="validatePasswordStrength()"></ion-input>
+        </div>
+
+        <div class="password-requirements" *ngIf="password">
+          <div class="requirement" [class.met]="hasMinLength">
+            <ion-icon [name]="hasMinLength ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>Mínimo 8 caracteres</span>
+          </div>
+          <div class="requirement" [class.met]="hasLetterAndNumber">
+            <ion-icon [name]="hasLetterAndNumber ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>Al menos una letra y un número</span>
+          </div>
         </div>
 
         <div class="input-group">

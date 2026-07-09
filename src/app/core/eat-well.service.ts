@@ -17,6 +17,7 @@ import {
   GeminiExercise,
   RoutineResult,
   CustomRoutineForm,
+  FoodScanHistoryItem,
 } from './models';
 
 const ACTIVE_USER_KEY = 'eat-well-active-user';
@@ -134,6 +135,14 @@ export class EatWellService {
       userId: activeUser.id,
     });
     return response.recipes;
+  }
+
+  async getScanHistory(): Promise<FoodScanHistoryItem[]> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<{ scans: FoodScanHistoryItem[] }>('scanner.history', {
+      userId: activeUser.id,
+    });
+    return response.scans;
   }
 
   async getSavedFoodRecipeDetail(recipeId: string): Promise<SuggestedFoodRecipe> {

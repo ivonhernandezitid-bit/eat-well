@@ -100,6 +100,9 @@ try {
                 (int)($_GET['recipeId'] ?? 0),
             );
             break;
+        case 'scanner.history':
+            getScanHistory($pdo, (int)($_GET['userId'] ?? 0));
+            break;
         default:
             sendError('Accion no encontrada.', 404);
     }
@@ -117,6 +120,10 @@ function registerUser(PDO $pdo, array $input): void
 
     if ($name === '' || $email === '' || $plainPassword === '') {
         sendError('Nombre, correo y contrasena son obligatorios.', 422);
+    }
+
+    if (strlen($plainPassword) < 8 || !preg_match('/[a-zA-Z]/', $plainPassword) || !preg_match('/[0-9]/', $plainPassword)) {
+        sendError('La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.', 422);
     }
 
     $statement = $pdo->prepare('SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1');
@@ -583,6 +590,37 @@ function getScanRecommendations(PDO $pdo, int $userId): void
     );
 
     sendJson(['recipes' => $recipes]);
+}
+
+function getScanHistory(PDO $pdo, int $userId): void
+{
+    if ($userId <= 0) {
+        sendError('Usuario invalido.', 422);
+    }
+
+    getUserById($pdo, $userId);
+    $statement = $pdo->prepare(
+        'SELECT id, detected_food, detected_ingredients, estimated_calories, ai_recommendation, created_at
+         FROM food_scans
+         WHERE user_id = ?
+         ORDER BY id DESC'
+    );
+    $statement->execute([$userId]);
+    $scans = $statement->fetchAll();
+
+    $results = [];
+    foreach ($scans as $scan) {
+        $results[] = [
+            'id' => (string)$scan['id'],
+            'detectedFood' => $scan['detected_food'],
+            'detectedIngredients' => is_string($scan['detected_ingredients']) ? decodeJsonList($scan['detected_ingredients']) : [],
+            'estimatedCalories' => (int)$scan['estimated_calories'],
+            'aiRecommendation' => $scan['ai_recommendation'],
+            'createdAt' => $scan['created_at']
+        ];
+    }
+
+    sendJson(['scans' => $results]);
 }
 
 function getScanRecipeDetail(PDO $pdo, int $userId, int $recipeId): void

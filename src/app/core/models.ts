@@ -169,3 +169,13 @@ export interface CustomRoutineForm {
   equipo: 'Sin equipo' | 'Mancuernas' | 'Gimnasio completo';
   musculos: string[];
 }
+
+export interface FoodScanHistoryItem {
+  id: string;
+  detectedFood: string;
+  detectedIngredients: string[];
+  estimatedCalories: number;
+  aiRecommendation: string;
+  createdAt: string;
+}
+

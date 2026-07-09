@@ -1,7 +1,7 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { AlertController } from '@ionic/angular';
 import { Subscription } from 'rxjs';
-import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile } from '../core';
+import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
 
 interface MealCardView {
   id: string;
@@ -102,6 +102,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   selectedRecipe: MealCardView | null = null;
   loadingRecipeId: string | null = null;
   isRecipeModalOpen = false;
+  selectedFilter: 'all' | 'for_you' | 'favorites' | 'other' = 'all';
+  scanHistory: FoodScanHistoryItem[] = [];
 
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
@@ -132,52 +134,90 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.activeUserSubscription?.unsubscribe();
   }
 
-  get filteredMeals(): MealCardView[] {
+  get aiMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const meals: MealCardView[] = this.scanRecipes.length > 0
+    const list: MealCardView[] = this.scanRecipes.length > 0
       ? this.scanRecipes.map(recipe => ({
-        id: recipe.id,
-        title: recipe.title,
-        description: recipe.description,
-        imageUrl: recipe.imageUrl || null,
-        source: 'ai',
-        favoriteId: this.findFavoriteId(recipe.title),
-        ingredients: recipe.ingredients,
-        instructions: recipe.instructions,
-      }))
-      : [
-        ...this.favoriteRecipes.map(recipe => ({
           id: recipe.id,
           title: recipe.title,
           description: recipe.description,
           imageUrl: recipe.imageUrl || null,
-          source: 'favorite' as const,
-          favoriteId: recipe.favoriteId,
+          source: 'ai' as const,
+          favoriteId: this.findFavoriteId(recipe.title),
           ingredients: recipe.ingredients,
           instructions: recipe.instructions,
-        })),
-        ...this.recipes
-          .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
-          .map(recipe => ({
-            id: recipe.id,
-            title: recipe.title,
-            description: recipe.description,
-            imageUrl: null,
-            source: 'local' as const,
-            favoriteId: this.findFavoriteId(recipe.title),
-            ingredients: recipe.ingredients,
-            instructions: recipe.instructions,
-          })),
-      ];
+        }))
+      : this.recipes.map(recipe => ({
+          id: recipe.id,
+          title: recipe.title,
+          description: recipe.description,
+          imageUrl: null,
+          source: 'local' as const,
+          favoriteId: this.findFavoriteId(recipe.title),
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+        }));
 
     if (!term) {
-      return meals;
+      return list;
     }
 
-    return meals.filter(recipe =>
+    return list.filter(recipe =>
       recipe.title.toLowerCase().includes(term) ||
       recipe.description.toLowerCase().includes(term),
     );
+  }
+
+  get favoriteMeals(): MealCardView[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    const list: MealCardView[] = this.favoriteRecipes.map(recipe => ({
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      imageUrl: recipe.imageUrl || null,
+      source: 'favorite' as const,
+      favoriteId: recipe.favoriteId,
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+    }));
+
+    if (!term) {
+      return list;
+    }
+
+    return list.filter(recipe =>
+      recipe.title.toLowerCase().includes(term) ||
+      recipe.description.toLowerCase().includes(term),
+    );
+  }
+
+  get suggestedMeals(): MealCardView[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    const list: MealCardView[] = BACKUP_RECIPES
+      .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
+      .map(recipe => ({
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        imageUrl: null,
+        source: 'local' as const,
+        favoriteId: this.findFavoriteId(recipe.title),
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+      }));
+
+    if (!term) {
+      return list;
+    }
+
+    return list.filter(recipe =>
+      recipe.title.toLowerCase().includes(term) ||
+      recipe.description.toLowerCase().includes(term),
+    );
+  }
+
+  get filteredMeals(): MealCardView[] {
+    return [...this.aiMeals, ...this.favoriteMeals, ...this.suggestedMeals];
   }
 
   scanFood(): void {
@@ -209,6 +249,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         imageBase64: this.scanPreview,
       });
       this.scanRecipes = this.scanResult.suggestedRecipes;
+      void this.loadScanHistory();
     } catch (error) {
       this.scanPreview = null;
       await this.showError(error instanceof Error ? error.message : 'No se pudo analizar la imagen.');
@@ -299,6 +340,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.recipes = BACKUP_RECIPES;
     this.scanRecipes = [];
     this.favoriteRecipes = [];
+    this.scanHistory = [];
     this.scanPreview = null;
     this.scanResult = null;
     this.selectedRecipe = null;
@@ -319,6 +361,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
       this.recipes = recipes.length > 0 ? recipes : BACKUP_RECIPES;
       this.favoriteRecipes = favorites;
+      await this.loadScanHistory();
     } catch (error) {
       if (this.activeUserId === user.id) {
         this.recipes = BACKUP_RECIPES;
@@ -371,5 +414,48 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       buttons: ['Aceptar'],
     });
     await alert.present();
+  }
+
+  async loadScanHistory(): Promise<void> {
+    if (!this.activeUserId) {
+      return;
+    }
+    try {
+      this.scanHistory = await this.eatWellService.getScanHistory();
+    } catch (error) {
+      console.error('Error loading scan history', error);
+    }
+  }
+
+  async openScanHistoryItem(scan: FoodScanHistoryItem): Promise<void> {
+    const ingredientsText = scan.detectedIngredients?.length
+      ? `\n\nIngredientes detectados:\n• ${scan.detectedIngredients.join('\n• ')}`
+      : '';
+    const caloriesText = scan.estimatedCalories > 0
+      ? `\nCalorías estimadas: ${scan.estimatedCalories} kcal`
+      : '';
+      
+    const alert = await this.alertController.create({
+      header: scan.detectedFood || 'Detalle del escaneo',
+      subHeader: this.formatDate(scan.createdAt),
+      message: `${scan.aiRecommendation || 'Sin recomendación disponible.'}${caloriesText}${ingredientsText}`,
+      buttons: ['Cerrar']
+    });
+    await alert.present();
+  }
+
+  formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr.replace(' ', 'T'));
+      return date.toLocaleDateString('es-ES', {
+        day: '2-digit',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return dateStr;
+    }
   }
 }

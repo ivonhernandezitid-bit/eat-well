@@ -85,4 +85,72 @@
       </ion-button>
     </div>
   </div>
+
+  <ion-modal [isOpen]="isCroppingModalOpen" (didDismiss)="cancelCropping()" class="crop-modal">
+    <ng-template>
+      <ion-header class="ion-no-border">
+        <ion-toolbar class="crop-toolbar">
+          <ion-buttons slot="start">
+            <ion-button color="medium" (click)="cancelCropping()">
+              Cancelar
+            </ion-button>
+          </ion-buttons>
+          <ion-title>Ajustar foto</ion-title>
+          <ion-buttons slot="end">
+            <ion-button color="success" (click)="cropAndSave()" class="btn-done">
+              Listo
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="crop-modal-content" scroll-y="false">
+        <div class="crop-container-wrapper">
+          <div 
+            class="crop-area"
+            (pointerdown)="onPointerDown($event)"
+            (pointermove)="onPointerMove($event)"
+            (pointerup)="onPointerUp($event)"
+            (pointercancel)="onPointerUp($event)"
+          >
+            <!-- Visor circular en el centro -->
+            <div class="crop-mask"></div>
+            
+            <!-- Imagen cargada -->
+            <img 
+              *ngIf="selectedPhotoUrl" 
+              [src]="selectedPhotoUrl" 
+              [style.width.px]="dispWidth"
+              [style.height.px]="dispHeight"
+              [style.transform]="'translate(-50%, -50%) translate(' + translateX + 'px, ' + translateY + 'px) scale(' + scale + ') rotate(' + rotation + 'deg)'"
+              class="crop-image"
+              alt="Ajustar"
+              draggable="false"
+            />
+          </div>
+        </div>
+
+        <div class="crop-controls">
+          <div class="control-row zoom-control">
+            <ion-icon name="image-outline" class="zoom-icon-small"></ion-icon>
+            <ion-range 
+              [min]="1" 
+              [max]="3" 
+              [step]="0.05" 
+              [(ngModel)]="scale"
+              class="zoom-slider"
+            ></ion-range>
+            <ion-icon name="image-outline" class="zoom-icon-large"></ion-icon>
+          </div>
+
+          <div class="control-row action-control">
+            <button type="button" class="btn-rotate" (click)="rotateImage()">
+              <ion-icon name="refresh-outline"></ion-icon>
+              Rotar 90°
+            </button>
+          </div>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>

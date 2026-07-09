@@ -16,13 +16,36 @@ ion-content {
   align-items: center;
 }
 
-.filter-pill {
+.filter-select-item {
   --background: var(--eatwell-green-700);
   --border-radius: 18px;
   --box-shadow: none;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --inner-padding-end: 0px;
+  margin: 0;
   min-height: 44px;
-  text-transform: none;
-  font-weight: 800;
+  height: 44px;
+  max-width: 170px;
+  
+  ion-select {
+    width: 100%;
+    --placeholder-color: #ffffff;
+    --color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 800;
+    padding: 0;
+
+    &::part(icon) {
+      color: #ffffff;
+      opacity: 1;
+    }
+    
+    &::part(placeholder),
+    &::part(text) {
+      color: #ffffff;
+    }
+  }
 }
 
 .search-block {
@@ -199,9 +222,11 @@ ion-content {
     grid-template-columns: 1fr auto;
   }
 
-  .filter-pill {
+  .filter-select-item {
     grid-area: filter;
     justify-self: start;
+    width: 100%;
+    max-width: none;
   }
 
   .search-block {
@@ -321,3 +346,182 @@ ion-modal {
   }
 
 }
+
+/* Estilos de Categoría e Insignias del Plan Alimenticio */
+.section-container {
+  margin-top: 14px;
+}
+
+.suggested-section {
+  margin-top: 24px;
+}
+
+.section-subtitle {
+  margin: 20px 0 12px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--eatwell-green-900);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  ion-icon {
+    font-size: 18px;
+    color: var(--eatwell-green-700);
+  }
+}
+
+.empty-list-text {
+  margin: 16px 0;
+  color: var(--eatwell-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.badge-fallback {
+  --background: rgba(111, 128, 119, 0.1);
+  --color: var(--eatwell-muted);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.badge-ai {
+  --background: rgba(47, 125, 89, 0.12);
+  --color: var(--eatwell-green-700);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.badge-favorite {
+  --background: rgba(180, 72, 88, 0.1);
+  --color: #b44858;
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.ai-icon {
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+}
+
+.suggested-icon {
+  background: #fbf3f5;
+  color: #b44858;
+}
+
+.badge-personal {
+  --background: rgba(47, 125, 89, 0.12);
+  --color: var(--eatwell-green-700);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.history-arrow {
+  color: var(--eatwell-muted);
+  font-size: 18px;
+}
+
+/* Sección de Recetas Favoritas */
+.favorites-section {
+  margin-top: 24px;
+}
+
+.favorite-icon {
+  background: #fbf3f5;
+  color: #b44858;
+
+  ion-icon {
+    font-size: 28px;
+  }
+}
+
+.text-hint {
+  font-size: 0.85rem;
+  max-width: 92%;
+  margin: 14px auto;
+  line-height: 1.45;
+  color: var(--eatwell-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.history-section {
+  margin-top: 28px;
+  padding-bottom: 24px;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(31, 68, 48, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(47, 125, 89, 0.06);
+
+  &:active {
+    transform: scale(0.98);
+    background: #fafefa;
+  }
+}
+
+.history-icon-box {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
+.history-copy {
+  min-width: 0;
+
+  h2 {
+    margin: 0 0 3px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--eatwell-muted);
+  }
+}
+
+.history-arrow {
+  color: var(--eatwell-muted);
+  font-size: 18px;
+}
+

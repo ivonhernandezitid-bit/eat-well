@@ -105,3 +105,47 @@
   color: var(--eatwell-green-700);
   font-weight: 800;
 }
+
+.password-requirements {
+  margin-top: -4px;
+  margin-bottom: 4px;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #8c9b88;
+  transition: all 0.2s ease-in-out;
+
+  ion-icon {
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+  }
+
+  &.met {
+    color: var(--eatwell-green-700);
+    font-weight: 500;
+
+    ion-icon {
+      transform: scale(1.1);
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
