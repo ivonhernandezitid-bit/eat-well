@@ -59,15 +59,54 @@ ion-content {
 }
 
 .tips-card {
+  position: relative;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 20px;
-  padding: 20px;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 20px 14px;
   border-radius: 26px;
   background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73);
   color: #fff;
   box-shadow: var(--eatwell-shadow);
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  user-select: none;
+
+  &:active {
+    cursor: grabbing;
+    transform: scale(0.99);
+  }
+}
+
+.tips-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.tips-indicators {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.tip-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &.active {
+    width: 18px;
+    border-radius: 3px;
+    background: #fff;
+  }
 }
 
 .tips-label {
@@ -83,6 +122,11 @@ ion-content {
 
 .tips-copy {
   min-width: 0;
+  transition: opacity 0.15s ease-in-out;
+
+  &.fade-out {
+    opacity: 0;
+  }
 }
 
 .tips-icon {
@@ -93,6 +137,11 @@ ion-content {
   flex: 0 0 auto;
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.18);
+  transition: opacity 0.15s ease-in-out;
+
+  &.fade-out {
+    opacity: 0;
+  }
 }
 
 .tips-icon ion-icon {

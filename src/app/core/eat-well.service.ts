@@ -195,6 +195,22 @@ export class EatWellService {
     return response.preferences;
   }
 
+  async getCustomTips(): Promise<{ text: string; icon: string }[]> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<{ tips: { text: string; icon: string }[] }>('tips.get', {
+      userId: activeUser.id,
+    });
+    return response.tips;
+  }
+
+  async getGeneralRecipes(): Promise<Recipe[]> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.get<{ recipes: Recipe[] }>('recipes.general', {
+      userId: activeUser.id,
+    });
+    return response.recipes;
+  }
+
   async saveFoodPreferences(preferences: FoodPreferences): Promise<FoodPreferences> {
     const activeUser = this.getRequiredActiveUser();
     const response = await this.post<FoodPreferencesResponse>('preferences.save', {

@@ -17,27 +17,52 @@
       <p class="hero-subtitle">Encuentra, organiza y disfruta comida saludable.</p>
     </div>
 
-    <div class="tips-card">
-      <div class="tips-copy">
-        <span class="tips-label">Consejo del día</span>
-        <p>{{ dailyTip }}</p>
+    <div class="tips-card" 
+         (touchstart)="onTouchStart($event)" 
+         (touchend)="onTouchEnd($event)" 
+         (mousedown)="onMouseDown($event)" 
+         (mouseup)="onMouseUp($event)">
+      <div class="tips-body">
+        <div class="tips-copy" [class.fade-out]="isFading">
+          <span class="tips-label">Consejo del día</span>
+          <p>{{ dailyTip }}</p>
+        </div>
+        <div class="tips-icon" [class.fade-out]="isFading">
+          <ion-icon [name]="dailyTipIcon"></ion-icon>
+        </div>
       </div>
-      <div class="tips-icon">
-        <ion-icon [name]="dailyTipIcon"></ion-icon>
+      <div class="tips-indicators" *ngIf="activeTips.length > 1">
+        <span *ngFor="let tip of activeTips; let i = index" 
+              class="tip-dot" 
+              [class.active]="i === currentTipIndex"></span>
       </div>
     </div>
 
-    <div class="section-title">Elige tus preferencias de comida</div>
+    <div class="section-title">Elige tus preferencias</div>
 
     <div class="preferences-grid">
-      <button class="preference-card vegetables" routerLink="/preferencias-alimentarias">
+      <button class="preference-card general" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'general' }">
+        <div class="preference-icon">
+          <ion-icon name="options-outline"></ion-icon>
+        </div>
+        <span>Preferencias</span>
+      </button>
+
+      <button class="preference-card allergies" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'allergies' }">
+        <div class="preference-icon">
+          <ion-icon name="alert-circle-outline"></ion-icon>
+        </div>
+        <span>Alergias</span>
+      </button>
+
+      <button class="preference-card vegetables" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'vegetables' }">
         <div class="preference-icon">
           <ion-icon name="leaf-outline"></ion-icon>
         </div>
         <span>Verduras</span>
       </button>
 
-      <button class="preference-card fruits" routerLink="/preferencias-alimentarias">
+      <button class="preference-card fruits" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'fruits' }">
         <div class="preference-icon">
           <ion-icon name="nutrition-outline"></ion-icon>
         </div>

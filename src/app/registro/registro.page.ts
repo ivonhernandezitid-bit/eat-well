@@ -39,6 +39,12 @@ export class RegistroPage implements OnInit {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(this.email.trim())) {
+      await this.showAlert('Correo inválido', 'Por favor, ingresa un correo electrónico con formato correcto (ejemplo@dominio.com).');
+      return;
+    }
+
     if (!this.hasMinLength || !this.hasLetterAndNumber) {
       await this.showAlert('Contraseña débil', 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.');
       return;

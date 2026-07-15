@@ -10,41 +10,62 @@ ion-content {
 }
 
 .topbar {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
 }
 
-.filter-select-item {
-  --background: var(--eatwell-green-700);
-  --border-radius: 18px;
-  --box-shadow: none;
-  --padding-start: 12px;
-  --padding-end: 12px;
-  --inner-padding-end: 0px;
-  margin: 0;
-  min-height: 44px;
-  height: 44px;
-  max-width: 170px;
-  
-  ion-select {
-    width: 100%;
-    --placeholder-color: #ffffff;
-    --color: #ffffff;
-    font-size: 0.88rem;
-    font-weight: 800;
-    padding: 0;
+.topbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
 
-    &::part(icon) {
-      color: #ffffff;
-      opacity: 1;
-    }
-    
-    &::part(placeholder),
-    &::part(text) {
-      color: #ffffff;
-    }
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  width: 100%;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  color: var(--eatwell-green-900);
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(31, 68, 48, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  ion-icon {
+    font-size: 16px;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(111, 204, 115, 0.3);
   }
 }
 
@@ -215,29 +236,6 @@ ion-content {
 }
 
 @media (max-width: 380px) {
-  .topbar {
-    grid-template-areas:
-      "filter scanner"
-      "search search";
-    grid-template-columns: 1fr auto;
-  }
-
-  .filter-select-item {
-    grid-area: filter;
-    justify-self: start;
-    width: 100%;
-    max-width: none;
-  }
-
-  .search-block {
-    grid-area: search;
-  }
-
-  .scanner-button {
-    grid-area: scanner;
-    margin: 0;
-  }
-
   .screen-title {
     margin-top: 22px;
   }
@@ -523,5 +521,78 @@ ion-modal {
 .history-arrow {
   color: var(--eatwell-muted);
   font-size: 18px;
+}
+
+.onboarding-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: start;
+  background: #fff;
+  border: 1px dashed var(--eatwell-green-700);
+  border-radius: 24px;
+  padding: 20px;
+  margin: 12px 0 20px;
+  box-shadow: 0 8px 24px rgba(31, 68, 48, 0.04);
+}
+
+.onboarding-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: rgba(47, 125, 89, 0.1);
+  color: var(--eatwell-green-700);
+  border-radius: 14px;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 22px;
+  }
+}
+
+.onboarding-copy {
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+
+  p {
+    margin: 0 0 14px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--eatwell-muted);
+  }
+
+  .onboarding-btn {
+    --background: var(--eatwell-green-700);
+    --border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.88rem;
+    margin: 0;
+  }
+}
+
+.loading-recipes-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--eatwell-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+
+  ion-spinner {
+    color: var(--eatwell-green-700);
+    width: 36px;
+    height: 36px;
+  }
 }
 

@@ -33,6 +33,84 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ],
     );
+    // Auto-create user_tips table if not exists
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS user_tips (
+            user_id INT PRIMARY KEY,
+            preference_hash CHAR(64) NOT NULL,
+            tips_json TEXT NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+    ");
+
+    // Add additional backup recipes
+    $additionalRecipes = [
+        [
+            'title' => 'Tacos de lechuga con pavo',
+            'description' => 'Una opción baja en carbohidratos y muy fresca para cenar.',
+            'calories' => 280,
+            'protein_grams' => 24,
+            'carbs_grams' => 12,
+            'fat_grams' => 8,
+            'ingredients' => 'Hojas de lechuga orejona|Pechuga de pavo molida|Cebolla picada|Ajo picada|Salsa de soya baja en sodio',
+            'instructions' => 'Saltea la cebolla y el ajo en un sartén.|Agrega el pavo molido y cocina hasta dorar.|Sazona con salsa de soya.|Sirve el pavo dentro de las hojas de lechuga como tacos.',
+            'goal' => 'lose_weight'
+        ],
+        [
+            'title' => 'Ensalada mediterránea de quinoa',
+            'description' => 'Un plato completo rico en fibra y grasas saludables.',
+            'calories' => 420,
+            'protein_grams' => 12,
+            'carbs_grams' => 54,
+            'fat_grams' => 14,
+            'ingredients' => 'Quinoa cocida|Pepino en cubos|Jitomate cherry partidos por la mitad|Aceitunas negras|Queso feta desmoronado|Aceite de oliva y limón',
+            'instructions' => 'En un tazón grande mezcla la quinoa con los vegetales y aceitunas.|Añada el queso feta.|Adereza con un chorrito de aceite de oliva, limón y sal al gusto.',
+            'goal' => 'improve_health'
+        ],
+        [
+            'title' => 'Crema de calabaza y zanahoria',
+            'description' => 'Sopa reconfortante y llena de vitaminas A y C.',
+            'calories' => 180,
+            'protein_grams' => 4,
+            'carbs_grams' => 28,
+            'fat_grams' => 6,
+            'ingredients' => 'Calabaza de Castilla picada|Zanahorias picadas|Cebolla picada|Caldo de verduras|Un chorrito de leche de almendras',
+            'instructions' => 'Cocina la calabaza, zanahoria y cebolla en el caldo de verduras hasta que estén suaves.|Licúa todo hasta obtener una textura tersa.|Agrega la leche de almendras y calienta 5 minutos más.',
+            'goal' => 'maintain'
+        ],
+        [
+            'title' => 'Filete de salmón al limón',
+            'description' => 'Proteína de alta calidad con Omega-3 para el cuidado del corazón.',
+            'calories' => 380,
+            'protein_grams' => 32,
+            'carbs_grams' => 2,
+            'fat_grams' => 22,
+            'ingredients' => 'Filete de salmón fresco|Rodajas de limón|Ajo en polvo|Pimienta negra|Pizca de sal de mar|Aceite de oliva',
+            'instructions' => 'Precalienta el horno a 180°C.|Coloca el salmón en una charola, barniza con aceite de oliva y sazona con ajo, pimienta y sal.|Coloca las rodajas de limón encima y hornea por 15 minutos.',
+            'goal' => 'gain_muscle'
+        ]
+    ];
+
+    foreach ($additionalRecipes as $r) {
+        $stmt = $pdo->prepare('
+            INSERT INTO recipes (title, description, calories, protein_grams, carbs_grams, fat_grams, ingredients, instructions, goal)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+            WHERE NOT EXISTS (SELECT 1 FROM recipes WHERE title = ?)
+        ');
+        $stmt->execute([
+            $r['title'],
+            $r['description'],
+            $r['calories'],
+            $r['protein_grams'],
+            $r['carbs_grams'],
+            $r['fat_grams'],
+            $r['ingredients'],
+            $r['instructions'],
+            $r['goal'],
+            $r['title']
+        ]);
+    }
 } catch (PDOException $exception) {
     sendError('No se pudo conectar a MySQL. Revisa XAMPP y la base eatwell_db.', 500);
 }
@@ -69,6 +147,9 @@ try {
                 $geminiModel,
             );
             break;
+        case 'recipes.general':
+            getGeneralRecipes($pdo, (int)($_GET['userId'] ?? 0));
+            break;
         case 'favorites.list':
             getFavoriteRecipes($pdo, (int)($_GET['userId'] ?? 0));
             break;
@@ -103,6 +184,9 @@ try {
         case 'scanner.history':
             getScanHistory($pdo, (int)($_GET['userId'] ?? 0));
             break;
+        case 'tips.get':
+            getUserTips($pdo, (int)($_GET['userId'] ?? 0), $geminiApiKey, $geminiModel);
+            break;
         default:
             sendError('Accion no encontrada.', 404);
     }
@@ -120,6 +204,10 @@ function registerUser(PDO $pdo, array $input): void
 
     if ($name === '' || $email === '' || $plainPassword === '') {
         sendError('Nombre, correo y contrasena son obligatorios.', 422);
+    }
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        sendError('El correo ingresado no tiene un formato válido.', 422);
     }
 
     if (strlen($plainPassword) < 8 || !preg_match('/[a-zA-Z]/', $plainPassword) || !preg_match('/[0-9]/', $plainPassword)) {
@@ -287,38 +375,42 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
 {
     $user = getUserById($pdo, $userId);
     $preferences = getFoodPreferencesRecord($pdo, $userId);
+    $mappedPreferences = mapFoodPreferences($preferences);
     $preferenceHash = hash('sha256', json_encode([
         $user['goal'],
         $user['imc'],
-        mapFoodPreferences($preferences),
+        $mappedPreferences,
     ], JSON_UNESCAPED_UNICODE));
+
+    // Check cache — only use it if we have at least 5 recipes for this exact hash
     $cachedStatement = $pdo->prepare(
         'SELECT * FROM personalized_recipes
-         WHERE user_id = ? AND preference_hash = ? ORDER BY id ASC LIMIT 6',
+         WHERE user_id = ? AND preference_hash = ? ORDER BY id ASC LIMIT 5',
     );
     $cachedStatement->execute([$userId, $preferenceHash]);
     $cachedRecipes = $cachedStatement->fetchAll();
 
-    if (count($cachedRecipes) > 0) {
+    if (count($cachedRecipes) >= 5) {
         sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedRecipes)]);
+        return;
     }
 
-    $mappedPreferences = mapFoodPreferences($preferences);
-
     if ($mappedPreferences['completed'] && $apiKey !== '') {
-        $prompt = "Genera 4 recetas practicas en espanol para este perfil. "
+        $dislikedList = implode(', ', array_merge($mappedPreferences['dislikedFoods'], $mappedPreferences['allergies']));
+        $prompt = "Genera exactamente 5 recetas practicas en espanol para este perfil. "
             . "Objetivo: {$user['goal']}. IMC: {$user['imc']}. "
             . "Tipo de alimentacion: {$mappedPreferences['dietType']}. "
             . "Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . ". "
             . "Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . ". "
-            . "Alergias: " . implode(', ', $mappedPreferences['allergies']) . ". "
-            . "Alimentos no deseados: " . implode(', ', $mappedPreferences['dislikedFoods']) . ". "
+            . "PROHIBIDO usar en cualquier receta estos ingredientes (alergias o no deseados): {$dislikedList}. "
             . "Tiempo maximo aproximado: {$mappedPreferences['cookingTimeMinutes']} minutos. "
-            . "Nunca incluyas alergenos ni alimentos no deseados. "
-            . "Devuelve unicamente un array JSON con 4 objetos. "
+            . "Ninguna receta puede contener ni mencionar los ingredientes prohibidos bajo ninguna circunstancia. "
+            . "Devuelve unicamente un array JSON con exactamente 5 objetos. "
             . "Cada receta debe tener title, description, ingredients e instructions.";
         $schema = [
             'type' => 'ARRAY',
+            'minItems' => 5,
+            'maxItems' => 5,
             'items' => [
                 'type' => 'OBJECT',
                 'required' => ['title', 'description', 'ingredients', 'instructions'],
@@ -332,14 +424,17 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
         ];
         $generatedRecipes = requestGeminiText($apiKey, $model, $prompt, $schema, true);
 
-        if (count($generatedRecipes) > 0) {
+        if (is_array($generatedRecipes) && count($generatedRecipes) >= 5) {
+            // Delete ALL stale cached recipes for this user before inserting fresh ones
+            $pdo->prepare('DELETE FROM personalized_recipes WHERE user_id = ?')->execute([$userId]);
+
             $insert = $pdo->prepare(
                 'INSERT INTO personalized_recipes
                  (user_id, preference_hash, title, description, ingredients, instructions)
                  VALUES (?, ?, ?, ?, ?, ?)',
             );
 
-            foreach (array_slice($generatedRecipes, 0, 4) as $recipe) {
+            foreach (array_slice($generatedRecipes, 0, 5) as $recipe) {
                 if (!is_array($recipe)) {
                     continue;
                 }
@@ -356,9 +451,11 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
 
             $cachedStatement->execute([$userId, $preferenceHash]);
             sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedStatement->fetchAll())]);
+            return;
         }
     }
 
+    // Fallback: serve from general recipes table filtered by goal/IMC/dislikes
     $statement = $pdo->prepare(
         'SELECT * FROM recipes
          WHERE goal = ?
@@ -368,8 +465,9 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
     );
     $statement->execute([$user['goal'], $user['imc'], $user['imc']]);
     $recipes = array_map('mapRecipe', $statement->fetchAll());
+    $filtered = filterRecipesByPreferences($recipes, $mappedPreferences);
 
-    sendJson(['recipes' => $recipes]);
+    sendJson(['recipes' => $filtered]);
 }
 
 function mapPersonalizedRecipe(array $recipe): array
@@ -1337,4 +1435,166 @@ function escapeControlCharactersInsideJsonStrings(string $text): string
     }
 
     return $result;
+}
+
+function getUserTips(PDO $pdo, int $userId, string $apiKey, string $model): void
+{
+    if ($userId <= 0) {
+        sendError('Usuario invalido.', 422);
+    }
+    
+    $user = getUserById($pdo, $userId);
+    $preferences = getFoodPreferencesRecord($pdo, $userId);
+    $mappedPreferences = mapFoodPreferences($preferences);
+    
+    $preferenceHash = hash('sha256', json_encode([
+        $user['goal'],
+        $user['imc'],
+        $mappedPreferences,
+    ], JSON_UNESCAPED_UNICODE));
+    
+    $statement = $pdo->prepare('SELECT * FROM user_tips WHERE user_id = ? LIMIT 1');
+    $statement->execute([$userId]);
+    $cached = $statement->fetch();
+    
+    if ($cached && $cached['preference_hash'] === $preferenceHash) {
+        sendJson(['tips' => json_decode($cached['tips_json'], true)]);
+        return;
+    }
+    
+    if ($apiKey === '') {
+        sendJson(['tips' => getFallbackTips($user['goal'], $mappedPreferences['dietType'])]);
+        return;
+    }
+    
+    $goalLabels = [
+        'lose_weight' => 'bajar de peso',
+        'maintain' => 'mantener su peso',
+        'gain_muscle' => 'ganar masa muscular',
+        'improve_health' => 'mejorar su salud',
+    ];
+    $goal = $goalLabels[$user['goal'] ?? ''] ?? 'comer saludable';
+    $dietType = $mappedPreferences['dietType'];
+    
+    $prompt = "Genera exactamente 10 consejos de salud y nutricion cortos y practicos en espanol adaptados a este perfil:\n"
+        . "- Objetivo: {$goal}\n"
+        . "- Tipo de alimentacion: {$dietType}\n"
+        . "- Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . "\n"
+        . "- Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . "\n"
+        . "- Alergias: " . implode(', ', $mappedPreferences['allergies']) . "\n"
+        . "- Alimentos que no le gustan: " . implode(', ', $mappedPreferences['dislikedFoods']) . "\n"
+        . "- Tiempo maximo para cocinar: {$mappedPreferences['cookingTimeMinutes']} minutos.\n\n"
+        . "Condiciones importantes:\n"
+        . "1. NUNCA sugieras alimentos prohibidos por alérgenos o alimentos que no le gusten.\n"
+        . "2. Los consejos deben ser cortos, motivacionales y aplicables.\n"
+        . "3. Para cada consejo proporciona un icono de Ionic (ionicons) que sea apropiado (ej: water-outline, leaf-outline, flash-outline, moon-outline, etc.).\n"
+        . "4. Devuelve unicamente un array JSON con 10 objetos, cada uno con las propiedades 'text' (string) e 'icon' (string). Sin explicaciones adicionales.";
+        
+    $schema = [
+        'type' => 'ARRAY',
+        'items' => [
+            'type' => 'OBJECT',
+            'required' => ['text', 'icon'],
+            'properties' => [
+                'text' => ['type' => 'STRING'],
+                'icon' => ['type' => 'STRING'],
+            ],
+        ],
+    ];
+    
+    try {
+        $generatedTips = requestGeminiText($apiKey, $model, $prompt, $schema, true);
+        
+        if (!is_array($generatedTips) || count($generatedTips) === 0) {
+            throw new Exception("Error al decodificar respuesta de Gemini.");
+        }
+        
+        $save = $pdo->prepare('
+            INSERT INTO user_tips (user_id, preference_hash, tips_json)
+            VALUES (?, ?, ?)
+            ON DUPLICATE KEY UPDATE
+                preference_hash = VALUES(preference_hash),
+                tips_json = VALUES(tips_json)
+        ');
+        $save->execute([
+            $userId,
+            $preferenceHash,
+            json_encode($generatedTips, JSON_UNESCAPED_UNICODE),
+        ]);
+        
+        sendJson(['tips' => $generatedTips]);
+    } catch (Throwable $e) {
+        sendJson(['tips' => getFallbackTips($user['goal'], $dietType)]);
+    }
+}
+
+function getFallbackTips(string $goal, string $dietType): array
+{
+    return [
+        ['text' => 'Acompaña tus comidas con agua pura y mantente hidratado todo el día.', 'icon' => 'water-outline'],
+        ['text' => 'Combina distintos colores de vegetales en tu plato para asegurar una mayor variedad de vitaminas.', 'icon' => 'color-palette-outline'],
+        ['text' => 'Masticar despacio ayuda a mejorar tu digestión y permite al cerebro registrar la saciedad a tiempo.', 'icon' => 'hourglass-outline'],
+        ['text' => 'Intenta dormir entre 7 y 8 horas diarias; el descanso óptimo regula las hormonas del hambre.', 'icon' => 'moon-outline'],
+        ['text' => 'Las ensaladas con legumbres son opciones saludables listas en pocos minutos.', 'icon' => 'flash-outline'],
+        ['text' => 'Una infusión caliente sin cafeína (como manzanilla) ayuda a relajar tu cuerpo al final del día.', 'icon' => 'cafe-outline'],
+        ['text' => 'El descanso es tan importante como el entrenamiento para ver progreso en tus metas.', 'icon' => 'bed-outline'],
+        ['text' => 'Prioriza alimentos con alta fibra y agua para mantenerte saciado por más tiempo.', 'icon' => 'scale-outline'],
+        ['text' => 'Las grasas saludables de aguacates, nueces y aceite de oliva protegen tu sistema nervioso.', 'icon' => 'shield-outline'],
+        ['text' => 'Cocinar en casa te da el control total de los ingredientes y las porciones.', 'icon' => 'home-outline']
+    ];
+}
+
+function getGeneralRecipes(PDO $pdo, int $userId): void
+{
+    $statement = $pdo->query('SELECT * FROM recipes ORDER BY title ASC');
+    $recipes = array_map('mapRecipe', $statement->fetchAll());
+    
+    if ($userId > 0) {
+        $preferences = getFoodPreferencesRecord($pdo, $userId);
+        $mappedPreferences = mapFoodPreferences($preferences);
+        $recipes = filterRecipesByPreferences($recipes, $mappedPreferences);
+    }
+    
+    sendJson(['recipes' => $recipes]);
+}
+
+function filterRecipesByPreferences(array $recipes, array $mappedPreferences): array
+{
+    $dislikesAndAllergies = array_merge(
+        array_map('trim', array_map('strtolower', $mappedPreferences['allergies'])),
+        array_map('trim', array_map('strtolower', $mappedPreferences['dislikedFoods']))
+    );
+    
+    $dislikesAndAllergies = array_filter($dislikesAndAllergies, static fn($item) => $item !== '');
+
+    if (count($dislikesAndAllergies) === 0) {
+        return $recipes;
+    }
+
+    $filtered = [];
+    foreach ($recipes as $r) {
+        $hasDisliked = false;
+        $titleLower = strtolower($r['title']);
+        $descLower = strtolower($r['description']);
+        
+        $ingredientsLower = array_map('strtolower', $r['ingredients']);
+        
+        foreach ($dislikesAndAllergies as $disliked) {
+            if (str_contains($titleLower, $disliked) || str_contains($descLower, $disliked)) {
+                $hasDisliked = true;
+                break;
+            }
+            foreach ($ingredientsLower as $ing) {
+                if (str_contains($ing, $disliked)) {
+                    $hasDisliked = true;
+                    break 2;
+                }
+            }
+        }
+        
+        if (!$hasDisliked) {
+            $filtered[] = $r;
+        }
+    }
+    return $filtered;
 }

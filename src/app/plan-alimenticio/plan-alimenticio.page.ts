@@ -14,75 +14,6 @@ interface MealCardView {
   instructions: string[];
 }
 
-const BACKUP_RECIPES: Recipe[] = [
-  {
-    id: 'backup-wrap-pollo',
-    title: 'Wrap integral de pollo',
-    description: 'Pollo con verduras frescas en tortilla integral, ideal para una comida rapida.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Tortilla integral', 'Pollo cocido', 'Lechuga', 'Tomate', 'Aguacate', 'Yogurt natural'],
-    instructions: [
-      'Calienta la tortilla unos segundos.',
-      'Agrega pollo, verduras y aguacate.',
-      'Anade un poco de yogurt natural.',
-      'Enrolla y sirve.',
-    ],
-    goals: ['maintain', 'improve_health', 'gain_muscle'],
-  },
-  {
-    id: 'backup-ensalada-garbanzos',
-    title: 'Ensalada de garbanzos',
-    description: 'Garbanzos con pepino, tomate y limon para una opcion fresca y practica.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Garbanzos cocidos', 'Pepino', 'Tomate', 'Cebolla morada', 'Limon', 'Aceite de oliva'],
-    instructions: [
-      'Pica las verduras en cubos pequenos.',
-      'Mezcla con los garbanzos.',
-      'Sazona con limon, aceite de oliva y sal al gusto.',
-    ],
-    goals: ['maintain', 'improve_health', 'lose_weight'],
-  },
-  {
-    id: 'backup-yogurt-fruta',
-    title: 'Yogurt con fruta y semillas',
-    description: 'Yogurt natural con fruta, avena y semillas para desayuno o snack.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['Yogurt natural', 'Fruta de temporada', 'Avena', 'Semillas de chia', 'Canela'],
-    instructions: [
-      'Sirve el yogurt en un bowl.',
-      'Agrega fruta picada, avena y semillas.',
-      'Termina con canela al gusto.',
-    ],
-    goals: ['maintain', 'improve_health', 'lose_weight'],
-  },
-  {
-    id: 'backup-omelette-verduras',
-    title: 'Omelette con verduras',
-    description: 'Huevo con espinaca, champinones y pimiento para una comida sencilla.',
-    calories: 0,
-    proteinGrams: 0,
-    carbsGrams: 0,
-    fatGrams: 0,
-    ingredients: ['2 huevos', 'Espinaca', 'Champinones', 'Pimiento', 'Queso fresco'],
-    instructions: [
-      'Bate los huevos.',
-      'Saltea las verduras por unos minutos.',
-      'Agrega el huevo y cocina a fuego medio.',
-      'Dobla el omelette y sirve.',
-    ],
-    goals: ['maintain', 'improve_health', 'gain_muscle'],
-  },
-];
-
 @Component({
   selector: 'app-plan-alimenticio',
   templateUrl: './plan-alimenticio.page.html',
@@ -92,7 +23,9 @@ const BACKUP_RECIPES: Recipe[] = [
 export class PlanAlimenticioPage implements OnInit, OnDestroy {
   @ViewChild('foodImageInput') foodImageInput?: ElementRef<HTMLInputElement>;
 
-  recipes: Recipe[] = BACKUP_RECIPES;
+  user: UserProfile | null = null;
+  recipes: Recipe[] = [];
+  generalRecipes: Recipe[] = [];
   scanRecipes: SuggestedFoodRecipe[] = [];
   favoriteRecipes: FavoriteRecipe[] = [];
   searchTerm = '';
@@ -102,8 +35,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   selectedRecipe: MealCardView | null = null;
   loadingRecipeId: string | null = null;
   isRecipeModalOpen = false;
-  selectedFilter: 'all' | 'for_you' | 'favorites' | 'other' = 'all';
+  selectedFilter: 'all' | 'favorites' | 'history' = 'all';
   scanHistory: FoodScanHistoryItem[] = [];
+  
+  isLoadingPersonalized = false;
+  preferencesCompleted = false;
 
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
@@ -115,19 +51,23 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {
+      this.user = user;
       const nextUserId = user?.id ?? null;
 
-      if (nextUserId === this.activeUserId) {
-        return;
-      }
-
-      this.activeUserId = nextUserId;
-      this.resetMealState();
-
-      if (user) {
-        void this.loadMealsForUser(user);
+      if (nextUserId !== this.activeUserId) {
+        this.activeUserId = nextUserId;
+        this.resetMealState();
+        if (user) {
+          void this.loadMealsForUser(user);
+        }
       }
     });
+  }
+
+  ionViewWillEnter(): void {
+    if (this.user) {
+      void this.loadMealsForUser(this.user);
+    }
   }
 
   ngOnDestroy(): void {
@@ -152,7 +92,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
           title: recipe.title,
           description: recipe.description,
           imageUrl: null,
-          source: 'local' as const,
+          source: 'ai' as const,
           favoriteId: this.findFavoriteId(recipe.title),
           ingredients: recipe.ingredients,
           instructions: recipe.instructions,
@@ -193,7 +133,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   get suggestedMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const list: MealCardView[] = BACKUP_RECIPES
+    const list: MealCardView[] = this.generalRecipes
       .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
       .map(recipe => ({
         id: recipe.id,
@@ -214,10 +154,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       recipe.title.toLowerCase().includes(term) ||
       recipe.description.toLowerCase().includes(term),
     );
-  }
-
-  get filteredMeals(): MealCardView[] {
-    return [...this.aiMeals, ...this.favoriteMeals, ...this.suggestedMeals];
   }
 
   scanFood(): void {
@@ -337,7 +273,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private resetMealState(): void {
-    this.recipes = BACKUP_RECIPES;
+    this.recipes = [];
+    this.generalRecipes = [];
     this.scanRecipes = [];
     this.favoriteRecipes = [];
     this.scanHistory = [];
@@ -346,12 +283,24 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.selectedRecipe = null;
     this.loadingRecipeId = null;
     this.isRecipeModalOpen = false;
+    this.isLoadingPersonalized = false;
+    this.preferencesCompleted = false;
   }
 
   private async loadMealsForUser(user: UserProfile): Promise<void> {
     try {
-      const [recipes, favorites] = await Promise.all([
-        this.eatWellService.getPersonalizedRecipes(user),
+      // Get food preferences to check onboarding completion
+      let prefs;
+      try {
+        prefs = await this.eatWellService.getFoodPreferences();
+        this.preferencesCompleted = prefs.completed;
+      } catch {
+        this.preferencesCompleted = false;
+      }
+
+      // Fetch general recipes and favorites in parallel
+      const [general, favorites] = await Promise.all([
+        this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
       ]);
 
@@ -359,12 +308,28 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         return;
       }
 
-      this.recipes = recipes.length > 0 ? recipes : BACKUP_RECIPES;
+      this.generalRecipes = general;
       this.favoriteRecipes = favorites;
+
+      // If preferences are completed, load personalized recipes from Gemini
+      if (this.preferencesCompleted) {
+        this.isLoadingPersonalized = true;
+        try {
+          this.recipes = await this.eatWellService.getPersonalizedRecipes(user);
+        } catch (err) {
+          console.error('Error fetching personalized recipes', err);
+          this.recipes = [];
+        } finally {
+          this.isLoadingPersonalized = false;
+        }
+      } else {
+        this.recipes = [];
+      }
+
       await this.loadScanHistory();
     } catch (error) {
       if (this.activeUserId === user.id) {
-        this.recipes = BACKUP_RECIPES;
+        this.recipes = [];
         await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar las recetas.');
       }
     }

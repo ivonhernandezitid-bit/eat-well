@@ -1,39 +1,42 @@
 <ion-content class="ion-padding">
   <div class="plan-wrapper">
     <div class="topbar">
-      <ion-item lines="none" class="filter-select-item">
-        <ion-select
-          interface="popover"
-          [(ngModel)]="selectedFilter"
-          [interfaceOptions]="{ cssClass: 'filter-popover' }"
-          toggle-icon="chevron-down-outline"
-        >
-          <ion-select-option value="all">Todo</ion-select-option>
-          <ion-select-option value="for_you">Recetas para ti</ion-select-option>
-          <ion-select-option value="favorites">Recetas favoritas</ion-select-option>
-          <ion-select-option value="other">Otras recetas</ion-select-option>
-        </ion-select>
-      </ion-item>
+      <div class="topbar-row">
+        <div class="filter-pills">
+          <button class="filter-pill" [class.active]="selectedFilter === 'all'" (click)="selectedFilter = 'all'">
+            <ion-icon name="sparkles-outline"></ion-icon>
+            <span>Recomendado</span>
+          </button>
+          <button class="filter-pill" [class.active]="selectedFilter === 'favorites'" (click)="selectedFilter = 'favorites'">
+            <ion-icon name="heart-outline"></ion-icon>
+            <span>Favoritos</span>
+          </button>
+          <button class="filter-pill" [class.active]="selectedFilter === 'history'" (click)="selectedFilter = 'history'">
+            <ion-icon name="time-outline"></ion-icon>
+            <span>Historial</span>
+          </button>
+        </div>
+
+        <ion-button fill="clear" class="scanner-button" aria-label="Escanear comida" [disabled]="isScanning" (click)="scanFood()">
+          <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
+          <ng-template #scannerIcon>
+            <ion-icon name="scan-outline"></ion-icon>
+          </ng-template>
+        </ion-button>
+        <input
+          #foodImageInput
+          class="food-image-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          (change)="onFoodImageSelected($event)"
+        />
+      </div>
 
       <div class="search-block">
         <ion-input placeholder="Buscar..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
         <ion-icon name="search-outline" class="search-icon"></ion-icon>
       </div>
-
-      <ion-button fill="clear" class="scanner-button" aria-label="Escanear comida" [disabled]="isScanning" (click)="scanFood()">
-        <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
-        <ng-template #scannerIcon>
-          <ion-icon name="scan-outline"></ion-icon>
-        </ng-template>
-      </ion-button>
-      <input
-        #foodImageInput
-        class="food-image-input"
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
-        (change)="onFoodImageSelected($event)"
-      />
     </div>
 
     <section class="scan-result" *ngIf="scanPreview">
@@ -53,80 +56,68 @@
 
     <h1 class="screen-title">PLAN ALIMENTICIO</h1>
 
-    <!-- Sección de Recetas Generadas por IA / Respaldo -->
-    <div *ngIf="selectedFilter === 'all' || selectedFilter === 'for_you'" class="section-container">
+    <!-- Sección de Recetas Generadas por IA / Personalizadas -->
+    <div *ngIf="selectedFilter === 'all'" class="section-container">
       <h2 class="section-subtitle">
         <ion-icon name="sparkles"></ion-icon>
         Recetas para ti
       </h2>
-      <div class="meal-list" *ngIf="aiMeals.length > 0; else noAiMeals">
-        <article class="meal-card ai-recipe-card" *ngFor="let recipe of aiMeals">
-          <button type="button" class="meal-open" (click)="openRecipe(recipe)">
-            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
-            <ng-template #defaultMealIcon>
-              <div class="meal-icon-box ai-icon">
-                <ion-icon [name]="recipe.source === 'ai' ? 'sparkles-outline' : 'restaurant-outline'"></ion-icon>
-              </div>
-            </ng-template>
-            <div class="meal-copy">
-              <h2>{{ recipe.title }}</h2>
-              <p>{{ recipe.description }}</p>
-            </div>
-          </button>
-          <ion-button
-            fill="clear"
-            class="favorite-button"
-            [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-            (click)="toggleFavorite(recipe, $event)"
-          >
-            <ion-icon slot="icon-only" [name]="recipe.favoriteId ? 'heart' : 'heart-outline'"></ion-icon>
+      
+      <!-- Caso 1: Onboarding incompleto -->
+      <div class="onboarding-card" *ngIf="!preferencesCompleted">
+        <div class="onboarding-icon">
+          <ion-icon name="options-outline"></ion-icon>
+        </div>
+        <div class="onboarding-copy">
+          <h3>Configura tus preferencias</h3>
+          <p>Completa tus preferencias para que la IA genere recetas totalmente personalizadas para ti.</p>
+          <ion-button expand="block" routerLink="/preferencias-alimentarias" class="onboarding-btn">
+            Completar preferencias
           </ion-button>
-          <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
-        </article>
+        </div>
       </div>
-      <ng-template #noAiMeals>
-        <p class="empty-list-text">No se encontraron recetas.</p>
-      </ng-template>
+
+      <!-- Caso 2: Cargando recetas con IA -->
+      <div class="loading-recipes-box" *ngIf="preferencesCompleted && isLoadingPersonalized">
+        <ion-spinner name="crescent"></ion-spinner>
+        <p>Se están procesando tus recetas personalizadas con IA...</p>
+      </div>
+
+      <!-- Caso 3: Listado de recetas IA -->
+      <div *ngIf="preferencesCompleted && !isLoadingPersonalized">
+        <div class="meal-list" *ngIf="aiMeals.length > 0; else noAiMeals">
+          <article class="meal-card ai-recipe-card" *ngFor="let recipe of aiMeals">
+            <button type="button" class="meal-open" (click)="openRecipe(recipe)">
+              <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+              <ng-template #defaultMealIcon>
+                <div class="meal-icon-box ai-icon">
+                  <ion-icon name="sparkles-outline"></ion-icon>
+                </div>
+              </ng-template>
+              <div class="meal-copy">
+                <h2>{{ recipe.title }}</h2>
+                <p>{{ recipe.description }}</p>
+              </div>
+            </button>
+            <ion-button
+              fill="clear"
+              class="favorite-button"
+              [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              (click)="toggleFavorite(recipe, $event)"
+            >
+              <ion-icon slot="icon-only" [name]="recipe.favoriteId ? 'heart' : 'heart-outline'"></ion-icon>
+            </ion-button>
+            <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
+          </article>
+        </div>
+        <ng-template #noAiMeals>
+          <p class="empty-list-text">No se encontraron recetas personalizadas.</p>
+        </ng-template>
+      </div>
     </div>
 
-    <!-- Sección de Recetas Favoritas -->
-    <div *ngIf="selectedFilter === 'all' || selectedFilter === 'favorites'" class="section-container favorites-section">
-      <h2 class="section-subtitle">
-        <ion-icon name="heart"></ion-icon>
-        Recetas favoritas
-      </h2>
-      <div class="meal-list" *ngIf="favoriteMeals.length > 0; else noFavorites">
-        <article class="meal-card favorite-recipe-card" *ngFor="let recipe of favoriteMeals">
-          <button type="button" class="meal-open" (click)="openRecipe(recipe)">
-            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
-            <ng-template #defaultMealIcon>
-              <div class="meal-icon-box favorite-icon">
-                <ion-icon name="heart-outline"></ion-icon>
-              </div>
-            </ng-template>
-            <div class="meal-copy">
-              <h2>{{ recipe.title }}</h2>
-              <p>{{ recipe.description }}</p>
-            </div>
-          </button>
-          <ion-button
-            fill="clear"
-            class="favorite-button"
-            [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
-            (click)="toggleFavorite(recipe, $event)"
-          >
-            <ion-icon slot="icon-only" name="heart"></ion-icon>
-          </ion-button>
-          <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
-        </article>
-      </div>
-      <ng-template #noFavorites>
-        <p class="empty-list-text text-hint">Aún no tienes recetas favoritas. Pulsa el corazón en cualquier receta para guardarla aquí.</p>
-      </ng-template>
-    </div>
-
-    <!-- Sección de Otras Recetas (Locales) -->
-    <div *ngIf="selectedFilter === 'all' || selectedFilter === 'other'" class="section-container suggested-section">
+    <!-- Sección de Otras Recetas (Locales/Base de datos) -->
+    <div *ngIf="selectedFilter === 'all'" class="section-container suggested-section">
       <h2 class="section-subtitle">
         <ion-icon name="restaurant-outline"></ion-icon>
         Otras recetas
@@ -161,13 +152,49 @@
       </ng-template>
     </div>
 
+    <!-- Sección de Recetas Favoritas -->
+    <div *ngIf="selectedFilter === 'favorites'" class="section-container favorites-section">
+      <h2 class="section-subtitle">
+        <ion-icon name="heart"></ion-icon>
+        Recetas favoritas
+      </h2>
+      <div class="meal-list" *ngIf="favoriteMeals.length > 0; else noFavorites">
+        <article class="meal-card favorite-recipe-card" *ngFor="let recipe of favoriteMeals">
+          <button type="button" class="meal-open" (click)="openRecipe(recipe)">
+            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+            <ng-template #defaultMealIcon>
+              <div class="meal-icon-box favorite-icon">
+                <ion-icon name="heart-outline"></ion-icon>
+              </div>
+            </ng-template>
+            <div class="meal-copy">
+              <h2>{{ recipe.title }}</h2>
+              <p>{{ recipe.description }}</p>
+            </div>
+          </button>
+          <ion-button
+            fill="clear"
+            class="favorite-button"
+            [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+            (click)="toggleFavorite(recipe, $event)"
+          >
+            <ion-icon slot="icon-only" name="heart"></ion-icon>
+          </ion-button>
+          <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
+        </article>
+      </div>
+      <ng-template #noFavorites>
+        <p class="empty-list-text text-hint">Aún no tienes recetas favoritas. Pulsa el corazón en cualquier receta para guardarla aquí.</p>
+      </ng-template>
+    </div>
+
     <!-- Sección de Historial de Escaneos con Cámara -->
-    <div *ngIf="(selectedFilter === 'all' || selectedFilter === 'for_you') && scanHistory.length > 0" class="section-container history-section">
+    <div *ngIf="selectedFilter === 'history'" class="section-container history-section">
       <h2 class="section-subtitle">
         <ion-icon name="time-outline"></ion-icon>
         Historial de escaneos
       </h2>
-      <div class="history-list">
+      <div class="history-list" *ngIf="scanHistory.length > 0; else noHistory">
         <article class="history-card" *ngFor="let scan of scanHistory" (click)="openScanHistoryItem(scan)">
           <div class="history-icon-box">
             <ion-icon name="camera-outline"></ion-icon>
@@ -180,6 +207,9 @@
           <ion-icon name="chevron-forward-outline" class="history-arrow"></ion-icon>
         </article>
       </div>
+      <ng-template #noHistory>
+        <p class="empty-list-text">No tienes escaneos registrados aún.</p>
+      </ng-template>
     </div>
   </div>
 </ion-content>
