@@ -42,12 +42,13 @@ ion-content {
   box-shadow: 0 14px 32px rgba(31, 68, 48, 0.16);
 }
 
-// Coordinates for Frente.png muscles
+// Coordinates for Frente.png muscles (with +3% offset correction for centered assets)
+.zone-traps { top: 15%; left: 41%; width: 16%; height: 6%; border-radius: 6px; }
 .zone-shoulder-left { top: 20%; left: 28%; width: 11%; height: 9%; border-radius: 50%; }
 .zone-shoulder-right { top: 20%; right: 25%; width: 11%; height: 9%; border-radius: 50%; }
 .zone-chest { top: 21%; left: 34%; width: 34%; height: 11%; border-radius: 12px; }
 .zone-biceps-left { top: 27%; left: 26%; width: 10%; height: 11%; border-radius: 50%; }
-.zone-biceps-right { top: 27%; right: 24%; width: 10%; height: 11%; border-radius: 50%; }
+.zone-biceps-right { top: 27%; right: 23%; width: 10%; height: 11%; border-radius: 50%; }
 .zone-forearms-left { top: 37%; left: 21%; width: 10%; height: 12%; border-radius: 12px; }
 .zone-forearms-right { top: 37%; right: 18%; width: 10%; height: 12%; border-radius: 12px; }
 .zone-abdomen { top: 31%; left: 39%; width: 24%; height: 16%; border-radius: 10px; }

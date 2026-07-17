@@ -35,10 +35,11 @@ export class ActividadEspaldaPage implements OnInit {
     'Glúteos': false,
     'Cuádriceps': false,
     'Isquiotibiales': false,
-    'Pantorrillas': false
+    'Pantorrillas': false,
+    'Trapecios': false
   };
 
-  muscleList = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Antebrazos', 'Abdomen', 'Glúteos', 'Cuádriceps', 'Isquiotibiales', 'Pantorrillas'];
+  muscleList = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Antebrazos', 'Abdomen', 'Glúteos', 'Cuádriceps', 'Isquiotibiales', 'Pantorrillas', 'Trapecios'];
 
   savedRoutine: RoutineResult | null = null;
   hasSavedRoutine = false;

@@ -17,12 +17,19 @@
           </button>
         </div>
 
-        <ion-button fill="clear" class="scanner-button" aria-label="Escanear comida" [disabled]="isScanning" (click)="scanFood()">
-          <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
-          <ng-template #scannerIcon>
-            <ion-icon name="scan-outline"></ion-icon>
-          </ng-template>
-        </ion-button>
+        <div class="topbar-buttons">
+          <button class="icon-toggle-btn" aria-label="Cambiar diseño" (click)="toggleViewMode()">
+            <ion-icon [name]="viewMode === 'list' ? 'grid-outline' : 'list-outline'"></ion-icon>
+          </button>
+
+          <ion-button fill="clear" class="scanner-button" aria-label="Escanear comida" [disabled]="isScanning" (click)="scanFood()">
+            <ion-spinner *ngIf="isScanning; else scannerIcon" name="crescent"></ion-spinner>
+            <ng-template #scannerIcon>
+              <ion-icon slot="icon-only" name="scan-outline"></ion-icon>
+            </ng-template>
+          </ion-button>
+        </div>
+
         <input
           #foodImageInput
           class="food-image-input"
@@ -34,27 +41,60 @@
       </div>
 
       <div class="search-block">
-        <ion-input placeholder="Buscar..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
+        <ion-input placeholder="Buscar por receta o ingrediente..." class="search-input" [(ngModel)]="searchTerm"></ion-input>
         <ion-icon name="search-outline" class="search-icon"></ion-icon>
       </div>
     </div>
 
-    <section class="scan-result" *ngIf="scanPreview">
+    <!-- El preview del escaneo solo se muestra en la pestaña Recomendado -->
+    <section class="scan-result" *ngIf="scanPreview && selectedFilter === 'all'" (click)="showFullScanDetails()">
       <img class="scan-photo" [src]="scanPreview" alt="Comida escaneada" />
       <div class="scan-copy">
         <span class="scan-label">Comida escaneada</span>
         <h2>{{ isScanning ? 'Analizando...' : (scanResult?.foodName || 'Comida') }}</h2>
         <p class="detected-ingredients" *ngIf="scanResult?.detectedIngredients?.length">
-          {{ scanResult?.detectedIngredients?.join(', ') }}
+          Ingredientes: {{ scanResult?.detectedIngredients?.join(', ') }}
         </p>
-        <p *ngIf="scanResult">{{ scanResult.recommendation }}</p>
       </div>
-      <ion-button fill="clear" class="clear-scan" aria-label="Quitar escaneo" (click)="clearScan()">
+      <ion-button fill="clear" class="clear-scan" aria-label="Quitar escaneo" (click)="clearScan($event)">
         <ion-icon name="close-outline"></ion-icon>
       </ion-button>
     </section>
 
     <h1 class="screen-title">PLAN ALIMENTICIO</h1>
+
+    <!-- Sección de Recetas del Alimento Escaneado (solo visible si se escaneó algo) -->
+    <div *ngIf="selectedFilter === 'all' && scanRecipes.length > 0" class="section-container scan-recipes-section">
+      <h2 class="section-subtitle">
+        <ion-icon name="camera"></ion-icon>
+        Recetas del escaneo: {{ scanResult?.foodName }}
+      </h2>
+      <div class="meal-list" [class.grid-mode]="viewMode === 'grid'">
+        <article class="meal-card scan-recipe-card" *ngFor="let recipe of scanMeals" [class.grid-card]="viewMode === 'grid'">
+          <button type="button" class="meal-open" [class.grid-open]="viewMode === 'grid'" (click)="openRecipe(recipe)">
+            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [class.grid-image]="viewMode === 'grid'" [src]="recipe.imageUrl" [alt]="recipe.title" />
+            <ng-template #defaultMealIcon>
+              <div class="meal-icon-box ai-icon" [class.grid-icon-box]="viewMode === 'grid'">
+                <ion-icon name="restaurant-outline"></ion-icon>
+              </div>
+            </ng-template>
+            <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
+              <h2>{{ recipe.title }}</h2>
+              <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
+            </div>
+          </button>
+          <ion-button
+            fill="clear"
+            class="favorite-button"
+            [attr.aria-label]="recipe.favoriteId ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+            (click)="toggleFavorite(recipe, $event)"
+          >
+            <ion-icon slot="icon-only" [name]="recipe.favoriteId ? 'heart' : 'heart-outline'"></ion-icon>
+          </ion-button>
+          <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
+        </article>
+      </div>
+    </div>
 
     <!-- Sección de Recetas Generadas por IA / Personalizadas -->
     <div *ngIf="selectedFilter === 'all'" class="section-container">
@@ -85,18 +125,18 @@
 
       <!-- Caso 3: Listado de recetas IA -->
       <div *ngIf="preferencesCompleted && !isLoadingPersonalized">
-        <div class="meal-list" *ngIf="aiMeals.length > 0; else noAiMeals">
-          <article class="meal-card ai-recipe-card" *ngFor="let recipe of aiMeals">
-            <button type="button" class="meal-open" (click)="openRecipe(recipe)">
-              <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+        <div class="meal-list" [class.grid-mode]="viewMode === 'grid'" *ngIf="aiMeals.length > 0; else noAiMeals">
+          <article class="meal-card ai-recipe-card" *ngFor="let recipe of aiMeals" [class.grid-card]="viewMode === 'grid'">
+            <button type="button" class="meal-open" [class.grid-open]="viewMode === 'grid'" (click)="openRecipe(recipe)">
+              <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [class.grid-image]="viewMode === 'grid'" [src]="recipe.imageUrl" [alt]="recipe.title" />
               <ng-template #defaultMealIcon>
-                <div class="meal-icon-box ai-icon">
+                <div class="meal-icon-box ai-icon" [class.grid-icon-box]="viewMode === 'grid'">
                   <ion-icon name="sparkles-outline"></ion-icon>
                 </div>
               </ng-template>
-              <div class="meal-copy">
+              <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
                 <h2>{{ recipe.title }}</h2>
-                <p>{{ recipe.description }}</p>
+                <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
               </div>
             </button>
             <ion-button
@@ -122,18 +162,18 @@
         <ion-icon name="restaurant-outline"></ion-icon>
         Otras recetas
       </h2>
-      <div class="meal-list" *ngIf="suggestedMeals.length > 0; else noSuggestedMeals">
-        <article class="meal-card suggested-recipe-card" *ngFor="let recipe of suggestedMeals">
-          <button type="button" class="meal-open" (click)="openRecipe(recipe)">
-            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+      <div class="meal-list" [class.grid-mode]="viewMode === 'grid'" *ngIf="suggestedMeals.length > 0; else noSuggestedMeals">
+        <article class="meal-card suggested-recipe-card" *ngFor="let recipe of suggestedMeals" [class.grid-card]="viewMode === 'grid'">
+          <button type="button" class="meal-open" [class.grid-open]="viewMode === 'grid'" (click)="openRecipe(recipe)">
+            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [class.grid-image]="viewMode === 'grid'" [src]="recipe.imageUrl" [alt]="recipe.title" />
             <ng-template #defaultMealIcon>
-              <div class="meal-icon-box suggested-icon">
+              <div class="meal-icon-box suggested-icon" [class.grid-icon-box]="viewMode === 'grid'">
                 <ion-icon name="restaurant-outline"></ion-icon>
               </div>
             </ng-template>
-            <div class="meal-copy">
+            <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
               <h2>{{ recipe.title }}</h2>
-              <p>{{ recipe.description }}</p>
+              <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
             </div>
           </button>
           <ion-button
@@ -158,18 +198,18 @@
         <ion-icon name="heart"></ion-icon>
         Recetas favoritas
       </h2>
-      <div class="meal-list" *ngIf="favoriteMeals.length > 0; else noFavorites">
-        <article class="meal-card favorite-recipe-card" *ngFor="let recipe of favoriteMeals">
-          <button type="button" class="meal-open" (click)="openRecipe(recipe)">
-            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [src]="recipe.imageUrl" [alt]="recipe.title" />
+      <div class="meal-list" [class.grid-mode]="viewMode === 'grid'" *ngIf="favoriteMeals.length > 0; else noFavorites">
+        <article class="meal-card favorite-recipe-card" *ngFor="let recipe of favoriteMeals" [class.grid-card]="viewMode === 'grid'">
+          <button type="button" class="meal-open" [class.grid-open]="viewMode === 'grid'" (click)="openRecipe(recipe)">
+            <img *ngIf="recipe.imageUrl; else defaultMealIcon" class="meal-image" [class.grid-image]="viewMode === 'grid'" [src]="recipe.imageUrl" [alt]="recipe.title" />
             <ng-template #defaultMealIcon>
-              <div class="meal-icon-box favorite-icon">
+              <div class="meal-icon-box favorite-icon" [class.grid-icon-box]="viewMode === 'grid'">
                 <ion-icon name="heart-outline"></ion-icon>
               </div>
             </ng-template>
-            <div class="meal-copy">
+            <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
               <h2>{{ recipe.title }}</h2>
-              <p>{{ recipe.description }}</p>
+              <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
             </div>
           </button>
           <ion-button
@@ -183,8 +223,19 @@
           <ion-spinner class="recipe-loading" name="crescent" *ngIf="loadingRecipeId === recipe.id"></ion-spinner>
         </article>
       </div>
+      
+      <!-- Estado vacío premium para Favoritos -->
       <ng-template #noFavorites>
-        <p class="empty-list-text text-hint">Aún no tienes recetas favoritas. Pulsa el corazón en cualquier receta para guardarla aquí.</p>
+        <div class="empty-state-card">
+          <div class="empty-state-icon favorite-empty">
+            <ion-icon name="heart-dislike-outline"></ion-icon>
+          </div>
+          <h3>Sin favoritos aún</h3>
+          <p>Explora recetas recomendadas en tu plan de comida y pulsa el corazón para guardarlas aquí.</p>
+          <ion-button fill="outline" class="empty-state-action" (click)="selectedFilter = 'all'">
+            Explorar recetas
+          </ion-button>
+        </div>
       </ng-template>
     </div>
 
@@ -207,13 +258,25 @@
           <ion-icon name="chevron-forward-outline" class="history-arrow"></ion-icon>
         </article>
       </div>
+      
+      <!-- Estado vacío premium para Historial -->
       <ng-template #noHistory>
-        <p class="empty-list-text">No tienes escaneos registrados aún.</p>
+        <div class="empty-state-card">
+          <div class="empty-state-icon history-empty">
+            <ion-icon name="camera-reverse-outline"></ion-icon>
+          </div>
+          <h3>Historial vacío</h3>
+          <p>Toma fotos de tus platillos o ingredientes usando el escáner superior para ver tus análisis aquí.</p>
+          <ion-button fill="outline" class="empty-state-action" (click)="scanFood()">
+            Escanear comida
+          </ion-button>
+        </div>
       </ng-template>
     </div>
   </div>
 </ion-content>
 
+<!-- Modal con Detalle de la Receta -->
 <ion-modal [isOpen]="isRecipeModalOpen" (didDismiss)="closeRecipe()">
   <ng-template>
     <ion-header>
@@ -234,23 +297,40 @@
         [src]="selectedRecipe?.imageUrl"
         [alt]="selectedRecipe?.title"
       />
-      <div class="recipe-detail-body">
+      <div class="recipe-detail-body" [class.has-timer]="timerSecondsLeft > 0">
         <p class="recipe-description">{{ selectedRecipe?.description }}</p>
 
+        <!-- Lista de Ingredientes Interactiva -->
         <section class="recipe-section">
-          <h2>Ingredientes</h2>
-          <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients">
-            <li *ngFor="let ingredient of selectedRecipe?.ingredients">{{ ingredient }}</li>
+          <h2>Ingredientes <span class="subtitle-hint">(Toca para tachar lo que tengas)</span></h2>
+          <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients" class="interactive-ingredients">
+            <li *ngFor="let ingredient of selectedRecipe?.ingredients"
+                [class.checked]="checkedIngredients.has(ingredient)"
+                (click)="toggleIngredient(ingredient)">
+              <ion-icon [name]="checkedIngredients.has(ingredient) ? 'checkbox' : 'square-outline'"></ion-icon>
+              <span>{{ ingredient }}</span>
+            </li>
           </ul>
           <ng-template #noIngredients>
             <p class="empty-detail">Los ingredientes no están disponibles para esta receta.</p>
           </ng-template>
         </section>
 
+        <!-- Lista de Preparación con Temporizadores -->
         <section class="recipe-section">
           <h2>Preparación</h2>
-          <ol *ngIf="selectedRecipe?.instructions?.length; else noInstructions">
-            <li *ngFor="let instruction of selectedRecipe?.instructions">{{ instruction }}</li>
+          <ol *ngIf="selectedRecipe?.instructions?.length; else noInstructions" class="timer-instructions">
+            <li *ngFor="let instruction of selectedRecipe?.instructions">
+              <div class="instruction-row">
+                <span class="instruction-text">{{ instruction }}</span>
+                <button *ngIf="parseMinutes(instruction) as mins"
+                            class="step-timer-btn"
+                            (click)="startCookingTimer(mins, instruction)">
+                  <ion-icon name="timer-outline"></ion-icon>
+                  <span>{{ mins }}m</span>
+                </button>
+              </div>
+            </li>
           </ol>
           <ng-template #noInstructions>
             <p class="empty-detail">Los pasos de preparación no están disponibles para esta receta.</p>
@@ -258,5 +338,29 @@
         </section>
       </div>
     </ion-content>
+
+    <!-- Barra de Temporizador Cocinando Flotante -->
+    <div class="modal-timer-bar" *ngIf="timerSecondsLeft > 0">
+      <div class="timer-bar-content">
+        <div class="timer-bar-icon">
+          <ion-icon name="timer-outline" [class.pulse]="!isTimerPaused"></ion-icon>
+        </div>
+        <div class="timer-bar-text">
+          <span class="timer-bar-step">{{ activeTimerStep }}</span>
+          <span class="timer-bar-time">{{ timerDisplay }}</span>
+        </div>
+        <div class="timer-bar-actions">
+          <button class="timer-action-btn" (click)="isTimerPaused ? resumeTimer() : pauseTimer()">
+            <ion-icon [name]="isTimerPaused ? 'play-outline' : 'pause-outline'"></ion-icon>
+          </button>
+          <button class="timer-action-btn stop-btn" (click)="stopTimer()">
+            <ion-icon name="stop-outline"></ion-icon>
+          </button>
+        </div>
+      </div>
+      <div class="timer-progress-track">
+        <div class="timer-progress-bar" [style.width.%]="timerProgress * 100"></div>
+      </div>
+    </div>
   </ng-template>
 </ion-modal>

@@ -91,12 +91,41 @@ ion-content {
   pointer-events: none;
 }
 
+.topbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-toggle-btn {
+  background: #fff;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 18px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: var(--eatwell-green-900);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
 .scanner-button {
   --color: var(--eatwell-green-900);
   --background: #fff;
   --border-radius: 18px;
   width: 46px;
   height: 46px;
+  margin: 0;
 }
 
 .food-image-input {
@@ -113,6 +142,12 @@ ion-content {
   border-radius: 24px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
 }
 
 .scan-photo {
@@ -595,4 +630,323 @@ ion-modal {
     height: 36px;
   }
 }
+
+/* DISEÑO EN CUADRÍCULA (GRID MODE) */
+.meal-list.grid-mode {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.meal-card.grid-card {
+  border-radius: 20px;
+  height: 100%;
+}
+
+.meal-open.grid-open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px;
+  gap: 8px;
+  height: 100%;
+}
+
+.meal-image.grid-image {
+  width: 100%;
+  height: 100px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.meal-icon-box.grid-icon-box {
+  width: 100%;
+  height: 100px;
+  border-radius: 14px;
+  margin: 0;
+  
+  ion-icon {
+    font-size: 32px;
+  }
+}
+
+.meal-copy.grid-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  
+  h2 {
+    margin: 4px 0 0;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ESTADOS VACÍOS PREMIUM (EMPTY STATES) */
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(31, 68, 48, 0.04);
+  border: 1px solid rgba(47, 125, 89, 0.06);
+  margin: 20px 0;
+  
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+  
+  p {
+    margin: 0 0 16px;
+    font-size: 0.88rem;
+    color: var(--eatwell-muted);
+    line-height: 1.45;
+    max-width: 280px;
+  }
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  
+  ion-icon {
+    font-size: 32px;
+  }
+  
+  &.favorite-empty {
+    background: #fbf3f5;
+    color: #b44858;
+  }
+  
+  &.history-empty {
+    background: #edf8df;
+    color: var(--eatwell-green-700);
+  }
+}
+
+.empty-state-action {
+  --border-color: var(--eatwell-green-700);
+  --color: var(--eatwell-green-700);
+  --border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* INGREDIENTES INTERACTIVOS */
+.subtitle-hint {
+  font-size: 0.78rem;
+  color: var(--eatwell-muted);
+  font-weight: normal;
+  text-transform: none;
+}
+
+.interactive-ingredients {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid rgba(47, 125, 89, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    
+    ion-icon {
+      font-size: 20px;
+      color: var(--eatwell-muted);
+      flex-shrink: 0;
+    }
+    
+    &.checked {
+      background: #edf8df;
+      border-color: rgba(47, 125, 89, 0.2);
+      text-decoration: line-through;
+      color: var(--eatwell-muted);
+      
+      ion-icon {
+        color: var(--eatwell-green-700);
+      }
+    }
+  }
+}
+
+/* TEMPORIZADOR EN INSTRUCCIONES */
+.instruction-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.instruction-text {
+  flex: 1;
+}
+
+.step-timer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 14px;
+  background: rgba(47, 125, 89, 0.08);
+  border: 1px solid rgba(47, 125, 89, 0.15);
+  color: var(--eatwell-green-700);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  
+  &:active {
+    transform: scale(0.94);
+  }
+  
+  ion-icon {
+    font-size: 14px;
+  }
+}
+
+/* BARRA DE TEMPORIZADOR DE COCCIÓN FLOTANTE EN MODAL */
+.recipe-detail-body.has-timer {
+  padding-bottom: 96px;
+}
+
+.modal-timer-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(47, 125, 89, 0.1);
+  box-shadow: 0 -8px 24px rgba(31, 68, 48, 0.1);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999;
+}
+
+.timer-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timer-bar-icon {
+  color: var(--eatwell-green-700);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  
+  .pulse {
+    animation: pulseTimer 1s infinite alternate;
+  }
+}
+
+@keyframes pulseTimer {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+.timer-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timer-bar-step {
+  font-size: 0.78rem;
+  color: var(--eatwell-muted);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-bar-time {
+  font-size: 1.15rem;
+  color: var(--eatwell-green-900);
+  font-weight: 900;
+  font-family: monospace;
+}
+
+.timer-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer-action-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(47, 125, 89, 0.1);
+  color: var(--eatwell-green-700);
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:active {
+    transform: scale(0.92);
+  }
+  
+  &.stop-btn {
+    background: rgba(180, 72, 88, 0.1);
+    color: #b44858;
+  }
+}
+
+.timer-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(47, 125, 89, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.timer-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--eatwell-green-700), #8dcc73);
+  transition: width 1s linear;
+}
+
 

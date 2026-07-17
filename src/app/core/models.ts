@@ -172,6 +172,7 @@ export interface CustomRoutineForm {
 
 export interface FoodScanHistoryItem {
   id: string;
+  imageUrl?: string;
   detectedFood: string;
   detectedIngredients: string[];
   estimatedCalories: number;

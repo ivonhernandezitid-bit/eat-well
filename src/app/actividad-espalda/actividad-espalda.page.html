@@ -6,24 +6,52 @@
       <img src="assets/icon/Espalda.png" alt="Actividad espalda" class="activity-image" />
       
       <!-- Interactive Muscles (Back view) -->
-      <button class="zone zone-back" [class.selected]="selectedMuscle === 'Espalda'" aria-label="Espalda" (click)="selectMuscle('Espalda')"></button>
+      <button class="zone zone-traps" [class.selected]="selectedMuscle === 'Trapecios'" aria-label="Trapecios" (click)="selectMuscle('Trapecios')">
+        <span class="hotspot-dot" data-label="Trapecios"></span>
+      </button>
+
+      <button class="zone zone-back" [class.selected]="selectedMuscle === 'Espalda'" aria-label="Espalda" (click)="selectMuscle('Espalda')">
+        <span class="hotspot-dot" data-label="Espalda"></span>
+      </button>
       
-      <button class="zone zone-shoulder-left" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')"></button>
-      <button class="zone zone-shoulder-right" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')"></button>
+      <button class="zone zone-shoulder-left" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')">
+        <span class="hotspot-dot" data-label="Hombros"></span>
+      </button>
+      <button class="zone zone-shoulder-right" [class.selected]="selectedMuscle === 'Hombros'" aria-label="Hombros" (click)="selectMuscle('Hombros')">
+        <span class="hotspot-dot" data-label="Hombros"></span>
+      </button>
       
-      <button class="zone zone-triceps-left" [class.selected]="selectedMuscle === 'Tríceps'" aria-label="Tríceps" (click)="selectMuscle('Tríceps')"></button>
-      <button class="zone zone-triceps-right" [class.selected]="selectedMuscle === 'Tríceps'" aria-label="Tríceps" (click)="selectMuscle('Tríceps')"></button>
+      <button class="zone zone-triceps-left" [class.selected]="selectedMuscle === 'Tríceps'" aria-label="Tríceps" (click)="selectMuscle('Tríceps')">
+        <span class="hotspot-dot" data-label="Tríceps"></span>
+      </button>
+      <button class="zone zone-triceps-right" [class.selected]="selectedMuscle === 'Tríceps'" aria-label="Tríceps" (click)="selectMuscle('Tríceps')">
+        <span class="hotspot-dot" data-label="Tríceps"></span>
+      </button>
       
-      <button class="zone zone-forearms-left" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')"></button>
-      <button class="zone zone-forearms-right" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')"></button>
+      <button class="zone zone-forearms-left" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')">
+        <span class="hotspot-dot" data-label="Antebrazos"></span>
+      </button>
+      <button class="zone zone-forearms-right" [class.selected]="selectedMuscle === 'Antebrazos'" aria-label="Antebrazos" (click)="selectMuscle('Antebrazos')">
+        <span class="hotspot-dot" data-label="Antebrazos"></span>
+      </button>
       
-      <button class="zone zone-glutes" [class.selected]="selectedMuscle === 'Glúteos'" aria-label="Glúteos" (click)="selectMuscle('Glúteos')"></button>
+      <button class="zone zone-glutes" [class.selected]="selectedMuscle === 'Glúteos'" aria-label="Glúteos" (click)="selectMuscle('Glúteos')">
+        <span class="hotspot-dot" data-label="Glúteos"></span>
+      </button>
       
-      <button class="zone zone-hamstrings-left" [class.selected]="selectedMuscle === 'Isquiotibiales'" aria-label="Isquiotibiales" (click)="selectMuscle('Isquiotibiales')"></button>
-      <button class="zone zone-hamstrings-right" [class.selected]="selectedMuscle === 'Isquiotibiales'" aria-label="Isquiotibiales" (click)="selectMuscle('Isquiotibiales')"></button>
+      <button class="zone zone-hamstrings-left" [class.selected]="selectedMuscle === 'Isquiotibiales'" aria-label="Isquiotibiales" (click)="selectMuscle('Isquiotibiales')">
+        <span class="hotspot-dot" data-label="Isquiotibiales"></span>
+      </button>
+      <button class="zone zone-hamstrings-right" [class.selected]="selectedMuscle === 'Isquiotibiales'" aria-label="Isquiotibiales" (click)="selectMuscle('Isquiotibiales')">
+        <span class="hotspot-dot" data-label="Isquiotibiales"></span>
+      </button>
       
-      <button class="zone zone-calves-left" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')"></button>
-      <button class="zone zone-calves-right" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')"></button>
+      <button class="zone zone-calves-left" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')">
+        <span class="hotspot-dot" data-label="Pantorrillas"></span>
+      </button>
+      <button class="zone zone-calves-right" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')">
+        <span class="hotspot-dot" data-label="Pantorrillas"></span>
+      </button>
     </div>
 
     <!-- Routine Action Row -->

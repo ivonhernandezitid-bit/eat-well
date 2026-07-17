@@ -129,11 +129,15 @@ export class EatWellService {
     return response.result;
   }
 
-  async getSavedFoodRecommendations(): Promise<SuggestedFoodRecipe[]> {
+  async getSavedFoodRecommendations(scanId?: string): Promise<SuggestedFoodRecipe[]> {
     const activeUser = this.getRequiredActiveUser();
-    const response = await this.get<FoodRecommendationsResponse>('scanner.recommendations', {
+    const params: Record<string, string | number> = {
       userId: activeUser.id,
-    });
+    };
+    if (scanId) {
+      params['scanId'] = scanId;
+    }
+    const response = await this.get<FoodRecommendationsResponse>('scanner.recommendations', params);
     return response.recipes;
   }
 
@@ -339,6 +343,7 @@ export class EatWellService {
       'Cuádriceps': 'legs',
       Isquiotibiales: 'legs',
       Pantorrillas: 'calves',
+      Trapecios: 'shoulders',
     };
     const zone = zoneByMuscle[muscle];
 

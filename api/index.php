@@ -47,48 +47,136 @@ try {
     // Add additional backup recipes
     $additionalRecipes = [
         [
-            'title' => 'Tacos de lechuga con pavo',
-            'description' => 'Una opción baja en carbohidratos y muy fresca para cenar.',
-            'calories' => 280,
-            'protein_grams' => 24,
-            'carbs_grams' => 12,
+            'title' => 'Tostadas ligeras de atún al chipotle',
+            'description' => 'Una cena rápida, deliciosa y crujiente, alta en proteínas y baja en grasa.',
+            'calories' => 320,
+            'protein_grams' => 28,
+            'carbs_grams' => 22,
             'fat_grams' => 8,
-            'ingredients' => 'Hojas de lechuga orejona|Pechuga de pavo molida|Cebolla picada|Ajo picada|Salsa de soya baja en sodio',
-            'instructions' => 'Saltea la cebolla y el ajo en un sartén.|Agrega el pavo molido y cocina hasta dorar.|Sazona con salsa de soya.|Sirve el pavo dentro de las hojas de lechuga como tacos.',
+            'ingredients' => '2 latas de atún en agua escurrido|3 tostadas horneadas de maíz|1 jitomate picado|1/2 taza de cilantro fresco picado|1/4 taza de yogur griego natural sin azúcar|1 cucharadita de chile chipotle molido|1/2 aguacate en rebanadas',
+            'instructions' => 'En un tazón, mezcla el atún escurrido con el yogur griego y el chipotle picado.|Agrega el jitomate y el cilantro picado, y sazona con una pizca de sal.|Reparte la mezcla equitativamente sobre las 3 tostadas de maíz.|Decora cada tostada con rebanadas de aguacate fresco antes de servir.',
             'goal' => 'lose_weight'
         ],
         [
-            'title' => 'Ensalada mediterránea de quinoa',
-            'description' => 'Un plato completo rico en fibra y grasas saludables.',
-            'calories' => 420,
-            'protein_grams' => 12,
-            'carbs_grams' => 54,
-            'fat_grams' => 14,
-            'ingredients' => 'Quinoa cocida|Pepino en cubos|Jitomate cherry partidos por la mitad|Aceitunas negras|Queso feta desmoronado|Aceite de oliva y limón',
-            'instructions' => 'En un tazón grande mezcla la quinoa con los vegetales y aceitunas.|Añada el queso feta.|Adereza con un chorrito de aceite de oliva, limón y sal al gusto.',
-            'goal' => 'improve_health'
+            'title' => 'Tacos de lechuga con pavo al cilantro',
+            'description' => 'Tacos súper frescos, crujientes y bajos en carbohidratos, ideales para cenar ligero.',
+            'calories' => 260,
+            'protein_grams' => 26,
+            'carbs_grams' => 10,
+            'fat_grams' => 6,
+            'ingredients' => '6 hojas grandes de lechuga orejona lavadas|250g de pechuga de pavo molida magra|1/2 cebolla blanca finamente picada|1 diente de ajo picado|1 cucharada de salsa de soya baja en sodio|1/2 taza de cilantro picado|1 cucharadita de aceite de oliva',
+            'instructions' => 'Calienta el aceite de oliva en un sartén a fuego medio por 2 minutos.|Sofríe la cebolla y el ajo durante 3 minutos hasta que estén traslúcidos.|Agrega la carne molida de pavo y cocina por 10 minutos moviendo constantemente.|Añade la salsa de soya y la mitad del cilantro; cocina por 3 minutos más.|Sirve porciones de la carne sobre las hojas de lechuga y decora con el cilantro restante.',
+            'goal' => 'lose_weight'
         ],
         [
-            'title' => 'Crema de calabaza y zanahoria',
-            'description' => 'Sopa reconfortante y llena de vitaminas A y C.',
-            'calories' => 180,
-            'protein_grams' => 4,
-            'carbs_grams' => 28,
-            'fat_grams' => 6,
-            'ingredients' => 'Calabaza de Castilla picada|Zanahorias picadas|Cebolla picada|Caldo de verduras|Un chorrito de leche de almendras',
-            'instructions' => 'Cocina la calabaza, zanahoria y cebolla en el caldo de verduras hasta que estén suaves.|Licúa todo hasta obtener una textura tersa.|Agrega la leche de almendras y calienta 5 minutos más.',
+            'title' => 'Pechuga de pollo al limón con ejotes',
+            'description' => 'Una comida limpia, saciante y nutritiva para quemar grasa manteniendo masa muscular.',
+            'calories' => 340,
+            'protein_grams' => 32,
+            'carbs_grams' => 14,
+            'fat_grams' => 9,
+            'ingredients' => '1 pechuga de pollo de 150g deshuesada y sin piel|1 taza de ejotes verdes limpios|Jugo de 1 limón grande|1 diente de ajo machacado|1 cucharadita de orégano seco|1 cucharadita de aceite de oliva|Sal y pimienta negra al gusto',
+            'instructions' => 'Marina la pechuga de pollo con el jugo de limón, el ajo, el orégano, sal y pimienta por 15 minutos.|Calienta el aceite de oliva en una plancha o sartén a fuego medio.|Cocina el pollo durante 6-8 minutos por cada lado hasta que esté bien cocido.|Mientras tanto, hierve los ejotes en agua con sal durante 5 minutos para que queden crujientes.|Sirve la pechuga caliente acompañada de los ejotes al vapor.',
+            'goal' => 'lose_weight'
+        ],
+        [
+            'title' => 'Avena cremosa con plátano y nueces',
+            'description' => 'Un desayuno completo y energético rico en fibra soluble y grasas saludables.',
+            'calories' => 440,
+            'protein_grams' => 12,
+            'carbs_grams' => 64,
+            'fat_grams' => 15,
+            'ingredients' => '1/2 taza de hojuelas de avena entera|1 taza de leche de almendras sin azúcar|1/2 plátano cortado en rodajas|6 nueces de pecana picadas|1 cucharadita de semillas de chía|1/2 cucharadita de canela en polvo|1 cucharadita de miel de abeja pura',
+            'instructions' => 'En una olla pequeña, combina la avena y la leche de almendras a fuego medio.|Cocina a fuego lento durante 8 minutos moviendo continuamente hasta que espese.|Vierte la avena en un plato hondo y decora con las rodajas de plátano y las nueces.|Espolvorea la chía, la canela y vierte un hilo de miel por encima antes de disfrutar.',
             'goal' => 'maintain'
         ],
         [
-            'title' => 'Filete de salmón al limón',
-            'description' => 'Proteína de alta calidad con Omega-3 para el cuidado del corazón.',
-            'calories' => 380,
-            'protein_grams' => 32,
-            'carbs_grams' => 2,
-            'fat_grams' => 22,
-            'ingredients' => 'Filete de salmón fresco|Rodajas de limón|Ajo en polvo|Pimienta negra|Pizca de sal de mar|Aceite de oliva',
-            'instructions' => 'Precalienta el horno a 180°C.|Coloca el salmón en una charola, barniza con aceite de oliva y sazona con ajo, pimienta y sal.|Coloca las rodajas de limón encima y hornea por 15 minutos.',
+            'title' => 'Crema de calabaza asada y zanahoria',
+            'description' => 'Una sopa reconfortante y aterciopelada repleta de antioxidantes y vitaminas.',
+            'calories' => 220,
+            'protein_grams' => 5,
+            'carbs_grams' => 34,
+            'fat_grams' => 7,
+            'ingredients' => '300g de calabaza picada en cubos|2 zanahorias medianas cortadas en rodajas|1/2 cebolla picada|2 tazas de caldo de verduras bajo en sodio|1 cucharadita de aceite de oliva|1/4 taza de leche de coco ligera|Sal y nuez moscada al gusto',
+            'instructions' => 'Precalienta el horno a 200°C y hornea la calabaza y zanahoria con aceite por 20 minutos.|En una olla sofríe la cebolla por 5 minutos hasta que caramelice.|Agrega las verduras asadas y el caldo de verduras a la olla; hierve por 5 minutos.|Licúa todo hasta obtener una crema tersa sin grumos.|Regresa al fuego, añade la leche de coco, sal, una pizca de nuez moscada y calienta 5 minutos más.',
+            'goal' => 'maintain'
+        ],
+        [
+            'title' => 'Wrap integral de humus y vegetales',
+            'description' => 'Un almuerzo fresco, vegetariano y rápido de armar, ideal para llevar al trabajo.',
+            'calories' => 390,
+            'protein_grams' => 11,
+            'carbs_grams' => 48,
+            'fat_grams' => 16,
+            'ingredients' => '1 tortilla de trigo integral grande|3 cucharadas de humus clásico|1/2 taza de hojas de espinaca baby|1/2 pepino cortado en rodajas delgadas|1/2 zanahoria rallada|4 rodajas de jitomate maduro|1 cucharada de pepitas de calabaza',
+            'instructions' => 'Extiende la tortilla de trigo integral sobre una superficie plana.|Unta el humus de manera uniforme sobre la superficie del wrap.|Coloca una capa de espinacas y acomoda encima el pepino, jitomate y zanahoria rallada.|Espolvorea las pepitas de calabaza para añadir un toque crujiente.|Dobla los extremos de la tortilla hacia adentro y enrolla firmemente.',
+            'goal' => 'maintain'
+        ],
+        [
+            'title' => 'Licuado de proteína y crema de cacahuate',
+            'description' => 'Un batido calórico de alta calidad para reparar fibras musculares post-entrenamiento.',
+            'calories' => 650,
+            'protein_grams' => 38,
+            'carbs_grams' => 78,
+            'fat_grams' => 24,
+            'ingredients' => '1 taza de leche entera o deslactosada|1 scoop de proteína de suero (whey) de vainilla|1 plátano entero maduro|2 cucharadas de crema de cacahuate natural|1/3 taza de avena licuada|4 cubos de hielo',
+            'instructions' => 'Coloca la avena sola en la licuadora y procésala por 30 segundos para molerla.|Agrega la leche, el plátano, la proteína y la crema de cacahuate.|Licúa todos los ingredientes a velocidad alta durante 1 minuto hasta que esté homogéneo.|Agrega los cubos de hielo y licúa 15 segundos adicionales para lograr una textura fría.',
             'goal' => 'gain_muscle'
+        ],
+        [
+            'title' => 'Filete de salmón al limón con papas asadas',
+            'description' => 'Cena rica en ácidos grasos omega-3 y carbohidratos complejos para favorecer el anabolismo.',
+            'calories' => 510,
+            'protein_grams' => 34,
+            'carbs_grams' => 38,
+            'fat_grams' => 24,
+            'ingredients' => '150g de filete de salmón fresco con piel|1 papa mediana cortada en cubos|1/2 cucharada de aceite de oliva|1 diente de ajo picado finamente|Rodajas de 1 limón fresco|Sal de mar y eneldo seco al gusto',
+            'instructions' => 'Precalienta el horno a 200°C.|Coloca los cubos de papa en una bandeja con aceite, sal de mar y hornea por 15 minutos.|Sazona el salmón con ajo, eneldo, sal y coloca las rodajas de limón sobre el filete.|Coloca el salmón al lado de las papas y hornea todo junto durante 12-15 minutos más.|Sirve el filete de salmón acompañado de las papas doradas calientes.',
+            'goal' => 'gain_muscle'
+        ],
+        [
+            'title' => 'Pasta integral con carne de res molida y tomate',
+            'description' => 'Una comida clásica de volumen muscular con excelente aporte de hierro y zinc.',
+            'calories' => 580,
+            'protein_grams' => 40,
+            'carbs_grams' => 68,
+            'fat_grams' => 16,
+            'ingredients' => '80g de pasta integral (en seco)|180g de carne molida de res extra magra (95/5)|1 taza de puré de tomate natural|1/2 cebolla picada|1 diente de ajo picado|1 cucharada de queso parmesano rallado|1 cucharadita de orégano',
+            'instructions' => 'Cocina la pasta integral en agua hirviendo con sal durante 9-11 minutos.|Mientras se cuece la pasta, sofríe la cebolla y el ajo en un sartén por 3 minutos.|Agrega la carne molida de res y cocínala por 8 minutos deshaciendo los grumos.|Vierte el puré de tomate y el orégano; deja hervir a fuego bajo durante 5 minutos.|Escurra la pasta, mézclala con la salsa boloñesa y espolvorea con queso parmesano.',
+            'goal' => 'gain_muscle'
+        ],
+        [
+            'title' => 'Bowl balanceado de pollo y arroz integral',
+            'description' => 'Un tazón nutritivo y equilibrado rico en fibra, micronutrientes y grasas buenas.',
+            'calories' => 480,
+            'protein_grams' => 34,
+            'carbs_grams' => 52,
+            'fat_grams' => 14,
+            'ingredients' => '120g de pechuga de pollo a la plancha|1/2 taza de arroz integral cocido al vapor|1 taza de ramilletes de brócoli cocidos|1/2 taza de zanahoria rallada|1/4 de aguacate en cubos|1 cucharada de semillas de sésamo',
+            'instructions' => 'Sella la pechuga de pollo a la plancha por 6 minutos por lado; corta en cubos.|Cocina el brócoli al vapor durante 5 minutos para que conserve sus nutrientes.|En un tazón amplio coloca el arroz integral como base en una mitad.|Acomoda encima el pollo, el brócoli, la zanahoria rallada y el aguacate.|Espolvorea las semillas de sésamo por encima antes de disfrutar.',
+            'goal' => 'improve_health'
+        ],
+        [
+            'title' => 'Ensalada mediterránea de quinoa',
+            'description' => 'Un plato vegetariano alcalino y lleno de antioxidantes protectores de la salud celular.',
+            'calories' => 390,
+            'protein_grams' => 10,
+            'carbs_grams' => 54,
+            'fat_grams' => 15,
+            'ingredients' => '1/2 taza de quinoa cocida|1/2 taza de pepino cortado en cubos|1/2 taza de jitomates cherry partidos por la mitad|6 aceitunas negras picadas|30g de queso feta desmoronado|1 cucharadita de aceite de oliva extra virgen|Jugo de medio limón',
+            'instructions' => 'Enjuaga y cocina la quinoa según las instrucciones de tu empaque (aprox. 15 minutos).|Deja enfriar la quinoa cocida por 10 minutos.|En un tazón grande, mezcla la quinoa fría con el pepino, jitomate cherry y aceitunas.|Agrega el queso feta desmoronado por encima.|Adereza con el aceite de oliva, el jugo de limón y mezcla suavemente.',
+            'goal' => 'improve_health'
+        ],
+        [
+            'title' => 'Tazón de yogur griego con frutos rojos',
+            'description' => 'Un postre o snack saludable para regular la flora intestinal y fortalecer el sistema inmune.',
+            'calories' => 260,
+            'protein_grams' => 18,
+            'carbs_grams' => 28,
+            'fat_grams' => 8,
+            'ingredients' => '200g de yogur griego natural sin azúcar|1/2 taza de frutos rojos (fresas, arándanos, frambuesas)|2 cucharadas de almendras fileteadas|1 cucharadita de semillas de linaza molidas|1 cucharadita de semillas de chía',
+            'instructions' => 'Sirve el yogur griego en un plato hondo o copa de tu elección.|Lava muy bien los frutos rojos y colócalos sobre el yogur.|Añade las almendras fileteadas para dar una textura crujiente.|Espolvorea la linaza molida y la chía para incrementar el aporte de fibra y Omega-3.',
+            'goal' => 'improve_health'
         ]
     ];
 
@@ -397,13 +485,15 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
 
     if ($mappedPreferences['completed'] && $apiKey !== '') {
         $dislikedList = implode(', ', array_merge($mappedPreferences['dislikedFoods'], $mappedPreferences['allergies']));
-        $prompt = "Genera exactamente 5 recetas practicas en espanol para este perfil. "
+        $timePref = (int)$mappedPreferences['cookingTimeMinutes'];
+        $prompt = "Genera exactamente 5 recetas practicas y saludables en espanol para este perfil. "
             . "Objetivo: {$user['goal']}. IMC: {$user['imc']}. "
             . "Tipo de alimentacion: {$mappedPreferences['dietType']}. "
             . "Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . ". "
             . "Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . ". "
-            . "PROHIBIDO usar en cualquier receta estos ingredientes (alergias o no deseados): {$dislikedList}. "
-            . "Tiempo maximo aproximado: {$mappedPreferences['cookingTimeMinutes']} minutos. "
+            . "PROHIBIDO usar o mencionar en cualquier receta estos ingredientes (alergias o alimentos no deseados): {$dislikedList}. "
+            . "El usuario prefiere un tiempo de coccion maximo de {$timePref} minutos. Intenta de preferencia apegarte a ese tiempo, pero si una receta requiere mas tiempo de coccion para estar lista y deliciosa, tienes permitido excederlo. "
+            . "Asegurate de que las recetas tengan una preparacion paso a paso muy detallada, e ingredientes precisos con sus porciones/cantidades correctas. "
             . "Ninguna receta puede contener ni mencionar los ingredientes prohibidos bajo ninguna circunstancia. "
             . "Devuelve unicamente un array JSON con exactamente 5 objetos. "
             . "Cada receta debe tener title, description, ingredients e instructions.";
@@ -455,19 +545,8 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
         }
     }
 
-    // Fallback: serve from general recipes table filtered by goal/IMC/dislikes
-    $statement = $pdo->prepare(
-        'SELECT * FROM recipes
-         WHERE goal = ?
-         AND (min_imc IS NULL OR min_imc <= ?)
-         AND (max_imc IS NULL OR max_imc >= ?)
-         ORDER BY calories ASC',
-    );
-    $statement->execute([$user['goal'], $user['imc'], $user['imc']]);
-    $recipes = array_map('mapRecipe', $statement->fetchAll());
-    $filtered = filterRecipesByPreferences($recipes, $mappedPreferences);
-
-    sendJson(['recipes' => $filtered]);
+    // No fallback: return empty list for personalized recipes section if Gemini is offline
+    sendJson(['recipes' => []]);
 }
 
 function mapPersonalizedRecipe(array $recipe): array
@@ -599,7 +678,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
     );
     $generatedRecipes = [];
 
-    foreach (array_slice($geminiResult['recipes'] ?? [], 0, 4) as $recipe) {
+    foreach (array_slice($geminiResult['recipes'] ?? [], 0, 5) as $recipe) {
         if (!is_array($recipe)) {
             continue;
         }
@@ -629,22 +708,43 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
 
     $statement = $pdo->prepare(
         'INSERT INTO food_scans
-         (user_id, detected_food, detected_ingredients, ai_recommendation, ai_provider)
-         VALUES (?, ?, ?, ?, ?)',
+         (user_id, image_url, detected_food, detected_ingredients, ai_recommendation, ai_provider)
+         VALUES (?, ?, ?, ?, ?, ?)',
     );
     $statement->execute([
         $userId,
+        $imageBase64,
         $foodName,
         json_encode($detectedIngredients, JSON_UNESCAPED_UNICODE),
         $recommendation,
         'gemini',
     ]);
     $scanId = (int)$pdo->lastInsertId();
+    
+    // Save generated recipes to database
+    $insertRecipe = $pdo->prepare(
+        'INSERT INTO ai_generated_recipes
+         (scan_id, user_id, title, description, ingredients, instructions, ai_provider, ai_model)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+    );
+
     $suggestedRecipes = [];
 
-    foreach ($generatedRecipes as $index => $recipe) {
+    foreach ($generatedRecipes as $recipe) {
+        $insertRecipe->execute([
+            $scanId,
+            $userId,
+            $recipe['title'],
+            $recipe['description'],
+            json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE),
+            json_encode($recipe['instructions'], JSON_UNESCAPED_UNICODE),
+            'gemini',
+            $model
+        ]);
+        $recipeDbId = (int)$pdo->lastInsertId();
+
         $suggestedRecipes[] = [
-            'id' => "scan-{$scanId}-{$index}",
+            'id' => "scan-{$scanId}-{$recipeDbId}",
             'title' => $recipe['title'],
             'description' => $recipe['description'],
             'imageUrl' => '',
@@ -673,15 +773,29 @@ function getScanRecommendations(PDO $pdo, int $userId): void
     }
 
     getUserById($pdo, $userId);
-    $statement = $pdo->prepare(
-        'SELECT id, title, description, ingredients, instructions
-         FROM ai_generated_recipes
-         WHERE scan_id = (
-             SELECT id FROM food_scans WHERE user_id = ? ORDER BY id DESC LIMIT 1
-         )
-         ORDER BY id ASC',
-    );
-    $statement->execute([$userId]);
+    
+    $scanId = (int)($_GET['scanId'] ?? 0);
+    
+    if ($scanId > 0) {
+        $statement = $pdo->prepare(
+            'SELECT id, title, description, ingredients, instructions
+             FROM ai_generated_recipes
+             WHERE scan_id = ? AND user_id = ?
+             ORDER BY id ASC',
+        );
+        $statement->execute([$scanId, $userId]);
+    } else {
+        $statement = $pdo->prepare(
+            'SELECT id, title, description, ingredients, instructions
+             FROM ai_generated_recipes
+             WHERE scan_id = (
+                 SELECT id FROM food_scans WHERE user_id = ? ORDER BY id DESC LIMIT 1
+             )
+             ORDER BY id ASC',
+        );
+        $statement->execute([$userId]);
+    }
+    
     $recipes = array_map(
         'mapGeneratedRecipe',
         $statement->fetchAll(),
@@ -698,7 +812,7 @@ function getScanHistory(PDO $pdo, int $userId): void
 
     getUserById($pdo, $userId);
     $statement = $pdo->prepare(
-        'SELECT id, detected_food, detected_ingredients, estimated_calories, ai_recommendation, created_at
+        'SELECT id, image_url, detected_food, detected_ingredients, estimated_calories, ai_recommendation, created_at
          FROM food_scans
          WHERE user_id = ?
          ORDER BY id DESC'
@@ -710,6 +824,7 @@ function getScanHistory(PDO $pdo, int $userId): void
     foreach ($scans as $scan) {
         $results[] = [
             'id' => (string)$scan['id'],
+            'imageUrl' => $scan['image_url'] ?? '',
             'detectedFood' => $scan['detected_food'],
             'detectedIngredients' => is_string($scan['detected_ingredients']) ? decodeJsonList($scan['detected_ingredients']) : [],
             'estimatedCalories' => (int)$scan['estimated_calories'],
@@ -839,11 +954,15 @@ function requestGeminiFoodAnalysis(
         . "Alergias: " . implode(', ', $preferences['allergies']) . ". "
         . "Alimentos no deseados: " . implode(', ', $preferences['dislikedFoods']) . ". ";
     $prompt = "Analiza la fotografia de alimentos o ingredientes. Responde en espanol. "
-        . "Identifica solamente ingredientes que sean razonablemente visibles. Despues crea exactamente cuatro "
+        . "Identifica solamente ingredientes que sean razonablemente visibles. Despues crea exactamente cinco "
         . "recetas practicas que aprovechen esos ingredientes para una persona cuyo objetivo es {$goal}. "
         . $preferenceContext
         . "Nunca incluyas alergenos ni alimentos no deseados; usa sustituciones seguras cuando sea necesario. "
+        . "Si los alimentos o ingredientes detectados en la imagen son pocos o insuficientes para elaborar recetas completas, tienes total libertad de añadir otros ingredientes complementarios y saludables recomendados para el platillo. "
+        . "El usuario prefiere un tiempo de coccion maximo de {$preferences['cookingTimeMinutes']} minutos. Intenta de preferencia apegarte a ese tiempo, pero si una receta requiere mas tiempo de coccion para estar lista, tienes permitido excederlo. "
+        . "Asegurate de que las recetas tengan una preparacion paso a paso muy detallada, e ingredientes precisos con sus porciones/cantidades correctas. "
         . "Puedes agregar agua, sal y una pequena cantidad de aceite como basicos de despensa. "
+        . "No incluyas frases de transicion hacia las recetas (como 'Aqui tienes 5 recetas...' o 'A continuacion se sugieren...'). "
         . "No incluyas calorias, macronutrientes, porcentajes de confianza ni afirmaciones medicas. "
         . "Cada receta debe incluir una descripcion breve, ingredientes con cantidades y pasos completos.";
     $schema = [
@@ -855,8 +974,8 @@ function requestGeminiFoodAnalysis(
             'recommendation' => ['type' => 'STRING'],
             'recipes' => [
                 'type' => 'ARRAY',
-                'minItems' => 4,
-                'maxItems' => 4,
+                'minItems' => 5,
+                'maxItems' => 5,
                 'items' => [
                     'type' => 'OBJECT',
                     'required' => ['title', 'description', 'ingredients', 'instructions'],
@@ -883,7 +1002,7 @@ function requestGeminiFoodAnalysis(
         ]],
         'generationConfig' => [
             'temperature' => 0.35,
-            'maxOutputTokens' => 5000,
+            'maxOutputTokens' => 8192,
             'responseMimeType' => 'application/json',
             'responseSchema' => $schema,
         ],
@@ -901,6 +1020,8 @@ function requestGeminiFoodAnalysis(
             'x-goog-api-key: ' . $apiKey,
         ],
         CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_SSL_VERIFYPEER => false,
+        CURLOPT_SSL_VERIFYHOST => false,
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_TIMEOUT => 60,
     ]);
@@ -1262,8 +1383,9 @@ function requestGeminiText(
         ]],
         'generationConfig' => [
             'temperature' => 0.4,
-            'maxOutputTokens' => ($schema['type'] ?? '') === 'ARRAY' ? 2500 : 5000,
+            'maxOutputTokens' => 8192,
             'responseMimeType' => 'application/json',
+            'responseSchema' => $schema,
         ],
     ];
 
@@ -1293,6 +1415,8 @@ function requestGeminiText(
                 'x-goog-api-key: ' . $apiKey,
             ],
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
             CURLOPT_CONNECTTIMEOUT => 10,
             CURLOPT_TIMEOUT => 75,
         ]);

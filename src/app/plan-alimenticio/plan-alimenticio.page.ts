@@ -41,6 +41,15 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   isLoadingPersonalized = false;
   preferencesCompleted = false;
 
+  viewMode: 'list' | 'grid' = 'list';
+  checkedIngredients = new Set<string>();
+
+  activeTimerStep = '';
+  timerSecondsLeft = 0;
+  timerInterval: any = null;
+  isTimerPaused = false;
+  timerTotalDuration = 0;
+
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
 
@@ -72,31 +81,95 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.activeUserSubscription?.unsubscribe();
+    this.stopTimer();
   }
 
-  get aiMeals(): MealCardView[] {
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+  }
+
+  toggleIngredient(ingredient: string): void {
+    if (this.checkedIngredients.has(ingredient)) {
+      this.checkedIngredients.delete(ingredient);
+    } else {
+      this.checkedIngredients.add(ingredient);
+    }
+  }
+
+  parseMinutes(instruction: string): number | null {
+    const match = instruction.match(/(\d+)\s*(?:minutos|min|m)\b/i);
+    return match ? parseInt(match[1], 10) : null;
+  }
+
+  startCookingTimer(minutes: number, stepText: string): void {
+    this.stopTimer();
+    this.activeTimerStep = stepText;
+    this.timerTotalDuration = minutes * 60;
+    this.timerSecondsLeft = minutes * 60;
+    this.isTimerPaused = false;
+
+    this.timerInterval = setInterval(() => {
+      if (!this.isTimerPaused && this.timerSecondsLeft > 0) {
+        this.timerSecondsLeft--;
+        if (this.timerSecondsLeft === 0) {
+          this.stopTimer();
+          void this.playTimerAlert();
+        }
+      }
+    }, 1000);
+  }
+
+  pauseTimer(): void {
+    this.isTimerPaused = true;
+  }
+
+  resumeTimer(): void {
+    this.isTimerPaused = false;
+  }
+
+  stopTimer(): void {
+    if (this.timerInterval) {
+      clearInterval(this.timerInterval);
+      this.timerInterval = null;
+    }
+    this.timerSecondsLeft = 0;
+    this.activeTimerStep = '';
+    this.isTimerPaused = false;
+    this.timerTotalDuration = 0;
+  }
+
+  get timerProgress(): number {
+    if (this.timerTotalDuration === 0) return 0;
+    return this.timerSecondsLeft / this.timerTotalDuration;
+  }
+
+  get timerDisplay(): string {
+    const minutes = Math.floor(this.timerSecondsLeft / 60);
+    const seconds = this.timerSecondsLeft % 60;
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  }
+
+  private async playTimerAlert(): Promise<void> {
+    const alert = await this.alertController.create({
+      header: '¡Tiempo terminado!',
+      message: 'El paso de cocción ha finalizado.',
+      buttons: ['Entendido']
+    });
+    await alert.present();
+  }
+
+  get scanMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const list: MealCardView[] = this.scanRecipes.length > 0
-      ? this.scanRecipes.map(recipe => ({
-          id: recipe.id,
-          title: recipe.title,
-          description: recipe.description,
-          imageUrl: recipe.imageUrl || null,
-          source: 'ai' as const,
-          favoriteId: this.findFavoriteId(recipe.title),
-          ingredients: recipe.ingredients,
-          instructions: recipe.instructions,
-        }))
-      : this.recipes.map(recipe => ({
-          id: recipe.id,
-          title: recipe.title,
-          description: recipe.description,
-          imageUrl: null,
-          source: 'ai' as const,
-          favoriteId: this.findFavoriteId(recipe.title),
-          ingredients: recipe.ingredients,
-          instructions: recipe.instructions,
-        }));
+    const list: MealCardView[] = this.scanRecipes.map(recipe => ({
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      imageUrl: recipe.imageUrl || null,
+      source: 'ai' as const,
+      favoriteId: this.findFavoriteId(recipe.title),
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+    }));
 
     if (!term) {
       return list;
@@ -104,7 +177,32 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
     return list.filter(recipe =>
       recipe.title.toLowerCase().includes(term) ||
-      recipe.description.toLowerCase().includes(term),
+      recipe.description.toLowerCase().includes(term) ||
+      recipe.ingredients.some(ing => ing.toLowerCase().includes(term))
+    );
+  }
+
+  get aiMeals(): MealCardView[] {
+    const term = this.searchTerm.trim().toLowerCase();
+    const list: MealCardView[] = this.recipes.map(recipe => ({
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      imageUrl: null,
+      source: 'ai' as const,
+      favoriteId: this.findFavoriteId(recipe.title),
+      ingredients: recipe.ingredients,
+      instructions: recipe.instructions,
+    }));
+
+    if (!term) {
+      return list;
+    }
+
+    return list.filter(recipe =>
+      recipe.title.toLowerCase().includes(term) ||
+      recipe.description.toLowerCase().includes(term) ||
+      recipe.ingredients.some(ing => ing.toLowerCase().includes(term))
     );
   }
 
@@ -127,7 +225,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
     return list.filter(recipe =>
       recipe.title.toLowerCase().includes(term) ||
-      recipe.description.toLowerCase().includes(term),
+      recipe.description.toLowerCase().includes(term) ||
+      recipe.ingredients.some(ing => ing.toLowerCase().includes(term))
     );
   }
 
@@ -152,7 +251,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
     return list.filter(recipe =>
       recipe.title.toLowerCase().includes(term) ||
-      recipe.description.toLowerCase().includes(term),
+      recipe.description.toLowerCase().includes(term) ||
+      recipe.ingredients.some(ing => ing.toLowerCase().includes(term))
     );
   }
 
@@ -195,10 +295,40 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     }
   }
 
-  clearScan(): void {
+  clearScan(event?: Event): void {
+    if (event) {
+      event.stopPropagation();
+    }
     this.scanPreview = null;
     this.scanResult = null;
     this.scanRecipes = [];
+  }
+
+  async showFullScanDetails(): Promise<void> {
+    if (this.isScanning || !this.scanResult) {
+      return;
+    }
+
+    let cleanRecommendation = this.scanResult.recommendation;
+    const transitionPhrases = [
+      /aquí tienes (?:cinco|5) recetas.*/i,
+      /a continuación te (?:presento|muestro|sugiero) (?:cinco|5) recetas.*/i,
+      /aquí tienes algunas recetas.*/i,
+      /estas son las recetas.*/i,
+      /aquí tienes (?:cinco|5) sugerencias.*/i
+    ];
+    for (const regex of transitionPhrases) {
+      cleanRecommendation = cleanRecommendation.replace(regex, '').trim();
+    }
+
+    cleanRecommendation = cleanRecommendation.replace(/[,;.:\-#\s]+$/, '.');
+
+    const alert = await this.alertController.create({
+      header: this.scanResult.foodName || 'Detalles del escaneo',
+      message: cleanRecommendation,
+      buttons: ['Aceptar']
+    });
+    await alert.present();
   }
 
   async toggleFavorite(recipe: MealCardView, event: Event): Promise<void> {
@@ -231,6 +361,9 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     if (this.loadingRecipeId) {
       return;
     }
+
+    this.checkedIngredients.clear();
+    this.stopTimer();
 
     if (recipe.source === 'local' || recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
       this.selectedRecipe = recipe;
@@ -266,6 +399,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   closeRecipe(): void {
     this.isRecipeModalOpen = false;
     this.selectedRecipe = null;
+    this.stopTimer();
   }
 
   private findFavoriteId(title: string): string | null {
@@ -285,11 +419,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.isRecipeModalOpen = false;
     this.isLoadingPersonalized = false;
     this.preferencesCompleted = false;
+    this.stopTimer();
   }
 
   private async loadMealsForUser(user: UserProfile): Promise<void> {
     try {
-      // Get food preferences to check onboarding completion
       let prefs;
       try {
         prefs = await this.eatWellService.getFoodPreferences();
@@ -298,7 +432,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         this.preferencesCompleted = false;
       }
 
-      // Fetch general recipes and favorites in parallel
       const [general, favorites] = await Promise.all([
         this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
@@ -311,7 +444,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
 
-      // If preferences are completed, load personalized recipes from Gemini
       if (this.preferencesCompleted) {
         this.isLoadingPersonalized = true;
         try {
@@ -393,20 +525,26 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   async openScanHistoryItem(scan: FoodScanHistoryItem): Promise<void> {
-    const ingredientsText = scan.detectedIngredients?.length
-      ? `\n\nIngredientes detectados:\n• ${scan.detectedIngredients.join('\n• ')}`
-      : '';
-    const caloriesText = scan.estimatedCalories > 0
-      ? `\nCalorías estimadas: ${scan.estimatedCalories} kcal`
-      : '';
+    this.isScanning = true;
+    this.scanResult = null;
+    try {
+      const recommendations = await this.eatWellService.getSavedFoodRecommendations(scan.id);
       
-    const alert = await this.alertController.create({
-      header: scan.detectedFood || 'Detalle del escaneo',
-      subHeader: this.formatDate(scan.createdAt),
-      message: `${scan.aiRecommendation || 'Sin recomendación disponible.'}${caloriesText}${ingredientsText}`,
-      buttons: ['Cerrar']
-    });
-    await alert.present();
+      this.scanPreview = scan.imageUrl || 'assets/images/default-food.jpg';
+      this.scanResult = {
+        status: 'analyzed',
+        foodName: scan.detectedFood,
+        detectedIngredients: scan.detectedIngredients,
+        recommendation: scan.aiRecommendation,
+        suggestedRecipes: recommendations
+      };
+      this.scanRecipes = recommendations;
+      this.selectedFilter = 'all';
+    } catch (error) {
+      await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar las recetas de este escaneo.');
+    } finally {
+      this.isScanning = false;
+    }
   }
 
   formatDate(dateStr: string): string {
