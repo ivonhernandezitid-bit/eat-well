@@ -19,15 +19,24 @@ ion-content {
 }
 
 .profile-button {
-  --color: var(--eatwell-green-900);
-  --background: #fff;
-  --border-radius: 18px;
-  --box-shadow: 0 8px 18px rgba(31, 68, 48, 0.1);
-  --padding-start: 0;
-  --padding-end: 0;
+  background: #fff;
+  border: none;
+  outline: none;
+  border-radius: 18px;
+  box-shadow: 0 8px 18px rgba(31, 68, 48, 0.1);
   width: 50px;
   height: 50px;
+  display: grid;
+  place-items: center;
+  color: var(--eatwell-green-900);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  padding: 0;
   overflow: hidden;
+
+  &:active {
+    transform: scale(0.95);
+  }
 }
 
 .profile-button ion-icon {

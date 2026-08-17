@@ -1,5 +1,5 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { AlertController } from '@ionic/angular';
+import { ActionSheetController, AlertController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
 
@@ -21,7 +21,8 @@ interface MealCardView {
   standalone: false
 })
 export class PlanAlimenticioPage implements OnInit, OnDestroy {
-  @ViewChild('foodImageInput') foodImageInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('cameraInput') cameraInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('galleryInput') galleryInput?: ElementRef<HTMLInputElement>;
 
   user: UserProfile | null = null;
   recipes: Recipe[] = [];
@@ -56,6 +57,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   constructor(
     private readonly eatWellService: EatWellService,
     private readonly alertController: AlertController,
+    private readonly actionSheetController: ActionSheetController,
+    private readonly platform: Platform,
   ) { }
 
   ngOnInit(): void {
@@ -256,9 +259,42 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     );
   }
 
-  scanFood(): void {
-    if (!this.isScanning) {
-      this.foodImageInput?.nativeElement.click();
+  async scanFood(): Promise<void> {
+    if (this.isScanning) {
+      return;
+    }
+
+    const isMobile = this.platform.is('cordova') || this.platform.is('capacitor') || this.platform.is('mobile') || 
+                     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+    if (isMobile) {
+      const actionSheet = await this.actionSheetController.create({
+        header: 'Escanear comida',
+        buttons: [
+          {
+            text: 'Tomar foto',
+            icon: 'camera-outline',
+            handler: () => {
+              this.cameraInput?.nativeElement.click();
+            }
+          },
+          {
+            text: 'Seleccionar de la galería',
+            icon: 'image-outline',
+            handler: () => {
+              this.galleryInput?.nativeElement.click();
+            }
+          },
+          {
+            text: 'Cancelar',
+            role: 'cancel',
+            icon: 'close-outline'
+          }
+        ]
+      });
+      await actionSheet.present();
+    } else {
+      this.galleryInput?.nativeElement.click();
     }
   }
 

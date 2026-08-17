@@ -49,18 +49,36 @@ h2 {
 
 ion-segment {
   background: #e9efea;
-  border-radius: 8px;
-  padding: 3px;
+  border-radius: 10px;
+  padding: 4px;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
   overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 ion-segment-button {
-  min-width: 105px;
+  flex: 1 1 0px;
+  min-width: 0;
   min-height: 42px;
-  --border-radius: 6px;
+  --border-radius: 8px;
   --indicator-color: #ffffff;
   --color-checked: var(--page-green);
+  --padding-start: 6px;
+  --padding-end: 6px;
   font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  @media (max-width: 380px) {
+    font-size: 0.72rem;
+    --padding-start: 4px;
+    --padding-end: 4px;
+  }
 }
 
 .option-grid {

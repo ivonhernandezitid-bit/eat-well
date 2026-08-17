@@ -16,11 +16,10 @@
     <ng-container *ngIf="!isLoading">
       <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
         <h1>Tu alimentación</h1>
-        <ion-segment [value]="preferences.dietType" (ionChange)="setDietType($any($event.detail.value))">
+        <ion-segment [scrollable]="true" [value]="preferences.dietType" (ionChange)="setDietType($any($event.detail.value))">
           <ion-segment-button value="omnivore">Omnívora</ion-segment-button>
           <ion-segment-button value="vegetarian">Vegetariana</ion-segment-button>
           <ion-segment-button value="vegan">Vegana</ion-segment-button>
-          <ion-segment-button value="pescatarian">Pescetariana</ion-segment-button>
         </ion-segment>
       </section>
 

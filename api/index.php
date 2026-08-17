@@ -395,7 +395,7 @@ function saveFoodPreferences(PDO $pdo, array $input): void
     $userId = (int)($input['userId'] ?? 0);
     getUserById($pdo, $userId);
     $dietType = (string)($input['dietType'] ?? 'omnivore');
-    $allowedDietTypes = ['omnivore', 'vegetarian', 'vegan', 'pescatarian'];
+    $allowedDietTypes = ['omnivore', 'vegetarian', 'vegan'];
 
     if (!in_array($dietType, $allowedDietTypes, true)) {
         $dietType = 'omnivore';

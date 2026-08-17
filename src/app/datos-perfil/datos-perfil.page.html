@@ -81,7 +81,7 @@
       </div>
 
       <ion-button fill="solid" class="btn-next" (click)="saveProfile()">
-        Guardar y continuar
+        {{ isOnboarding ? 'Guardar y continuar' : 'Guardar cambios' }}
       </ion-button>
     </div>
   </div>

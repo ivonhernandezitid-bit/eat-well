@@ -31,11 +31,18 @@
         </div>
 
         <input
-          #foodImageInput
+          #cameraInput
           class="food-image-input"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           capture="environment"
+          (change)="onFoodImageSelected($event)"
+        />
+        <input
+          #galleryInput
+          class="food-image-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
           (change)="onFoodImageSelected($event)"
         />
       </div>
@@ -100,7 +107,7 @@
     <div *ngIf="selectedFilter === 'all'" class="section-container">
       <h2 class="section-subtitle">
         <ion-icon name="sparkles"></ion-icon>
-        Recetas para ti
+        Sugerencias para ti
       </h2>
       
       <!-- Caso 1: Onboarding incompleto -->
@@ -160,7 +167,7 @@
     <div *ngIf="selectedFilter === 'all'" class="section-container suggested-section">
       <h2 class="section-subtitle">
         <ion-icon name="restaurant-outline"></ion-icon>
-        Otras recetas
+        Otras sugerencias
       </h2>
       <div class="meal-list" [class.grid-mode]="viewMode === 'grid'" *ngIf="suggestedMeals.length > 0; else noSuggestedMeals">
         <article class="meal-card suggested-recipe-card" *ngFor="let recipe of suggestedMeals" [class.grid-card]="viewMode === 'grid'">

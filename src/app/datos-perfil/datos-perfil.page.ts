@@ -53,6 +53,14 @@ export class DatosPerfilPage implements OnInit {
   ) { }
 
   ngOnInit() {
+    this.loadProfileData();
+  }
+
+  ionViewWillEnter() {
+    this.loadProfileData();
+  }
+
+  private loadProfileData(): void {
     this.isOnboarding = this.route.snapshot.queryParamMap.get('onboarding') === '1';
     const activeUser = this.eatWellService.getActiveUser();
 
@@ -262,7 +270,17 @@ export class DatosPerfilPage implements OnInit {
         age: Number(this.age),
         profileImage: this.profileImage,
       });
-      await this.router.navigateByUrl(this.isOnboarding ? '/preferencias-alimentarias' : '/tabs/home');
+
+      let preferencesCompleted = false;
+      try {
+        const prefs = await this.eatWellService.getFoodPreferences();
+        preferencesCompleted = !!prefs?.completed;
+      } catch {
+        preferencesCompleted = false;
+      }
+
+      const shouldGoToPreferences = this.isOnboarding && !preferencesCompleted;
+      await this.router.navigateByUrl(shouldGoToPreferences ? '/preferencias-alimentarias' : '/tabs/home');
     } catch (error) {
       await this.showAlert('Error de perfil', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }

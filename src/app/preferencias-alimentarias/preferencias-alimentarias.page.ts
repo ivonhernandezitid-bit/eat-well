@@ -79,6 +79,18 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    this.route.queryParamMap.subscribe(params => {
+      this.currentSection = params.get('section');
+    });
+    await this.loadPreferencesData();
+  }
+
+  async ionViewWillEnter(): Promise<void> {
+    this.currentSection = this.route.snapshot.queryParamMap.get('section');
+    await this.loadPreferencesData();
+  }
+
+  private async loadPreferencesData(): Promise<void> {
     try {
       const activeUser = this.eatWellService.getActiveUser();
       this.fitnessGoal = activeUser?.goal ?? 'improve_health';
@@ -102,8 +114,6 @@ export class PreferenciasAlimentariasPage implements OnInit {
       const customDisliked = this.preferences.dislikedFoods.filter(d => !this.commonDislikedFoods.includes(d));
       this.dislikedFoodsInput = customDisliked.join(', ');
       this.preferences.dislikedFoods = this.preferences.dislikedFoods.filter(d => this.commonDislikedFoods.includes(d));
-
-      this.currentSection = this.route.snapshot.queryParamMap.get('section');
     } catch (error) {
       await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar tus preferencias.');
     } finally {

@@ -141,7 +141,7 @@ export interface RoutineResult {
   planSemanal: RoutineDay[];
 }
 
-export type DietType = 'omnivore' | 'vegetarian' | 'vegan' | 'pescatarian';
+export type DietType = 'omnivore' | 'vegetarian' | 'vegan';
 
 export interface FoodPreferences {
   dietType: DietType;
