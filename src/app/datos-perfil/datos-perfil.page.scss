@@ -54,6 +54,31 @@ ion-content {
   color: #fff;
 }
 
+.perfil-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.username-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #e8f3dc;
+  color: var(--eatwell-green-900);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+
+  ion-icon {
+    font-size: 1.05rem;
+    color: var(--eatwell-green-700);
+  }
+}
+
 .hidden-file-input {
   display: none;
 }

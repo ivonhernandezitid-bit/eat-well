@@ -16,6 +16,7 @@ export class DatosPerfilPage implements OnInit {
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
 
   fullName = '';
+  username = '';
   email = '';
   weightKg = 70;
   heightCm = 170;
@@ -70,6 +71,7 @@ export class DatosPerfilPage implements OnInit {
     }
 
     this.fullName = activeUser.name;
+    this.username = activeUser.username || '';
     this.email = activeUser.email;
     this.weightKg = activeUser.weightKg;
     this.heightCm = activeUser.heightCm;
