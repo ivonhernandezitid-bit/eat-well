@@ -24,6 +24,14 @@ const routes: Routes = [
         loadChildren: () => import('../actividad-espalda/actividad-espalda.module').then(m => m.ActividadEspaldaPageModule)
       },
       {
+        path: 'datos-perfil',
+        loadChildren: () => import('../datos-perfil/datos-perfil.module').then(m => m.DatosPerfilPageModule)
+      },
+      {
+        path: 'preferencias-alimentarias',
+        loadChildren: () => import('../preferencias-alimentarias/preferencias-alimentarias.module').then(m => m.PreferenciasAlimentariasPageModule)
+      },
+      {
         path: '',
         redirectTo: '/tabs/home',
         pathMatch: 'full'

@@ -17,11 +17,13 @@ const routes: Routes = [
   },
   {
     path: 'datos-perfil',
-    loadChildren: () => import('./datos-perfil/datos-perfil.module').then(m => m.DatosPerfilPageModule)
+    redirectTo: 'tabs/datos-perfil',
+    pathMatch: 'full'
   },
   {
     path: 'preferencias-alimentarias',
-    loadChildren: () => import('./preferencias-alimentarias/preferencias-alimentarias.module').then(m => m.PreferenciasAlimentariasPageModule)
+    redirectTo: 'tabs/preferencias-alimentarias',
+    pathMatch: 'full'
   },
   {
     path: 'tabs',

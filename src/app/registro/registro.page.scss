@@ -2,6 +2,8 @@
   min-height: 100%;
   display: grid;
   place-items: center;
+  --ion-font-family: inherit;
+  font-family: inherit;
   background:
     radial-gradient(circle at 82% 10%, rgba(103, 184, 107, 0.24), transparent 30%),
     linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
@@ -53,6 +55,7 @@
   --padding-top: 13px;
   --padding-bottom: 13px;
   color: var(--eatwell-ink);
+  font-family: inherit;
 }
 
 @media (max-width: 360px) {
@@ -87,11 +90,15 @@
 .btn-signup {
   --background: var(--eatwell-green-700);
   --background-activated: var(--eatwell-green-900);
+  --color: #ffffff;
+  --color-activated: #ffffff;
   --border-radius: 20px;
   --box-shadow: none;
   height: 52px;
   margin-top: 8px;
   font-weight: 800;
+  font-family: inherit;
+  font-size: 1rem;
   text-transform: none;
 }
 
@@ -99,6 +106,14 @@
   text-align: center;
   margin-top: 20px;
   color: var(--eatwell-muted);
+  font-family: inherit;
+}
+
+.navigation-links p {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .navigation-links span {

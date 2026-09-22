@@ -1,7 +1,7 @@
 <ion-content class="ion-padding">
   <div class="home-wrapper">
     <div class="topbar">
-      <button class="profile-button" routerLink="/datos-perfil">
+      <button class="profile-button" routerLink="/tabs/datos-perfil">
         <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Foto de perfil" />
         <ng-template #profileIcon>
           <ion-icon name="person-circle-outline"></ion-icon>
@@ -41,28 +41,28 @@
     <div class="section-title">Elige tus preferencias</div>
 
     <div class="preferences-grid">
-      <button class="preference-card general" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'general' }">
+      <button class="preference-card general" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'general' }">
         <div class="preference-icon">
           <ion-icon name="options-outline"></ion-icon>
         </div>
         <span>Preferencias</span>
       </button>
 
-      <button class="preference-card allergies" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'allergies' }">
+      <button class="preference-card allergies" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'allergies' }">
         <div class="preference-icon">
           <ion-icon name="alert-circle-outline"></ion-icon>
         </div>
         <span>Alergias</span>
       </button>
 
-      <button class="preference-card vegetables" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'vegetables' }">
+      <button class="preference-card vegetables" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'vegetables' }">
         <div class="preference-icon">
           <ion-icon name="leaf-outline"></ion-icon>
         </div>
         <span>Verduras</span>
       </button>
 
-      <button class="preference-card fruits" routerLink="/preferencias-alimentarias" [queryParams]="{ section: 'fruits' }">
+      <button class="preference-card fruits" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'fruits' }">
         <div class="preference-icon">
           <ion-icon name="nutrition-outline"></ion-icon>
         </div>
