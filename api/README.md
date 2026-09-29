@@ -32,6 +32,7 @@ GET  index.php?action=profile.get&userId=1
 POST index.php?action=profile.update
 GET  index.php?action=preferences.get&userId=1
 POST index.php?action=preferences.save
+POST index.php?action=preferences.delete
 GET  index.php?action=recipes.recommendations&userId=1
 GET  index.php?action=favorites.list&userId=1
 POST index.php?action=favorites.add
@@ -56,8 +57,10 @@ conservan en `favorite_recipes`.
 
 ## Personalizacion
 
-Las preferencias de alimentacion, frutas, verduras, alergias, alimentos no
-deseados y tiempo para cocinar se guardan en `food_preferences`. Las
+Las preferencias de alimentacion, frutas, verduras, carnes y proteínas,
+carbohidratos, legumbres, lácteos, grasas, alergias, alimentos no deseados y
+tiempo para cocinar se guardan en `food_preferences`. Al actualizar una base
+existente, vuelve a importar `schema.sql` para agregar las columnas nuevas. Las
 recomendaciones de Meal Plan se almacenan por version de preferencias para no
 generarlas de nuevo en cada visita.
 

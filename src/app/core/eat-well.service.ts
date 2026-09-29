@@ -224,6 +224,14 @@ export class EatWellService {
     return response.preferences;
   }
 
+  async deleteFoodPreferences(): Promise<FoodPreferences> {
+    const activeUser = this.getRequiredActiveUser();
+    const response = await this.post<FoodPreferencesResponse>('preferences.delete', {
+      userId: activeUser.id,
+    });
+    return response.preferences;
+  }
+
   async getFavoriteRecipes(): Promise<FavoriteRecipe[]> {
     const activeUser = this.getRequiredActiveUser();
     const response = await this.get<FavoriteRecipesResponse>('favorites.list', {

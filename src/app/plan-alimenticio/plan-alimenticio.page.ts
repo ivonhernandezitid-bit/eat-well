@@ -2,6 +2,7 @@ import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/co
 import { ActionSheetController, AlertController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
+import { calculateMacroTargets, loadLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
 
 interface MealCardView {
   id: string;
@@ -38,6 +39,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   isRecipeModalOpen = false;
   selectedFilter: 'all' | 'favorites' | 'history' = 'all';
   scanHistory: FoodScanHistoryItem[] = [];
+  macroTargets: MacroTargets | null = null;
   
   isLoadingPersonalized = false;
   preferencesCompleted = false;
@@ -459,6 +461,9 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private async loadMealsForUser(user: UserProfile): Promise<void> {
+    const lifestyleSettings = loadLifestyleSettings(user.id);
+    this.macroTargets = lifestyleSettings ? calculateMacroTargets(user, lifestyleSettings) : null;
+
     try {
       let prefs;
       try {

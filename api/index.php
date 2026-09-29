@@ -227,6 +227,9 @@ try {
         case 'preferences.save':
             saveFoodPreferences($pdo, $input);
             break;
+        case 'preferences.delete':
+            deleteFoodPreferences($pdo, $input);
+            break;
         case 'recipes.recommendations':
             getRecipeRecommendations(
                 $pdo,
@@ -403,13 +406,19 @@ function saveFoodPreferences(PDO $pdo, array $input): void
 
     $statement = $pdo->prepare(
         'INSERT INTO food_preferences
-         (user_id, diet_type, preferred_fruits, preferred_vegetables, allergies,
+                 (user_id, diet_type, preferred_fruits, preferred_vegetables, preferred_proteins,
+                    preferred_carbohydrates, preferred_legumes, preferred_dairy, preferred_fats, allergies,
           disliked_foods, cooking_time_minutes, completed_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
          ON DUPLICATE KEY UPDATE
            diet_type = VALUES(diet_type),
            preferred_fruits = VALUES(preferred_fruits),
            preferred_vegetables = VALUES(preferred_vegetables),
+                     preferred_proteins = VALUES(preferred_proteins),
+                     preferred_carbohydrates = VALUES(preferred_carbohydrates),
+                     preferred_legumes = VALUES(preferred_legumes),
+                     preferred_dairy = VALUES(preferred_dairy),
+                     preferred_fats = VALUES(preferred_fats),
            allergies = VALUES(allergies),
            disliked_foods = VALUES(disliked_foods),
            cooking_time_minutes = VALUES(cooking_time_minutes),
@@ -420,10 +429,25 @@ function saveFoodPreferences(PDO $pdo, array $input): void
         $dietType,
         json_encode(cleanStringList($input['preferredFruits'] ?? [], 30), JSON_UNESCAPED_UNICODE),
         json_encode(cleanStringList($input['preferredVegetables'] ?? [], 30), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredProteins'] ?? [], 40), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredCarbohydrates'] ?? [], 40), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredLegumes'] ?? [], 40), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredDairy'] ?? [], 40), JSON_UNESCAPED_UNICODE),
+        json_encode(cleanStringList($input['preferredFats'] ?? [], 40), JSON_UNESCAPED_UNICODE),
         json_encode(cleanStringList($input['allergies'] ?? [], 20), JSON_UNESCAPED_UNICODE),
         json_encode(cleanStringList($input['dislikedFoods'] ?? [], 30), JSON_UNESCAPED_UNICODE),
         max(10, min(120, (int)($input['cookingTimeMinutes'] ?? 30))),
     ]);
+
+    sendJson(['preferences' => mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId))]);
+}
+
+function deleteFoodPreferences(PDO $pdo, array $input): void
+{
+    $userId = (int)($input['userId'] ?? 0);
+    getUserById($pdo, $userId);
+    $statement = $pdo->prepare('DELETE FROM food_preferences WHERE user_id = ?');
+    $statement->execute([$userId]);
 
     sendJson(['preferences' => mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId))]);
 }
@@ -439,6 +463,11 @@ function getFoodPreferencesRecord(PDO $pdo, int $userId): array
         'diet_type' => 'omnivore',
         'preferred_fruits' => '[]',
         'preferred_vegetables' => '[]',
+        'preferred_proteins' => '[]',
+        'preferred_carbohydrates' => '[]',
+        'preferred_legumes' => '[]',
+        'preferred_dairy' => '[]',
+        'preferred_fats' => '[]',
         'allergies' => '[]',
         'disliked_foods' => '[]',
         'cooking_time_minutes' => 30,
@@ -452,6 +481,11 @@ function mapFoodPreferences(array $preferences): array
         'dietType' => $preferences['diet_type'],
         'preferredFruits' => decodeJsonList($preferences['preferred_fruits']),
         'preferredVegetables' => decodeJsonList($preferences['preferred_vegetables']),
+        'preferredProteins' => decodeJsonList($preferences['preferred_proteins']),
+        'preferredCarbohydrates' => decodeJsonList($preferences['preferred_carbohydrates']),
+        'preferredLegumes' => decodeJsonList($preferences['preferred_legumes']),
+        'preferredDairy' => decodeJsonList($preferences['preferred_dairy']),
+        'preferredFats' => decodeJsonList($preferences['preferred_fats']),
         'allergies' => decodeJsonList($preferences['allergies']),
         'dislikedFoods' => decodeJsonList($preferences['disliked_foods']),
         'cookingTimeMinutes' => (int)$preferences['cooking_time_minutes'],
@@ -491,6 +525,11 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
             . "Tipo de alimentacion: {$mappedPreferences['dietType']}. "
             . "Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . ". "
             . "Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . ". "
+            . "Carnes y proteínas preferidas: " . implode(', ', $mappedPreferences['preferredProteins']) . ". "
+            . "Carbohidratos y cereales preferidos: " . implode(', ', $mappedPreferences['preferredCarbohydrates']) . ". "
+            . "Legumbres y proteínas vegetales preferidas: " . implode(', ', $mappedPreferences['preferredLegumes']) . ". "
+            . "Lácteos y alternativas preferidos: " . implode(', ', $mappedPreferences['preferredDairy']) . ". "
+            . "Grasas, semillas y frutos secos preferidos: " . implode(', ', $mappedPreferences['preferredFats']) . ". "
             . "PROHIBIDO usar o mencionar en cualquier receta estos ingredientes (alergias o alimentos no deseados): {$dislikedList}. "
             . "El usuario prefiere un tiempo de coccion maximo de {$timePref} minutos. Intenta de preferencia apegarte a ese tiempo, pero si una receta requiere mas tiempo de coccion para estar lista y deliciosa, tienes permitido excederlo. "
             . "Asegurate de que las recetas tengan una preparacion paso a paso muy detallada, e ingredientes precisos con sus porciones/cantidades correctas. "

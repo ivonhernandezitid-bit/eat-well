@@ -70,6 +70,22 @@
 
     <h1 class="screen-title">PLAN ALIMENTICIO</h1>
 
+    <section class="macro-targets" *ngIf="macroTargets as targets" aria-label="Distribución diaria estimada de macronutrientes">
+      <div class="macro-targets-heading">
+        <div>
+          <span>OBJETIVO DIARIO</span>
+          <h2>{{ targets.calories | number }} kcal estimadas</h2>
+        </div>
+        <ion-icon name="analytics-outline" aria-hidden="true"></ion-icon>
+      </div>
+      <div class="macro-targets-grid">
+        <div><strong>{{ targets.protein }} g</strong><span>Proteína</span></div>
+        <div><strong>{{ targets.carbohydrates }} g</strong><span>Carbohidratos</span></div>
+        <div><strong>{{ targets.fat }} g</strong><span>Grasas</span></div>
+      </div>
+      <p>Estimación orientativa basada en tus datos y nivel de actividad.</p>
+    </section>
+
     <!-- Sección de Recetas del Alimento Escaneado (solo visible si se escaneó algo) -->
     <div *ngIf="selectedFilter === 'all' && scanRecipes.length > 0" class="section-container scan-recipes-section">
       <h2 class="section-subtitle">

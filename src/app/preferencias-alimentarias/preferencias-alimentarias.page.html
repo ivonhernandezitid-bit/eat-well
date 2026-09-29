@@ -92,6 +92,51 @@
         </ion-item>
       </section>
 
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>{{ preferences.dietType === 'omnivore' ? 'Carnes y proteínas' : preferences.dietType === 'vegetarian' ? 'Proteínas vegetarianas' : 'Proteínas vegetales' }}</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of proteinsForDiet" class="food-option protein-option" [class.selected]="isSelected('preferredProteins', food)" (click)="togglePreference('preferredProteins', food)">
+            <ion-icon [name]="isSelected('preferredProteins', food) ? 'checkmark-circle' : 'restaurant-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Carbohidratos y cereales</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of carbohydrates" class="food-option carbohydrate-option" [class.selected]="isSelected('preferredCarbohydrates', food)" (click)="togglePreference('preferredCarbohydrates', food)">
+            <ion-icon [name]="isSelected('preferredCarbohydrates', food) ? 'checkmark-circle' : 'grid-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Legumbres y proteína vegetal</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of legumes" class="food-option legume-option" [class.selected]="isSelected('preferredLegumes', food)" (click)="togglePreference('preferredLegumes', food)">
+            <ion-icon [name]="isSelected('preferredLegumes', food) ? 'checkmark-circle' : 'leaf-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>{{ preferences.dietType === 'vegan' ? 'Bebidas y alternativas vegetales' : 'Lácteos y alternativas' }}</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of dairyForDiet" class="food-option dairy-option" [class.selected]="isSelected('preferredDairy', food)" (click)="togglePreference('preferredDairy', food)">
+            <ion-icon [name]="isSelected('preferredDairy', food) ? 'checkmark-circle' : 'water-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Grasas, semillas y frutos secos</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of fats" class="food-option fat-option" [class.selected]="isSelected('preferredFats', food)" (click)="togglePreference('preferredFats', food)">
+            <ion-icon [name]="isSelected('preferredFats', food) ? 'checkmark-circle' : 'nutrition-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
       <section class="preference-section allergy-section" *ngIf="!currentSection || currentSection === 'allergies'">
         <h2>Alergias</h2>
         <div class="chip-list">
@@ -154,9 +199,12 @@
         </div>
       </section>
 
-      <ion-button expand="block" class="save-preferences" [disabled]="isSaving" (click)="save()">
+      <ion-button class="profile-module-save-button" [disabled]="isSaving" (click)="save()">
         <ion-spinner *ngIf="isSaving; else saveLabel" name="crescent"></ion-spinner>
-        <ng-template #saveLabel>{{ saveButtonLabel }}</ng-template>
+        <ng-template #saveLabel>Guardar y continuar</ng-template>
+      </ion-button>
+      <ion-button *ngIf="!currentSection || currentSection === 'general'" class="profile-module-save-button" [disabled]="isSaving" (click)="clearPreferences()">
+        Borrar datos y volver a capturar
       </ion-button>
     </ng-container>
   </main>

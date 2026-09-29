@@ -69,6 +69,77 @@ button,
   touch-action: manipulation;
 }
 
+.profile-module-save-button {
+  --background: var(--eatwell-green-700, #2e7d5f);
+  --background-activated: var(--eatwell-green-900, #1d4d3d);
+  --border-radius: 12px;
+  --box-shadow: none;
+  --color: #ffffff;
+  display: block;
+  width: calc(100% - 20px);
+  min-height: 46px;
+  margin: 18px 10px 12px;
+  font-size: 1rem;
+  font-weight: 800;
+  text-transform: none;
+}
+
+.profile-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.profile-progress-info {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(47, 125, 89, 0.18);
+  border-radius: 50%;
+  background: #ffffff;
+  color: var(--eatwell-green-700, #2e7d5f);
+}
+
+.profile-progress-info ion-icon {
+  font-size: 1.1rem;
+}
+
+.profile-module-status-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(47, 125, 89, 0.12);
+}
+
+.profile-module-status-list > div {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: #7a655e;
+  font-size: 0.72rem;
+}
+
+.profile-module-status-list ion-icon {
+  color: #9a7770;
+  font-size: 1rem;
+}
+
+.profile-module-status-list .complete,
+.profile-module-status-list .complete ion-icon {
+  color: var(--eatwell-green-700, #2e7d5f);
+}
+
+.profile-module-status-list small {
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
 img {
   max-width: 100%;
 }

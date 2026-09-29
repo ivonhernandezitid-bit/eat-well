@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController } from '@ionic/angular';
+import { AlertController, ToastController } from '@ionic/angular';
 import { ActivityLevel, DietType, EatWellService, FitnessGoal, FoodPreferences } from '../core';
 
 @Component({
@@ -22,6 +22,26 @@ export class PreferenciasAlimentariasPage implements OnInit {
     'Espárragos', 'Nopal', 'Elote', 'Chícharos', 'Cilantro', 'Acelga', 'Camote',
     'Col de Bruselas', 'Calabacita', 'Ejotes', 'Chayote', 'Rábano'
   ];
+  readonly proteins = [
+    'Pollo', 'Pavo', 'Res', 'Cerdo', 'Salmón', 'Atún', 'Sardinas', 'Pescado blanco',
+    'Camarón', 'Huevo', 'Carne molida', 'Jamón de pavo'
+  ];
+  readonly plantProteins = ['Tofu', 'Tempeh', 'Seitán', 'Proteína de soya texturizada'];
+  readonly carbohydrates = [
+    'Arroz', 'Avena', 'Pasta', 'Tortilla de maíz', 'Tortilla de harina', 'Pan integral',
+    'Pan de centeno', 'Papa', 'Camote', 'Quinoa', 'Elote', 'Amaranto'
+  ];
+  readonly legumes = [
+    'Frijoles', 'Lentejas', 'Garbanzos', 'Habas', 'Chícharos', 'Soya', 'Tofu', 'Edamame'
+  ];
+  readonly dairy = [
+    'Leche', 'Leche sin lactosa', 'Yogur natural', 'Yogur griego', 'Queso panela',
+    'Queso cottage', 'Requesón', 'Bebida de soya', 'Bebida de avena', 'Bebida de almendra', 'Bebida de coco'
+  ];
+  readonly fats = [
+    'Aceite de oliva', 'Aceite de canola', 'Almendras', 'Nueces', 'Cacahuates',
+    'Chía', 'Linaza', 'Pepitas', 'Crema de cacahuate'
+  ];
   readonly allergyOptions = [
     'Lácteos', 'Huevo', 'Cacahuate', 'Nueces de árbol', 'Gluten', 'Soya', 'Pescado', 'Mariscos',
     'Sésamo', 'Mostaza', 'Sulfitos', 'Moluscos', 'Maíz', 'Trigo', 'Fresa', 'Apio',
@@ -36,6 +56,11 @@ export class PreferenciasAlimentariasPage implements OnInit {
     dietType: 'omnivore',
     preferredFruits: [],
     preferredVegetables: [],
+    preferredProteins: [],
+    preferredCarbohydrates: [],
+    preferredLegumes: [],
+    preferredDairy: [],
+    preferredFats: [],
     allergies: [],
     dislikedFoods: [],
     cookingTimeMinutes: 30,
@@ -50,11 +75,31 @@ export class PreferenciasAlimentariasPage implements OnInit {
   isLoading = true;
   isSaving = false;
   currentSection: string | null = null;
+  private dietToastTimeout: number | undefined;
+  private dietToastSequence = 0;
+  private activeDietToast: HTMLIonToastElement | null = null;
+
+  get proteinsForDiet(): string[] {
+    if (this.preferences.dietType === 'vegan') {
+      return this.plantProteins;
+    }
+    if (this.preferences.dietType === 'vegetarian') {
+      return ['Huevo', ...this.plantProteins];
+    }
+    return [...this.proteins, ...this.plantProteins];
+  }
+
+  get dairyForDiet(): string[] {
+    return this.preferences.dietType === 'vegan'
+      ? this.dairy.filter(food => food.startsWith('Bebida de'))
+      : this.dairy;
+  }
 
   constructor(
     private readonly eatWellService: EatWellService,
     private readonly router: Router,
     private readonly alertController: AlertController,
+    private readonly toastController: ToastController,
     private readonly route: ActivatedRoute,
   ) {}
 
@@ -90,13 +135,26 @@ export class PreferenciasAlimentariasPage implements OnInit {
     await this.loadPreferencesData();
   }
 
+  ionViewWillLeave(): void {
+    this.dietToastSequence++;
+    if (this.dietToastTimeout !== undefined) {
+      window.clearTimeout(this.dietToastTimeout);
+      this.dietToastTimeout = undefined;
+    }
+    void this.dismissActiveDietToast();
+  }
+
   private async loadPreferencesData(): Promise<void> {
     try {
       const activeUser = this.eatWellService.getActiveUser();
       this.fitnessGoal = activeUser?.goal ?? 'improve_health';
       this.activityLevel = activeUser?.activityLevel ?? 'moderate';
       
-      this.preferences = await this.eatWellService.getFoodPreferences();
+      this.preferences = {
+        ...this.preferences,
+        ...await this.eatWellService.getFoodPreferences(),
+      };
+      this.setDietType(this.preferences.dietType);
       
       // Extract custom items not present in static lists
       const customFruits = this.preferences.preferredFruits.filter(f => !this.fruits.includes(f));
@@ -122,17 +180,82 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   setDietType(dietType: DietType): void {
+    const previousDiet = this.preferences.dietType;
+    if (previousDiet === dietType) {
+      return;
+    }
+
     this.preferences.dietType = dietType;
+    this.preferences.preferredProteins = this.preferences.preferredProteins
+      .filter(food => this.proteinsForDiet.includes(food));
+    this.preferences.preferredDairy = this.preferences.preferredDairy
+      .filter(food => this.dairyForDiet.includes(food));
+
+    const dietMessages: Record<DietType, string> = {
+      omnivore: 'Preferencia actualizada a Omnívora. Menú adaptado con éxito.',
+      vegetarian: 'Preferencia vegetariana guardada. Se ajustaron las recetas para ocultar carnes y pescados.',
+      vegan: 'Preferencia vegana guardada. Se filtraron las recetas para mostrar únicamente opciones 100% basadas en plantas.',
+    };
+
+    void this.showDietChangeToast(dietMessages[dietType]);
   }
 
-  togglePreference(listName: 'preferredFruits' | 'preferredVegetables' | 'allergies' | 'dislikedFoods', value: string): void {
+  private showDietChangeToast(message: string): void {
+    const sequence = ++this.dietToastSequence;
+    if (this.dietToastTimeout !== undefined) {
+      window.clearTimeout(this.dietToastTimeout);
+    }
+    void this.dismissActiveDietToast();
+    this.dietToastTimeout = window.setTimeout(() => {
+      this.dietToastTimeout = undefined;
+      void this.presentDietChangeToast(message, sequence);
+    }, 300);
+  }
+
+  private async presentDietChangeToast(message: string, sequence: number): Promise<void> {
+    await this.dismissActiveDietToast();
+    if (sequence !== this.dietToastSequence) {
+      return;
+    }
+
+    const toast = await this.toastController.create({
+      message,
+      duration: 4000,
+      position: 'bottom',
+      color: 'success',
+      buttons: [{ text: 'Entendido', role: 'cancel' }],
+    });
+
+    if (sequence !== this.dietToastSequence) {
+      await toast.dismiss();
+      return;
+    }
+
+    this.activeDietToast = toast;
+    toast.addEventListener('ionToastDidDismiss', () => {
+      if (this.activeDietToast === toast) {
+        this.activeDietToast = null;
+      }
+    }, { once: true });
+    await toast.present();
+  }
+
+  private async dismissActiveDietToast(): Promise<void> {
+    const toast = this.activeDietToast;
+    this.activeDietToast = null;
+    if (toast) {
+      await toast.dismiss();
+    }
+  }
+
+  togglePreference(listName: 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods', value: string): void {
     const values = this.preferences[listName];
     this.preferences[listName] = values.includes(value)
       ? values.filter(item => item !== value)
       : [...values, value];
   }
 
-  isSelected(listName: 'preferredFruits' | 'preferredVegetables' | 'allergies' | 'dislikedFoods', value: string): boolean {
+  isSelected(listName: 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods', value: string): boolean {
     return this.preferences[listName].includes(value);
   }
 
@@ -174,6 +297,11 @@ export class PreferenciasAlimentariasPage implements OnInit {
           ...this.preferences,
           preferredFruits: finalFruits,
           preferredVegetables: finalVegetables,
+          preferredProteins: this.preferences.preferredProteins.filter(food => this.proteinsForDiet.includes(food)),
+          preferredCarbohydrates: this.preferences.preferredCarbohydrates.filter(food => this.carbohydrates.includes(food)),
+          preferredLegumes: this.preferences.preferredLegumes.filter(food => this.legumes.includes(food)),
+          preferredDairy: this.preferences.preferredDairy.filter(food => this.dairyForDiet.includes(food)),
+          preferredFats: this.preferences.preferredFats.filter(food => this.fats.includes(food)),
           allergies: finalAllergies,
           dislikedFoods: finalDisliked,
           completed: true,
@@ -186,6 +314,39 @@ export class PreferenciasAlimentariasPage implements OnInit {
       await this.router.navigateByUrl('/tabs/home');
     } catch (error) {
       await this.showError(error instanceof Error ? error.message : 'No se pudieron guardar tus preferencias.');
+    } finally {
+      this.isSaving = false;
+    }
+  }
+
+  async clearPreferences(): Promise<void> {
+    if (this.isSaving) {
+      return;
+    }
+
+    const alert = await this.alertController.create({
+      header: 'Borrar preferencias alimentarias',
+      message: 'Se eliminarán las preferencias guardadas para que puedas volver a capturarlas.',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Borrar datos', role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    if ((await alert.onDidDismiss()).role !== 'destructive') {
+      return;
+    }
+
+    this.isSaving = true;
+    try {
+      this.preferences = await this.eatWellService.deleteFoodPreferences();
+      this.otherFruitsInput = '';
+      this.otherVegetablesInput = '';
+      this.otherAllergiesInput = '';
+      this.dislikedFoodsInput = '';
+      await this.router.navigateByUrl('/tabs/datos-perfil');
+    } catch (error) {
+      await this.showError(error instanceof Error ? error.message : 'No se pudieron borrar las preferencias.');
     } finally {
       this.isSaving = false;
     }

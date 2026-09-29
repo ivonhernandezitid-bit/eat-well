@@ -270,6 +270,126 @@
   font-family: inherit;
 }
 
+.lifestyle-shell {
+  width: min(100%, 390px);
+  padding: 0 0 28px;
+  background: linear-gradient(180deg, #f7fff4 0%, #ecf7ee 100%);
+  border-radius: 20px;
+  box-shadow: var(--eatwell-shadow, 0 18px 40px rgba(20, 74, 48, 0.12));
+  color: var(--eatwell-ink, #1d2a22);
+}
+
+.goal-options,
+.activity-options,
+.exercise-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.goal-option,
+.activity-option {
+  position: relative;
+  min-width: 0;
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border: 1px solid rgba(47, 125, 89, 0.15);
+  border-radius: 10px;
+  background: #f7faf5;
+  color: var(--eatwell-ink, #1d2a22);
+  text-align: left;
+  cursor: pointer;
+}
+
+.goal-option.selected,
+.activity-option.selected {
+  border-color: var(--eatwell-green-700, #2e7d5f);
+  background: rgba(47, 125, 89, 0.09);
+}
+
+.goal-option:focus-within,
+.activity-option:focus-visible {
+  outline: 2px solid var(--eatwell-green-700, #2e7d5f);
+  outline-offset: 2px;
+}
+
+.goal-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.goal-option span,
+.activity-option span {
+  min-width: 0;
+  font-size: 0.73rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.activity-option {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-height: 66px;
+  font-family: inherit;
+}
+
+.activity-option span {
+  color: var(--eatwell-muted, #5d6d63);
+  font-weight: 500;
+}
+
+.exercise-option {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 8px;
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.exercise-option input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--eatwell-green-700, #2e7d5f);
+}
+
+.weight-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-right: 10px;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  border-radius: 8px;
+  background: #f4f8f1;
+}
+
+.weight-input-wrap input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+
+.lifestyle-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 14px;
+  text-transform: none;
+}
+
 .r24h-intro {
   margin: 18px 20px 0;
   color: var(--eatwell-muted, #5d6d63);
@@ -424,7 +544,8 @@
   gap: 7px;
 }
 
-.clinical-card {
+.clinical-card,
+.lifestyle-card {
   margin: 16px 10px 0;
   padding: 14px 12px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
@@ -433,7 +554,8 @@
   box-shadow: 0 8px 18px rgba(20, 74, 48, 0.04);
 }
 
-.clinical-card h3 {
+.clinical-card h3,
+.lifestyle-card h3 {
   margin: 0 0 14px;
   color: var(--eatwell-green-700, #2e7d5f);
   font-size: 0.8rem;
@@ -524,7 +646,7 @@
   font-weight: 700;
 }
 
-.clinical-field input,
+.clinical-field input:not([type='checkbox']),
 .clinical-field select {
   width: 100%;
   min-height: 38px;
@@ -704,6 +826,7 @@
   .settings-item {
     grid-template-columns: 34px 1fr 18px;
   }
+
 }
 
 /* Cropping modal custom styles */

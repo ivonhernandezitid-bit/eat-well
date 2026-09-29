@@ -147,6 +147,11 @@ export interface FoodPreferences {
   dietType: DietType;
   preferredFruits: string[];
   preferredVegetables: string[];
+  preferredProteins: string[];
+  preferredCarbohydrates: string[];
+  preferredLegumes: string[];
+  preferredDairy: string[];
+  preferredFats: string[];
   allergies: string[];
   dislikedFoods: string[];
   cookingTimeMinutes: number;

@@ -29,13 +29,23 @@
       </div>
 
       <div class="progress-card">
-        <div class="progress-header">
+        <div class="progress-header profile-progress-heading">
           <strong>Progreso del Perfil: {{ profileCompletion }}%</strong>
+          <button type="button" class="profile-progress-info" [title]="profileModulesTooltip" aria-label="Ver módulos completos y pendientes" [attr.aria-expanded]="showProfileModuleDetails" (click)="toggleProfileModuleDetails()">
+            <ion-icon name="information-circle-outline"></ion-icon>
+          </button>
         </div>
         <div class="progress-track">
           <span [style.width.%]="profileCompletion"></span>
         </div>
-        <p>Completa tu historial clínico</p>
+        <p>{{ completedProfileModules }} de 5 módulos completados</p>
+        <div class="profile-module-status-list" *ngIf="showProfileModuleDetails">
+          <div *ngFor="let module of profileModules" [class.complete]="module.completed">
+            <ion-icon [name]="module.completed ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>{{ module.name }}</span>
+            <small>{{ module.completed ? 'Completo' : 'Pendiente' }}</small>
+          </div>
+        </div>
       </div>
 
       <div class="settings-list">
@@ -113,7 +123,117 @@
         <div class="clinical-field"><label>Hora de dormir:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.sleepTime" (click)="openTimePicker('sleepTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.sleepTime) }}</span></button></div>
       </section>
 
-      <button type="button" class="primary-cta" (click)="saveR24h()">Guardar Recordatorio de 24H</button>
+      <ion-button class="profile-module-save-button" (click)="saveR24h()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearR24hModule()">Borrar datos y volver a capturar</ion-button>
+    </div>
+
+    <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
+      <div class="datos-header">
+        <button type="button" class="secondary-btn" (click)="view = 'settings'" aria-label="Volver a Perfil">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+        </button>
+        <span>ESTILO DE VIDA Y METAS</span>
+        <button type="button" class="secondary-btn" (click)="saveLifestyleGoals()" aria-label="Guardar objetivos">
+          <ion-icon name="save-outline"></ion-icon>
+        </button>
+      </div>
+
+      <p class="r24h-intro">Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
+
+      <section class="lifestyle-card">
+        <h3>META PRINCIPAL DE SALUD</h3>
+        <div class="goal-options" role="radiogroup" aria-label="Meta principal de salud">
+          <label
+            class="goal-option"
+            *ngFor="let goal of lifestyleGoals"
+            [class.selected]="lifestyleSettings.goal === goal.value"
+          >
+            <input type="radio" name="fitnessGoal" [value]="goal.value" [(ngModel)]="lifestyleSettings.goal" />
+            <ion-icon [name]="goal.icon"></ion-icon>
+            <span>{{ goal.label }}</span>
+          </label>
+        </div>
+        <div class="clinical-field target-weight-field">
+          <label for="target-weight">Peso meta deseado</label>
+          <div class="weight-input-wrap">
+            <input id="target-weight" type="number" min="25" max="350" step="0.1" [(ngModel)]="lifestyleSettings.targetWeightKg" />
+            <span>kg</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="lifestyle-card">
+        <h3>ACTIVIDAD FÍSICA Y EJERCICIO</h3>
+        <p class="clinical-help">¿Cuántos días por semana sueles realizar actividad?</p>
+        <div class="activity-options" role="group" aria-label="Nivel habitual de actividad">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'sedentary'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'sedentary'" (click)="lifestyleSettings.activityBand = 'sedentary'">
+            <strong>Sedentario</strong><span>Sin ejercicio planificado</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'light'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'light'" (click)="lifestyleSettings.activityBand = 'light'">
+            <strong>Ligero</strong><span>1 a 2 días por semana</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'moderate'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'moderate'" (click)="lifestyleSettings.activityBand = 'moderate'">
+            <strong>Moderado</strong><span>3 a 5 días por semana</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'intense'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'intense'" (click)="lifestyleSettings.activityBand = 'intense'">
+            <strong>Intenso</strong><span>6 a 7 días por semana</span>
+          </button>
+        </div>
+
+        <div class="clinical-field">
+          <label>Tipo de ejercicio habitual</label>
+          <div class="exercise-options">
+            <label class="exercise-option" *ngFor="let option of exerciseOptions" [class.selected]="isExerciseSelected(option.value)">
+              <input type="checkbox" [checked]="isExerciseSelected(option.value)" (change)="toggleExerciseType(option.value)" />
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="lifestyle-field-grid">
+          <div class="clinical-field">
+            <label for="session-duration">Duración por sesión</label>
+            <select id="session-duration" [(ngModel)]="lifestyleSettings.sessionDuration">
+              <option [ngValue]="30">30 minutos</option>
+              <option [ngValue]="45">45 minutos</option>
+              <option [ngValue]="60">60 minutos</option>
+              <option [ngValue]="90">90 minutos</option>
+            </select>
+          </div>
+          <div class="clinical-field">
+            <label for="training-time">Horario habitual</label>
+            <select id="training-time" [(ngModel)]="lifestyleSettings.trainingTime">
+              <option value="morning">Por la mañana</option>
+              <option value="afternoon">Por la tarde</option>
+              <option value="evening">Por la noche</option>
+              <option value="variable">Varía</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="lifestyle-card">
+        <h3>HÁBITOS Y DISPONIBILIDAD</h3>
+        <div class="clinical-field">
+          <label for="cooking-time">Tiempo disponible para cocinar</label>
+          <select id="cooking-time" [(ngModel)]="lifestyleSettings.cookingTime">
+            <option value="short">Poco tiempo (menos de 30 min)</option>
+            <option value="medium">Tiempo medio (30 a 60 min)</option>
+            <option value="flexible">Flexible (más de 1 hora)</option>
+          </select>
+        </div>
+        <div class="clinical-field">
+          <label for="stress-level">Nivel de estrés percibido</label>
+          <select id="stress-level" [(ngModel)]="lifestyleSettings.stressLevel">
+            <option value="low">Bajo</option>
+            <option value="moderate">Moderado</option>
+            <option value="high">Alto</option>
+          </select>
+        </div>
+      </section>
+
+      <ion-button class="profile-module-save-button" (click)="saveLifestyleGoals()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearLifestyleModule()">Borrar datos y volver a capturar</ion-button>
     </div>
 
     <div *ngIf="view === 'clinical'" class="clinical-history-shell">
@@ -212,7 +332,8 @@
         <div class="clinical-field"><label>Agua natural al día:</label><select [(ngModel)]="clinicalData.waterLiters"><option [ngValue]="2">2 litros</option><option [ngValue]="1">1 litro</option><option [ngValue]="3">3 litros</option></select></div>
       </section>
 
-      <button type="button" class="primary-cta" (click)="saveClinicalHistory()">Guardar Historial Clínico Completo</button>
+      <ion-button class="profile-module-save-button" (click)="saveClinicalHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearClinicalModule()">Borrar datos y volver a capturar</ion-button>
     </div>
 
     <div *ngIf="view === 'general'" class="datos-generales-shell">
@@ -296,9 +417,8 @@
         </div>
       </section>
 
-      <button type="button" class="primary-cta" (click)="saveAndContinueToHistory()">
-        Guardar y Continuar al Historial
-      </button>
+      <ion-button class="profile-module-save-button" (click)="saveAndContinueToHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearGeneralModule()">Borrar datos y volver a capturar</ion-button>
 
     </div>
   </div>

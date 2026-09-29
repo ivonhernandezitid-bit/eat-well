@@ -27,8 +27,11 @@ ion-content {
 }
 
 .preference-section {
-  padding: 20px 0;
-  border-bottom: 1px solid var(--page-border);
+  margin: 12px 0;
+  padding: 16px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  background: #ffffff;
 }
 
 h1,
@@ -122,6 +125,12 @@ ion-segment-button {
   color: #3a885d;
 }
 
+.protein-option.selected ion-icon { color: #bd6655; }
+.carbohydrate-option.selected ion-icon { color: #b78b37; }
+.legume-option.selected ion-icon { color: #56824d; }
+.dairy-option.selected ion-icon { color: #5c8aa0; }
+.fat-option.selected ion-icon { color: #78913f; }
+
 .chip-list {
   display: flex;
   flex-wrap: wrap;
@@ -188,15 +197,6 @@ ion-range {
   --bar-background-active: #4d956c;
   --knob-background: var(--page-green);
   padding-inline: 2px;
-}
-
-.save-preferences {
-  --background: var(--page-green);
-  --border-radius: 8px;
-  min-height: 50px;
-  margin: 24px 0 0;
-  font-weight: 800;
-  text-transform: none;
 }
 
 @media (min-width: 560px) {

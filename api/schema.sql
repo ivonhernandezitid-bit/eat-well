@@ -85,6 +85,11 @@ CREATE TABLE IF NOT EXISTS food_preferences (
   diet_type VARCHAR(30) NOT NULL DEFAULT 'omnivore',
   preferred_fruits LONGTEXT NOT NULL,
   preferred_vegetables LONGTEXT NOT NULL,
+  preferred_proteins LONGTEXT NULL,
+  preferred_carbohydrates LONGTEXT NULL,
+  preferred_legumes LONGTEXT NULL,
+  preferred_dairy LONGTEXT NULL,
+  preferred_fats LONGTEXT NULL,
   allergies LONGTEXT NOT NULL,
   disliked_foods LONGTEXT NOT NULL,
   cooking_time_minutes INT NOT NULL DEFAULT 30,
@@ -92,6 +97,12 @@ CREATE TABLE IF NOT EXISTS food_preferences (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_proteins LONGTEXT NULL;
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_carbohydrates LONGTEXT NULL;
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_legumes LONGTEXT NULL;
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_dairy LONGTEXT NULL;
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_fats LONGTEXT NULL;
 
 CREATE TABLE IF NOT EXISTS favorite_recipes (
   id INT AUTO_INCREMENT PRIMARY KEY,

@@ -2,6 +2,8 @@ import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
+import { ActivityBand, LifestyleSettings, loadLifestyleSettings, lifestyleStorageKey } from '../core/lifestyle-goals';
+import { FitnessGoal } from '../core/models';
 
 type WeightUnit = 'kg' | 'lbs';
 type HeightUnit = 'cm' | 'ft';
@@ -30,8 +32,36 @@ export class DatosPerfilPage implements OnInit {
   imc = 24.22;
   profileImage: string | null = null;
   isOnboarding = false;
-  profileCompletion = 70;
-  view: 'settings' | 'general' | 'clinical' | 'r24h' = 'settings';
+  foodPreferencesCompleted = false;
+  showProfileModuleDetails = false;
+  view: 'settings' | 'general' | 'clinical' | 'r24h' | 'lifestyle' = 'settings';
+
+  lifestyleSettings: LifestyleSettings = {
+    goal: 'improve_health',
+    targetWeightKg: 65,
+    activityBand: 'moderate',
+    exerciseTypes: [],
+    sessionDuration: 45,
+    trainingTime: 'afternoon',
+    cookingTime: 'medium',
+    stressLevel: 'moderate',
+  };
+
+  readonly lifestyleGoals: { value: FitnessGoal; label: string; icon: string }[] = [
+    { value: 'lose_weight', label: 'Perder grasa corporal', icon: 'trending-down-outline' },
+    { value: 'maintain', label: 'Mantener mi peso', icon: 'scale-outline' },
+    { value: 'gain_muscle', label: 'Aumentar masa muscular', icon: 'barbell-outline' },
+    { value: 'improve_health', label: 'Mejorar mi salud', icon: 'heart-outline' },
+  ];
+
+  readonly exerciseOptions = [
+    { value: 'walking', label: 'Caminata / Trotar' },
+    { value: 'strength', label: 'Gimnasio / Pesas' },
+    { value: 'cycling', label: 'Ciclismo' },
+    { value: 'sports', label: 'Deportes' },
+    { value: 'home', label: 'Ejercicio en casa' },
+    { value: 'none', label: 'Ninguno por ahora' },
+  ];
 
   r24hData = {
     wakeTime: '',
@@ -113,6 +143,7 @@ export class DatosPerfilPage implements OnInit {
     anxiety: 'Sí',
     waterLiters: 2,
   };
+  private readonly clinicalDataDefaults = structuredClone(this.clinicalData);
 
   readonly allergyOptions = ['Lactosa', 'Gluten', 'Marisco', 'Nuez/Maní'];
 
@@ -216,7 +247,9 @@ export class DatosPerfilPage implements OnInit {
     this.age = activeUser.age;
     this.imc = activeUser.imc;
     this.profileImage = activeUser.profileImage ?? null;
-    this.profileCompletion = this.calculateProfileCompletion(activeUser);
+    this.foodPreferencesCompleted = false;
+    void this.loadFoodPreferencesCompletion(activeUser.id);
+    this.loadLifestyleForm(activeUser.id, activeUser.goal);
 
     this.formName = this.fullName;
     this.birthDate = this.buildBirthDateFromAge(this.age);
@@ -225,21 +258,93 @@ export class DatosPerfilPage implements OnInit {
     this.syncDisplayValues();
   }
 
-  private calculateProfileCompletion(user: { name: string; email: string; age: number; weightKg: number; heightCm: number; profileImage?: string | null; gender: Gender; imc: number }): number {
-    let completion = 0;
-    const checks = [
-      !!user.name,
-      !!user.email,
-      user.age > 0,
-      user.weightKg > 0,
-      user.heightCm > 0,
-      !!user.profileImage,
-      user.gender !== 'other',
-      user.imc > 0,
+  get profileModules(): { name: string; completed: boolean }[] {
+    const activeUser = this.eatWellService.getActiveUser();
+    return [
+      {
+        name: 'Datos generales y antropométricos',
+        completed: !!activeUser && !!activeUser.name.trim() && activeUser.age > 0 && activeUser.weightKg > 0 && activeUser.heightCm > 0 && activeUser.gender !== 'other',
+      },
+      { name: 'Historial clínico', completed: this.isClinicalHistoryComplete },
+      { name: 'Recordatorio de 24 horas', completed: this.isR24hComplete },
+      { name: 'Estilo de vida y metas', completed: !!activeUser && !!loadLifestyleSettings(activeUser.id) },
+      { name: 'Preferencias alimentarias', completed: this.foodPreferencesCompleted },
     ];
+  }
 
-    completion = checks.filter(Boolean).length;
-    return Math.min(100, Math.round((completion / checks.length) * 100));
+  get profileModulesTooltip(): string {
+    return this.profileModules
+      .map(module => `${module.completed ? 'Completo' : 'Pendiente'}: ${module.name}`)
+      .join('\n');
+  }
+
+  get completedProfileModules(): number {
+    return this.profileModules.filter(module => module.completed).length;
+  }
+
+  get profileCompletion(): number {
+    return this.completedProfileModules * 20;
+  }
+
+  toggleProfileModuleDetails(): void {
+    this.showProfileModuleDetails = !this.showProfileModuleDetails;
+  }
+
+  private get isClinicalHistoryComplete(): boolean {
+    const data = this.clinicalData;
+    const hasFamilyAnswer = data.familyNone || [
+      data.familyDiabetes,
+      data.familyHypertension,
+      data.familyObesity,
+      data.familyCholesterol,
+      data.familyCancer,
+      data.familyRenal,
+      data.familyThyroid,
+    ].some(Boolean);
+    const hasDiagnosisAnswer = data.diagnosisNone || [
+      data.diagnosisDiabetes,
+      data.diagnosisHypertension,
+      data.diagnosisFattyLiver,
+      data.diagnosisSop,
+      data.diagnosisGout,
+      data.diagnosisHypothyroidism,
+    ].some(Boolean);
+    const hasWellbeingAnswer = data.wellbeingNone || [
+      data.wellbeingAnemia,
+      data.wellbeingBulimia,
+      data.wellbeingDepression,
+      data.wellbeingAnxiety,
+    ].some(Boolean) || data.wellbeingOther.trim().length > 0;
+    const hasAllergyAnswer = data.allergiesNone || data.allergies.length > 0 || data.otherAllergies.trim().length > 0;
+
+    return hasFamilyAnswer
+      && hasDiagnosisAnswer
+      && hasWellbeingAnswer
+      && hasAllergyAnswer
+      && (data.surgeriesNone || data.surgeries.trim().length > 0)
+      && (data.hospitalizationsNone || data.hospitalizations.trim().length > 0)
+      && (data.medicationsNone || data.medications.trim().length > 0)
+      && (data.medicationAllergiesNone || data.medicationAllergies.trim().length > 0)
+      && (data.supplementsNone || data.supplements.trim().length > 0)
+      && !!data.wellbeingTreatment
+      && !!data.wellbeingSupport;
+  }
+
+  private get isR24hComplete(): boolean {
+    return Object.values(this.r24hData).every(value => value.trim().length > 0);
+  }
+
+  private async loadFoodPreferencesCompletion(userId: string): Promise<void> {
+    try {
+      const preferences = await this.eatWellService.getFoodPreferences();
+      if (this.eatWellService.getActiveUser()?.id === userId) {
+        this.foodPreferencesCompleted = preferences.completed;
+      }
+    } catch {
+      if (this.eatWellService.getActiveUser()?.id === userId) {
+        this.foodPreferencesCompleted = false;
+      }
+    }
   }
 
   async handleSettingsItem(item: { route?: string; title: string; id?: string }): Promise<void> {
@@ -256,6 +361,15 @@ export class DatosPerfilPage implements OnInit {
 
     if (item.id === 'record') {
       this.view = 'r24h';
+      return;
+    }
+
+    if (item.id === 'lifestyle') {
+      const activeUser = this.eatWellService.getActiveUser();
+      if (activeUser) {
+        this.loadLifestyleForm(activeUser.id, activeUser.goal);
+      }
+      this.view = 'lifestyle';
       return;
     }
 
@@ -281,6 +395,147 @@ export class DatosPerfilPage implements OnInit {
     this.clinicalData.allergies = allergies.includes(allergy)
       ? allergies.filter(item => item !== allergy)
       : [...allergies, allergy];
+  }
+
+  toggleExerciseType(value: string): void {
+    const selected = this.lifestyleSettings.exerciseTypes;
+    if (value === 'none') {
+      this.lifestyleSettings.exerciseTypes = selected.includes('none') ? [] : ['none'];
+      return;
+    }
+    this.lifestyleSettings.exerciseTypes = selected.includes(value)
+      ? selected.filter(item => item !== value)
+      : [...selected.filter(item => item !== 'none'), value];
+  }
+
+  isExerciseSelected(value: string): boolean {
+    return this.lifestyleSettings.exerciseTypes.includes(value);
+  }
+
+  private loadLifestyleForm(userId: string, goal: FitnessGoal): void {
+    const saved = loadLifestyleSettings(userId);
+    this.lifestyleSettings = saved ?? {
+      goal,
+      targetWeightKg: this.weightKg,
+      activityBand: 'moderate',
+      exerciseTypes: [],
+      sessionDuration: 45,
+      trainingTime: 'afternoon',
+      cookingTime: 'medium',
+      stressLevel: 'moderate',
+    };
+    this.lifestyleSettings.goal = goal;
+  }
+
+  async saveLifestyleGoals(): Promise<void> {
+    const activeUser = this.eatWellService.getActiveUser();
+    const targetWeight = Number(this.lifestyleSettings.targetWeightKg);
+    if (!activeUser || !Number.isFinite(targetWeight) || targetWeight < 25 || targetWeight > 350) {
+      await this.showAlert('Revisa el peso objetivo', 'Ingresa un peso objetivo entre 25 y 350 kg.');
+      return;
+    }
+
+    const activityMap: Record<ActivityBand, 'low' | 'moderate' | 'high'> = {
+      sedentary: 'low',
+      light: 'low',
+      moderate: 'moderate',
+      intense: 'high',
+    };
+
+    try {
+      await this.eatWellService.updateProfile({
+        goal: this.lifestyleSettings.goal,
+        activityLevel: activityMap[this.lifestyleSettings.activityBand],
+      });
+      this.lifestyleSettings.targetWeightKg = targetWeight;
+      localStorage.setItem(lifestyleStorageKey(activeUser.id), JSON.stringify(this.lifestyleSettings));
+      await this.showAlert('Objetivos guardados', 'El plan alimenticio actualizará sus recomendaciones y distribución estimada de macronutrientes.');
+      this.view = 'settings';
+    } catch (error) {
+      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
+    }
+  }
+
+  async clearGeneralModule(): Promise<void> {
+    if (!await this.confirmModuleReset('datos generales y antropométricos')) {
+      return;
+    }
+
+    try {
+      const user = await this.eatWellService.updateProfile({
+        age: 18,
+        gender: 'other',
+        heightCm: 170,
+        weightKg: 70,
+        activityLevel: 'moderate',
+      });
+      this.age = user.age;
+      this.gender = user.gender;
+      this.heightCm = user.heightCm;
+      this.weightKg = user.weightKg;
+      this.imc = user.imc;
+      this.formName = user.name;
+      this.birthDate = this.buildBirthDateFromAge(user.age);
+      this.phone = '';
+      this.municipality = '';
+      this.syncDisplayValues();
+      this.view = 'settings';
+      await this.showAlert('Datos eliminados', 'Se restablecieron las medidas para que puedas volver a capturarlas.');
+    } catch (error) {
+      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron borrar los datos generales.');
+    }
+  }
+
+  async clearClinicalModule(): Promise<void> {
+    if (!await this.confirmModuleReset('historial clínico')) {
+      return;
+    }
+
+    this.clinicalData = structuredClone(this.clinicalDataDefaults);
+    this.view = 'settings';
+    await this.showAlert('Datos eliminados', 'El historial clínico quedó listo para volver a capturarse.');
+  }
+
+  async clearR24hModule(): Promise<void> {
+    if (!await this.confirmModuleReset('recordatorio de 24 horas')) {
+      return;
+    }
+
+    for (const field of Object.keys(this.r24hData) as (keyof typeof this.r24hData)[]) {
+      this.r24hData[field] = '';
+    }
+    this.view = 'settings';
+    await this.showAlert('Datos eliminados', 'El recordatorio de 24 horas quedó vacío.');
+  }
+
+  async clearLifestyleModule(): Promise<void> {
+    const activeUser = this.eatWellService.getActiveUser();
+    if (!activeUser || !await this.confirmModuleReset('estilo de vida y metas')) {
+      return;
+    }
+
+    try {
+      await this.eatWellService.updateProfile({ goal: 'improve_health', activityLevel: 'moderate' });
+      localStorage.removeItem(lifestyleStorageKey(activeUser.id));
+      this.loadLifestyleForm(activeUser.id, 'improve_health');
+      this.view = 'settings';
+      await this.showAlert('Datos eliminados', 'Las metas se restablecieron y puedes volver a configurarlas.');
+    } catch (error) {
+      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron borrar las metas.');
+    }
+  }
+
+  private async confirmModuleReset(moduleName: string): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header: 'Borrar datos del módulo',
+      message: `Se eliminarán los datos de ${moduleName}. Esta acción no se puede deshacer.`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Borrar datos', role: 'destructive' },
+      ],
+    });
+    await alert.present();
+    return (await alert.onDidDismiss()).role === 'destructive';
   }
 
   async saveClinicalHistory(): Promise<void> {
@@ -470,16 +725,6 @@ export class DatosPerfilPage implements OnInit {
       this.weightKg = Number(this.weightKg);
       this.heightCm = Number(this.heightCm);
       this.syncDisplayValues();
-      this.profileCompletion = this.calculateProfileCompletion({
-        name: this.fullName,
-        email: this.email,
-        age: this.age,
-        weightKg: this.weightKg,
-        heightCm: this.heightCm,
-        profileImage: this.profileImage,
-        gender: nextGender,
-        imc: this.imc,
-      });
 
       await this.showAlert('Guardado', 'Datos generales guardados correctamente.');
       this.view = 'settings';
@@ -611,7 +856,6 @@ export class DatosPerfilPage implements OnInit {
 
     const nextImage = canvas.toDataURL('image/jpeg', 0.9);
     this.profileImage = nextImage;
-    this.profileCompletion = Math.max(this.profileCompletion, 80);
 
     try {
       await this.eatWellService.updateProfile({ profileImage: nextImage });
