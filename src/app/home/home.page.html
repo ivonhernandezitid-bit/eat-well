@@ -1,73 +1,141 @@
-<ion-content class="ion-padding">
-  <div class="home-wrapper">
-    <div class="topbar">
-      <button class="profile-button" routerLink="/tabs/datos-perfil">
-        <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Foto de perfil" />
-        <ng-template #profileIcon>
-          <ion-icon name="person-circle-outline"></ion-icon>
-        </ng-template>
-      </button>
-      <button class="profile-button" (click)="logout()">
+<ion-content class="ion-padding home-content">
+  <main class="home-wrapper">
+    <header class="home-header">
+      <div class="welcome-block">
+        <button class="profile-button" routerLink="/tabs/datos-perfil" aria-label="Abrir perfil">
+          <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Foto de perfil" />
+          <ng-template #profileIcon><ion-icon name="person-circle-outline"></ion-icon></ng-template>
+        </button>
+        <div class="welcome-copy">
+          <span>Tu bienestar, día a día</span>
+          <h1>Hola, {{ user?.name?.split(' ')?.[0] || 'usuario' }}</h1>
+        </div>
+      </div>
+      <button class="logout-button" type="button" (click)="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">
         <ion-icon name="log-out-outline"></ion-icon>
       </button>
-    </div>
+    </header>
 
-    <div class="hero-section">
-      <h1 class="hero-title">Hola {{ user?.name || 'usuario' }},</h1>
-      <p class="hero-subtitle">Encuentra, organiza y disfruta comida saludable.</p>
-    </div>
-
-    <div class="tips-card" 
-         (touchstart)="onTouchStart($event)" 
-         (touchend)="onTouchEnd($event)" 
-         (mousedown)="onMouseDown($event)" 
-         (mouseup)="onMouseUp($event)">
+    <section class="tips-card" aria-label="Consejo del día" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)" (mousedown)="onMouseDown($event)" (mouseup)="onMouseUp($event)">
       <div class="tips-body">
         <div class="tips-copy" [class.fade-out]="isFading">
           <span class="tips-label">Consejo del día</span>
           <p>{{ dailyTip }}</p>
         </div>
-        <div class="tips-icon" [class.fade-out]="isFading">
-          <ion-icon [name]="dailyTipIcon"></ion-icon>
+        <div class="tips-icon" [class.fade-out]="isFading"><ion-icon [name]="dailyTipIcon"></ion-icon></div>
+      </div>
+      <div class="tips-footer">
+        <div class="tips-indicators" *ngIf="activeTips.length > 1" aria-hidden="true">
+          <span *ngFor="let tip of activeTips; let i = index" class="tip-dot" [class.active]="i === currentTipIndex"></span>
+        </div>
+        <div class="tips-controls" *ngIf="activeTips.length > 1">
+          <button type="button" (click)="cycleTip('prev'); $event.stopPropagation()" aria-label="Consejo anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
+          <button type="button" (click)="cycleTip('next'); $event.stopPropagation()" aria-label="Siguiente consejo"><ion-icon name="chevron-forward-outline"></ion-icon></button>
         </div>
       </div>
-      <div class="tips-indicators" *ngIf="activeTips.length > 1">
-        <span *ngFor="let tip of activeTips; let i = index" 
-              class="tip-dot" 
-              [class.active]="i === currentTipIndex"></span>
+    </section>
+
+    <section class="calorie-card" aria-label="Progreso diario de calorías y macronutrientes">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">HOY</span>
+          <h2>Tu progreso de hoy</h2>
+        </div>
+        <a routerLink="/tabs/plan-alimenticio" class="text-link">Ver plan</a>
       </div>
+
+      <div class="calorie-summary">
+        <div class="calorie-ring" role="progressbar" aria-label="Calorías consumidas" aria-valuemin="0" [attr.aria-valuemax]="macroTargets.calories" [attr.aria-valuenow]="caloriesConsumed" [style.--ring-progress.%]="calorieProgress">
+          <div class="calorie-ring-center">
+            <strong>{{ caloriesConsumed | number }}</strong>
+            <span>de {{ macroTargets.calories | number }} kcal</span>
+          </div>
+        </div>
+        <div class="calorie-copy">
+          <strong>{{ calorieProgress }}%</strong>
+          <span>de tu meta diaria</span>
+          <small>{{ caloriesRemaining | number }} kcal restantes</small>
+        </div>
+      </div>
+
+      <div class="macro-grid">
+        <div class="macro-item protein">
+          <div><span>Proteína</span><strong>{{ proteinConsumed }} / {{ macroTargets.protein }} g</strong></div>
+          <div class="macro-track"><span [style.width.%]="proteinProgress"></span></div>
+        </div>
+        <div class="macro-item carbohydrate">
+          <div><span>Carbohidratos</span><strong>{{ carbohydratesConsumed }} / {{ macroTargets.carbohydrates }} g</strong></div>
+          <div class="macro-track"><span [style.width.%]="carbohydrateProgress"></span></div>
+        </div>
+        <div class="macro-item fat">
+          <div><span>Grasas</span><strong>{{ fatConsumed }} / {{ macroTargets.fat }} g</strong></div>
+          <div class="macro-track"><span [style.width.%]="fatProgress"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="meal-card" aria-label="Siguiente comida del plan">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">{{ mealTimeLabel }} ({{ mealScheduledTime }} hrs)</span>
+          <h2>Próxima comida del plan</h2>
+        </div>
+        <div class="meal-heading-icon"><ion-icon name="restaurant-outline"></ion-icon></div>
+      </div>
+
+      <ng-container *ngIf="nextMeal as meal; else noMeal">
+        <div class="meal-content">
+          <div class="meal-copy">
+            <h3>{{ meal.title }}</h3>
+            <p>{{ meal.description }}</p>
+          </div>
+          <div class="meal-calories"><strong>{{ meal.calories }}</strong><span>kcal</span></div>
+        </div>
+        <div class="meal-macros">
+          <span>{{ meal.proteinGrams }} g proteína</span>
+          <span>{{ meal.carbsGrams }} g carbohidratos</span>
+          <span>{{ meal.fatGrams }} g grasa</span>
+        </div>
+        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal)">
+          <ion-icon name="checkmark-circle-outline"></ion-icon>
+          Marcar como consumida
+        </button>
+      </ng-container>
+      <ng-template #noMeal>
+        <p class="empty-meal-copy">No hay una recomendación disponible todavía.</p>
+        <a class="meal-confirm-button meal-link-button" routerLink="/tabs/plan-alimenticio">Abrir plan alimenticio</a>
+      </ng-template>
+    </section>
+
+    <div class="daily-metrics-grid">
+      <section class="metric-card hydration-card" aria-label="Progreso diario de agua">
+        <div class="metric-heading">
+          <div class="metric-icon water-icon"><ion-icon name="water-outline"></ion-icon></div>
+          <div><span class="eyebrow">HIDRATACIÓN</span><h2>Agua</h2></div>
+        </div>
+        <div class="metric-value"><strong>{{ waterLiters }}</strong><span> / 2.5 L</span></div>
+        <div class="water-glasses" role="progressbar" aria-label="Vasos de agua consumidos" aria-valuemin="0" [attr.aria-valuemax]="waterGoalGlasses" [attr.aria-valuenow]="dailyLog.waterGlasses">
+          <span *ngFor="let glass of waterGlassSlots" [class.filled]="glass <= dailyLog.waterGlasses"></span>
+        </div>
+        <div class="water-actions">
+          <button type="button" (click)="removeWaterGlass()" [disabled]="dailyLog.waterGlasses === 0" aria-label="Quitar un vaso de agua"><ion-icon name="remove-outline"></ion-icon></button>
+          <span>{{ dailyLog.waterGlasses }} de {{ waterGoalGlasses }} vasos</span>
+          <button type="button" (click)="addWaterGlass()" [disabled]="dailyLog.waterGlasses >= waterGoalGlasses" aria-label="Agregar un vaso de agua"><ion-icon name="add-outline"></ion-icon></button>
+        </div>
+      </section>
+
+      <section class="metric-card activity-card" aria-label="Actividad física diaria">
+        <div class="metric-heading">
+          <div class="metric-icon activity-icon"><ion-icon name="walk-outline"></ion-icon></div>
+          <div><span class="eyebrow">ACTIVIDAD</span><h2>Pasos / Actividad</h2></div>
+        </div>
+        <div class="metric-value"><strong>{{ activityValue | number }}</strong><span>{{ activityMode === 'sensor' ? ' / 10,000 pasos' : ' / 30 min' }}</span></div>
+        <div class="activity-track"><span [style.width.%]="activityProgress"></span></div>
+        <p class="activity-status">{{ activityStatus }}</p>
+        <button *ngIf="activityMode === 'permission'" type="button" class="activity-action" (click)="connectActivitySensor()">Conectar sensor de pasos</button>
+        <button *ngIf="activityMode === 'manual'" type="button" class="activity-action" (click)="addExerciseMinutes()"><ion-icon name="add-outline"></ion-icon>Registrar 10 min</button>
+      </section>
     </div>
 
-    <div class="section-title">Elige tus preferencias</div>
-
-    <div class="preferences-grid">
-      <button class="preference-card general" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'general' }">
-        <div class="preference-icon">
-          <ion-icon name="options-outline"></ion-icon>
-        </div>
-        <span>Preferencias</span>
-      </button>
-
-      <button class="preference-card allergies" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'allergies' }">
-        <div class="preference-icon">
-          <ion-icon name="alert-circle-outline"></ion-icon>
-        </div>
-        <span>Alergias</span>
-      </button>
-
-      <button class="preference-card vegetables" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'vegetables' }">
-        <div class="preference-icon">
-          <ion-icon name="leaf-outline"></ion-icon>
-        </div>
-        <span>Verduras</span>
-      </button>
-
-      <button class="preference-card fruits" routerLink="/tabs/preferencias-alimentarias" [queryParams]="{ section: 'fruits' }">
-        <div class="preference-icon">
-          <ion-icon name="nutrition-outline"></ion-icon>
-        </div>
-        <span>Frutas</span>
-      </button>
-    </div>
-  </div>
+  </main>
 </ion-content>

@@ -2,19 +2,16 @@
   min-height: 100%;
   display: grid;
   place-items: center;
-  --ion-font-family: inherit;
-  font-family: inherit;
-  background:
-    radial-gradient(circle at 82% 10%, rgba(103, 184, 107, 0.24), transparent 30%),
-    linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+  width: min(100%, var(--eatwell-content-width, 620px));
+  margin: 0 auto;
+  padding: 24px 4px;
 }
 
 .registro-card {
-  width: min(100%, 390px);
-  padding: 30px 24px 24px;
-  border-radius: 28px;
-  background: var(--eatwell-card);
-  box-shadow: var(--eatwell-shadow);
+  width: 100%;
+  padding: 24px 4px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
 }
 
 .logo-container {
@@ -40,6 +37,8 @@
 .form-box {
   display: grid;
   gap: 12px;
+  width: min(100%, var(--eatwell-form-width, 420px));
+  margin: 0 auto;
 }
 
 .input-group {
@@ -60,8 +59,7 @@
 
 @media (max-width: 360px) {
   .registro-card {
-    padding: 22px 16px 20px;
-    border-radius: 22px;
+    padding: 18px 4px;
   }
 
   .logo-container {
@@ -85,6 +83,10 @@
   .robot-logo {
     width: 76px;
   }
+}
+
+ion-content {
+  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
 }
 
 .btn-signup {

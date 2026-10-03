@@ -44,6 +44,11 @@ body {
   overscroll-behavior: none;
 }
 
+:root {
+  --eatwell-content-width: 620px;
+  --eatwell-form-width: 420px;
+}
+
 ion-app {
   width: 100%;
   min-height: 100%;
@@ -76,9 +81,9 @@ button,
   --box-shadow: none;
   --color: #ffffff;
   display: block;
-  width: calc(100% - 20px);
+  width: 100%;
   min-height: 46px;
-  margin: 18px 10px 12px;
+  margin: 18px 0 12px;
   font-size: 1rem;
   font-weight: 800;
   text-transform: none;

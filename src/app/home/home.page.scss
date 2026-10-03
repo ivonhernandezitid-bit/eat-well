@@ -1,7 +1,7 @@
 .home-wrapper {
   min-height: 100%;
   width: 100%;
-  max-width: 620px;
+  max-width: var(--eatwell-content-width, 620px);
   margin: 0 auto;
   padding: 14px 4px 24px;
   color: var(--eatwell-ink);
@@ -220,4 +220,522 @@ ion-content {
 
 .preference-icon ion-icon {
   font-size: 28px;
+}
+
+.home-content {
+  --background: linear-gradient(180deg, #f7fff4 0%, #eef7ed 100%);
+}
+
+.home-wrapper {
+  width: min(100%, var(--eatwell-content-width, 620px));
+  padding: 12px 2px calc(28px + var(--ion-safe-area-bottom, 0px));
+}
+
+.home-header,
+.welcome-block,
+.section-heading,
+.metric-heading,
+.calorie-summary,
+.meal-content,
+.meal-macros,
+.tips-footer,
+.tips-controls,
+.water-actions {
+  display: flex;
+  align-items: center;
+}
+
+.home-header,
+.section-heading,
+.tips-footer {
+  justify-content: space-between;
+}
+
+.home-header {
+  margin: 0 0 20px;
+}
+
+.welcome-block {
+  min-width: 0;
+  gap: 12px;
+}
+
+.welcome-copy {
+  min-width: 0;
+}
+
+.welcome-copy > span,
+.eyebrow {
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.welcome-copy h1 {
+  margin: 3px 0 0;
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-size: 1.32rem;
+  font-weight: 850;
+}
+
+.home-header .profile-button {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 15px;
+  box-shadow: 0 5px 14px rgba(31, 68, 48, 0.08);
+}
+
+.home-header .profile-button img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.logout-button,
+.water-actions button,
+.tips-controls button {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  background: #ffffff;
+  color: var(--eatwell-green-700, #2e7d5f);
+}
+
+.logout-button {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  font-size: 1.15rem;
+}
+
+.calorie-card,
+.meal-card,
+.metric-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(47, 125, 89, 0.1);
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 8px 22px rgba(31, 68, 48, 0.07);
+}
+
+.calorie-card {
+  margin-bottom: 14px;
+}
+
+.section-heading {
+  gap: 10px;
+}
+
+.section-heading h2,
+.metric-heading h2 {
+  margin: 3px 0 0;
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-size: 1rem;
+  font-weight: 850;
+}
+
+.text-link {
+  color: var(--eatwell-green-700, #2e7d5f);
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.calorie-summary {
+  gap: 18px;
+  justify-content: center;
+  margin: 18px 0;
+}
+
+.calorie-ring {
+  width: 142px;
+  height: 142px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  border-radius: 50%;
+  background: conic-gradient(var(--eatwell-green-700, #2e7d5f) 0 var(--ring-progress), #e6eee6 var(--ring-progress) 100%);
+}
+
+.calorie-ring-center {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 3px;
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.calorie-ring-center strong {
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-size: 1.42rem;
+  font-weight: 900;
+}
+
+.calorie-ring-center span,
+.calorie-copy span,
+.calorie-copy small {
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.68rem;
+}
+
+.calorie-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.calorie-copy strong {
+  color: var(--eatwell-green-700, #2e7d5f);
+  font-size: 1.65rem;
+  font-weight: 900;
+}
+
+.calorie-copy small {
+  margin-top: 5px;
+}
+
+.macro-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 13px;
+  border-top: 1px solid #edf1ed;
+}
+
+.macro-item {
+  min-width: 0;
+}
+
+.macro-item > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.macro-item > div:first-child span {
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.66rem;
+}
+
+.macro-item strong {
+  overflow-wrap: anywhere;
+  color: var(--eatwell-ink, #1d2a22);
+  font-size: 0.68rem;
+}
+
+.macro-track,
+.activity-track {
+  height: 5px;
+  margin-top: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e9eee9;
+}
+
+.macro-track span,
+.activity-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--eatwell-green-700, #2e7d5f);
+  transition: width 0.25s ease;
+}
+
+.macro-item.carbohydrate .macro-track span { background: #77a95d; }
+.macro-item.fat .macro-track span { background: #d2aa4f; }
+
+.meal-card {
+  margin-bottom: 14px;
+  padding: 16px;
+}
+
+.meal-heading-icon,
+.metric-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #edf7ee;
+  color: var(--eatwell-green-700, #2e7d5f);
+  font-size: 1.15rem;
+}
+
+.meal-content {
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.meal-copy {
+  min-width: 0;
+}
+
+.meal-copy h3 {
+  margin: 0;
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-size: 0.95rem;
+  font-weight: 850;
+}
+
+.meal-copy p,
+.empty-meal-copy {
+  margin: 5px 0 0;
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.meal-calories {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.meal-calories strong {
+  color: var(--eatwell-green-700, #2e7d5f);
+  font-size: 1.08rem;
+}
+
+.meal-calories span {
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.66rem;
+}
+
+.meal-macros {
+  flex-wrap: wrap;
+  gap: 7px 12px;
+  margin: 12px 0;
+  color: #506559;
+  font-size: 0.66rem;
+}
+
+.meal-confirm-button,
+.activity-action {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--eatwell-green-700, #2e7d5f);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.meal-confirm-button ion-icon,
+.activity-action ion-icon {
+  font-size: 1.1rem;
+}
+
+.meal-link-button {
+  margin-top: 12px;
+}
+
+.daily-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.metric-card {
+  padding: 13px;
+}
+
+.metric-heading {
+  min-width: 0;
+  gap: 9px;
+}
+
+.metric-heading > div:last-child {
+  min-width: 0;
+}
+
+.metric-icon {
+  width: 34px;
+  height: 34px;
+  font-size: 1rem;
+}
+
+.water-icon { background: #e8f5f5; color: #47888b; }
+.activity-icon { background: #f2f4e7; color: #748744; }
+
+.metric-heading h2 {
+  font-size: 0.88rem;
+}
+
+.metric-heading .eyebrow {
+  font-size: 0.58rem;
+}
+
+.metric-value {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-top: 14px;
+  white-space: nowrap;
+}
+
+.metric-value strong {
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-size: 1.38rem;
+  font-weight: 900;
+}
+
+.metric-value > span {
+  overflow: hidden;
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.64rem;
+  text-overflow: ellipsis;
+}
+
+.water-glasses {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 10px;
+}
+
+.water-glasses span {
+  height: 15px;
+  border: 1px solid #d6e7e5;
+  border-radius: 4px 4px 6px 6px;
+  background: #f8fbfb;
+}
+
+.water-glasses span.filled {
+  border-color: #78afb0;
+  background: #84c3c0;
+}
+
+.water-actions {
+  justify-content: space-between;
+  gap: 5px;
+  margin-top: 9px;
+}
+
+.water-actions span {
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.62rem;
+  text-align: center;
+}
+
+.water-actions button,
+.tips-controls button {
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  border-radius: 9px;
+  font-size: 1rem;
+}
+
+.water-actions button:disabled {
+  opacity: 0.42;
+}
+
+.activity-track {
+  margin-top: 13px;
+}
+
+.activity-status {
+  min-height: 30px;
+  margin: 8px 0;
+  color: var(--eatwell-muted, #5d6d63);
+  font-size: 0.65rem;
+  line-height: 1.35;
+}
+
+.activity-action {
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid rgba(47, 125, 89, 0.18);
+  background: #f1f7ef;
+  color: var(--eatwell-green-800, #286348);
+  font-size: 0.66rem;
+}
+
+.tips-card {
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 16px;
+  border-radius: 18px;
+}
+
+.tips-body {
+  align-items: flex-start;
+}
+
+.tips-label {
+  font-size: 0.72rem;
+}
+
+.tips-copy p {
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.tips-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+}
+
+.tips-icon ion-icon {
+  font-size: 23px;
+}
+
+.tips-footer {
+  min-height: 28px;
+}
+
+.tips-indicators {
+  width: auto;
+  margin: 0;
+}
+
+.tips-controls {
+  gap: 6px;
+}
+
+.tips-controls button {
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+@media (max-width: 370px) {
+  .calorie-ring {
+    width: 124px;
+    height: 124px;
+  }
+
+  .calorie-summary {
+    gap: 12px;
+  }
+
+  .daily-metrics-grid {
+    gap: 8px;
+  }
+
+  .metric-card {
+    padding: 10px;
+  }
 }

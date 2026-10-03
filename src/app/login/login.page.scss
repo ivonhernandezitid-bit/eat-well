@@ -2,19 +2,16 @@
   min-height: 100%;
   display: grid;
   place-items: center;
-  --ion-font-family: inherit;
-  font-family: inherit;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(204, 232, 107, 0.36), transparent 28%),
-    linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+  width: min(100%, var(--eatwell-content-width, 620px));
+  margin: 0 auto;
+  padding: 24px 4px;
 }
 
 .login-card {
-  width: min(100%, 390px);
-  padding: 34px 24px 26px;
-  border-radius: 28px;
-  background: var(--eatwell-card);
-  box-shadow: var(--eatwell-shadow);
+  width: 100%;
+  padding: 28px 4px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
 }
 
 .logo-container {
@@ -32,6 +29,8 @@
 .form-box {
   display: grid;
   gap: 14px;
+  width: min(100%, var(--eatwell-form-width, 420px));
+  margin: 0 auto;
 }
 
 .input-group {
@@ -52,8 +51,7 @@
 
 @media (max-width: 360px) {
   .login-card {
-    padding: 26px 16px 22px;
-    border-radius: 22px;
+    padding: 22px 4px;
   }
 
   .logo-container {
@@ -73,6 +71,10 @@
   .login-card {
     padding-top: 22px;
   }
+}
+
+ion-content {
+  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
 }
 
 .btn-login {

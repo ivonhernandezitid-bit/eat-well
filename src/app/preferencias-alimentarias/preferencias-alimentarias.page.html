@@ -1,14 +1,15 @@
-<ion-header class="ion-no-border">
-  <ion-toolbar>
-    <ion-buttons slot="start">
-      <ion-back-button defaultHref="/tabs/home" text=""></ion-back-button>
-    </ion-buttons>
-    <ion-title>{{ title }}</ion-title>
-  </ion-toolbar>
-</ion-header>
-
 <ion-content>
   <main class="preferences-wrapper">
+    <header class="preferences-header">
+      <button type="button" class="preferences-header-button" routerLink="/tabs/datos-perfil" aria-label="Regresar a Perfil">
+        <ion-icon name="chevron-back-outline"></ion-icon>
+      </button>
+      <h1>PREFERENCIAS ALIMENTARIAS</h1>
+      <button type="button" class="preferences-header-button" [disabled]="isSaving" (click)="save()" aria-label="Guardar preferencias">
+        <ion-icon name="save-outline"></ion-icon>
+      </button>
+    </header>
+
     <div class="loading-state" *ngIf="isLoading">
       <ion-spinner name="crescent"></ion-spinner>
     </div>

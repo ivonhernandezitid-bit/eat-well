@@ -69,15 +69,7 @@
     </div>
 
     <div *ngIf="view === 'r24h'" class="r24h-shell">
-      <div class="datos-header">
-        <button type="button" class="secondary-btn" (click)="view = 'settings'" aria-label="Volver">
-          <ion-icon name="chevron-back-outline"></ion-icon>
-        </button>
-        <span>RECORDATORIO 24H</span>
-        <button type="button" class="secondary-btn" (click)="saveR24h()" aria-label="Guardar">
-          <ion-icon name="save-outline"></ion-icon>
-        </button>
-      </div>
+      <app-profile-header title="RECORDATORIO 24H" (backClick)="view = 'settings'" (saveClick)="saveR24h()"></app-profile-header>
 
       <p class="r24h-intro">Registra la rutina habitual de un día normal.</p>
 
@@ -128,15 +120,7 @@
     </div>
 
     <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
-      <div class="datos-header">
-        <button type="button" class="secondary-btn" (click)="view = 'settings'" aria-label="Volver a Perfil">
-          <ion-icon name="chevron-back-outline"></ion-icon>
-        </button>
-        <span>ESTILO DE VIDA Y METAS</span>
-        <button type="button" class="secondary-btn" (click)="saveLifestyleGoals()" aria-label="Guardar objetivos">
-          <ion-icon name="save-outline"></ion-icon>
-        </button>
-      </div>
+      <app-profile-header title="ESTILO DE VIDA Y METAS" (backClick)="view = 'settings'" (saveClick)="saveLifestyleGoals()"></app-profile-header>
 
       <p class="r24h-intro">Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
 
@@ -237,15 +221,7 @@
     </div>
 
     <div *ngIf="view === 'clinical'" class="clinical-history-shell">
-      <div class="datos-header">
-        <button type="button" class="secondary-btn" (click)="view = 'settings'" aria-label="Volver">
-          <ion-icon name="chevron-back-outline"></ion-icon>
-        </button>
-        <span>HISTORIAL CLÍNICO</span>
-        <button type="button" class="secondary-btn" (click)="saveClinicalHistory()" aria-label="Guardar">
-          <ion-icon name="save-outline"></ion-icon>
-        </button>
-      </div>
+      <app-profile-header title="HISTORIAL CLÍNICO" (backClick)="view = 'settings'" (saveClick)="saveClinicalHistory()"></app-profile-header>
 
       <section class="clinical-card">
         <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>
@@ -337,15 +313,7 @@
     </div>
 
     <div *ngIf="view === 'general'" class="datos-generales-shell">
-      <div class="datos-header">
-        <button type="button" class="secondary-btn" (click)="view = 'settings'" aria-label="Volver">
-          <ion-icon name="chevron-back-outline"></ion-icon>
-        </button>
-        <span>DATOS GENERALES</span>
-        <button type="button" class="secondary-btn" (click)="saveAndContinueToHistory()" aria-label="Guardar">
-          <ion-icon name="save-outline"></ion-icon>
-        </button>
-      </div>
+      <app-profile-header title="DATOS GENERALES" (backClick)="view = 'settings'" (saveClick)="saveAndContinueToHistory()"></app-profile-header>
 
       <section class="datos-card">
         <h3>INFORMACIÓN PERSONAL</h3>

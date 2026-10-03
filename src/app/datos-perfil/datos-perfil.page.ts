@@ -193,7 +193,7 @@ export class DatosPerfilPage implements OnInit {
       id: 'privacy',
       icon: 'shield-checkmark-outline',
       title: 'Privacidad y Datos',
-      subtitle: 'Aviso de privacidad (LFPDPPP)',
+      subtitle: 'Configuración de cuenta y seguridad',
       route: '/tabs/home',
     },
   ];
