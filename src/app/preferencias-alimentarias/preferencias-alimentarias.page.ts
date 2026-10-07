@@ -108,8 +108,8 @@ export class PreferenciasAlimentariasPage implements OnInit {
       case 'vegetables': return 'Verduras';
       case 'fruits': return 'Frutas';
       case 'allergies': return 'Alergias';
-      case 'general': return 'Preferencias';
-      default: return 'Preferencias';
+      case 'general': return 'Preferencias Alimentarias';
+      default: return 'Preferencias Alimentarias';
     }
   }
 
