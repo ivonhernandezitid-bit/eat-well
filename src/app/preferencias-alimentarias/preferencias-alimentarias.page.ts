@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular';
 import { ActivityLevel, DietType, EatWellService, FitnessGoal, FoodPreferences } from '../core';
@@ -95,13 +95,11 @@ export class PreferenciasAlimentariasPage implements OnInit {
       : this.dairy;
   }
 
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly router: Router,
-    private readonly alertController: AlertController,
-    private readonly toastController: ToastController,
-    private readonly route: ActivatedRoute,
-  ) {}
+  private readonly eatWellService = inject(EatWellService);
+  private readonly router = inject(Router);
+  private readonly alertController = inject(AlertController);
+  private readonly toastController = inject(ToastController);
+  private readonly route = inject(ActivatedRoute);
 
   get title(): string {
     switch (this.currentSection) {

@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActionSheetController, AlertController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
@@ -56,12 +56,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
 
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly alertController: AlertController,
-    private readonly actionSheetController: ActionSheetController,
-    private readonly platform: Platform,
-  ) { }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly alertController = inject(AlertController);
+  private readonly actionSheetController = inject(ActionSheetController);
+  private readonly platform = inject(Platform);
 
   ngOnInit(): void {
     this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {

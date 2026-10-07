@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from '../core';
 
@@ -45,10 +45,8 @@ export class ActividadEspaldaPage implements OnInit {
   hasSavedRoutine = false;
   generatedRoutine: RoutineResult | null = null;
 
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly toastController: ToastController
-  ) { }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly toastController = inject(ToastController);
 
   ngOnInit() {
     this.loadSavedRoutine();

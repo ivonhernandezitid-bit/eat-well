@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { PluginListenerHandle } from '@capacitor/core';
@@ -54,10 +54,8 @@ export class HomePage implements OnInit, OnDestroy {
   activeTips: { text: string; icon: string }[] = [];
   currentTipIndex = 0;
 
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly router: Router,
-  ) { }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly router = inject(Router);
 
   ngOnInit() {
     this.userSubscription = this.eatWellService.activeUser$.subscribe((user) => {

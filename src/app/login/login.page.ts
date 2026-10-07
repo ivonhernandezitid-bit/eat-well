@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService } from '../core';
@@ -9,17 +9,12 @@ import { EatWellService } from '../core';
   styleUrls: ['./login.page.scss'],
   standalone: false
 })
-export class LoginPage implements OnInit {
+export class LoginPage {
   email = '';
   password = '';
-
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly router: Router,
-    private readonly alertController: AlertController,
-  ) { }
-
-  ngOnInit() { }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly router = inject(Router);
+  private readonly alertController = inject(AlertController);
 
   async login(): Promise<void> {
     if (!this.email.trim() || !this.password.trim()) {

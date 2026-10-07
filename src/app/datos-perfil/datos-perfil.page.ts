@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
@@ -214,12 +214,10 @@ export class DatosPerfilPage implements OnInit {
   private lastPointerY = 0;
   private pointerId: number | null = null;
 
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly router: Router,
-    private readonly route: ActivatedRoute,
-    private readonly alertController: AlertController,
-  ) { }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly alertController = inject(AlertController);
 
   ngOnInit() {
     this.loadProfileData();

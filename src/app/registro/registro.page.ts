@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService } from '../core';
@@ -9,7 +9,7 @@ import { EatWellService } from '../core';
   styleUrls: ['./registro.page.scss'],
   standalone: false
 })
-export class RegistroPage implements OnInit {
+export class RegistroPage {
   email = '';
   password = '';
   fullName = '';
@@ -17,15 +17,9 @@ export class RegistroPage implements OnInit {
 
   hasMinLength = false;
   hasLetterAndNumber = false;
-
-  constructor(
-    private readonly eatWellService: EatWellService,
-    private readonly router: Router,
-    private readonly alertController: AlertController,
-  ) { }
-
-  ngOnInit() {
-  }
+  private readonly eatWellService = inject(EatWellService);
+  private readonly router = inject(Router);
+  private readonly alertController = inject(AlertController);
 
   validatePasswordStrength(): void {
     const pw = this.password || '';

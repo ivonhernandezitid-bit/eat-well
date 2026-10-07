@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import {
@@ -70,10 +70,9 @@ interface FavoriteRecipeResponse {
 })
 export class EatWellService {
   private readonly activeUserSubject = new BehaviorSubject<UserProfile | null>(this.loadActiveUser());
+  private readonly http = inject(HttpClient);
 
   readonly activeUser$: Observable<UserProfile | null> = this.activeUserSubject.asObservable();
-
-  constructor(private readonly http: HttpClient) {}
 
   getActiveUser(): UserProfile | null {
     return this.activeUserSubject.value;
