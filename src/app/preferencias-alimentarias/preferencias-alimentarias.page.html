@@ -1,14 +1,16 @@
-<ion-content>
+<ion-content
+  (touchstart)="onModuleTouchStart($event)"
+  (touchend)="onModuleTouchEnd($event)"
+>
   <main class="preferences-wrapper">
-    <header class="preferences-header">
-      <button type="button" class="preferences-header-button" routerLink="/tabs/datos-perfil" aria-label="Regresar a Perfil">
+    <div class="preferences-page-title">
+      <button type="button" class="preferences-back-button" aria-label="Volver al perfil" (click)="returnToProfile()">
         <ion-icon name="chevron-back-outline"></ion-icon>
+        <span>Perfil</span>
       </button>
-      <h1>PREFERENCIAS ALIMENTARIAS</h1>
-      <button type="button" class="preferences-header-button" [disabled]="isSaving" (click)="save()" aria-label="Guardar preferencias">
-        <ion-icon name="save-outline"></ion-icon>
-      </button>
-    </header>
+      <h1>Preferencias alimentarias</h1>
+      <p>Personaliza tus comidas según tus gustos y necesidades.</p>
+    </div>
 
     <div class="loading-state" *ngIf="isLoading">
       <ion-spinner name="crescent"></ion-spinner>
@@ -210,4 +212,3 @@
     </ng-container>
   </main>
 </ion-content>
-

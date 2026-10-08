@@ -78,6 +78,9 @@ export class PreferenciasAlimentariasPage implements OnInit {
   private dietToastTimeout: number | undefined;
   private dietToastSequence = 0;
   private activeDietToast: HTMLIonToastElement | null = null;
+  private moduleTouchStartX = 0;
+  private moduleTouchStartY = 0;
+  private moduleSwipeEligible = false;
 
   get proteinsForDiet(): string[] {
     if (this.preferences.dietType === 'vegan') {
@@ -131,6 +134,38 @@ export class PreferenciasAlimentariasPage implements OnInit {
   async ionViewWillEnter(): Promise<void> {
     this.currentSection = this.route.snapshot.queryParamMap.get('section');
     await this.loadPreferencesData();
+  }
+
+  async returnToProfile(): Promise<void> {
+    await this.router.navigateByUrl('/tabs/datos-perfil');
+  }
+
+  onModuleTouchStart(event: TouchEvent): void {
+    this.moduleTouchStartX = event.touches[0]?.clientX ?? 0;
+    this.moduleTouchStartY = event.touches[0]?.clientY ?? 0;
+    const target = event.target;
+    const startedOnControl = target instanceof Element
+      && target.closest('button, input, select, textarea, ion-button, ion-segment, ion-select, ion-range');
+
+    this.moduleSwipeEligible = !startedOnControl;
+  }
+
+  onModuleTouchEnd(event: TouchEvent): void {
+    if (!this.moduleSwipeEligible) {
+      return;
+    }
+
+    this.moduleSwipeEligible = false;
+    const touch = event.changedTouches[0];
+    const swipeDistanceX = (touch?.clientX ?? 0) - this.moduleTouchStartX;
+    const swipeDistanceY = (touch?.clientY ?? 0) - this.moduleTouchStartY;
+
+    if (Math.abs(swipeDistanceX) < 70 || Math.abs(swipeDistanceX) <= Math.abs(swipeDistanceY)) {
+      return;
+    }
+
+    event.stopPropagation();
+    void this.router.navigateByUrl('/tabs/datos-perfil');
   }
 
   ionViewWillLeave(): void {

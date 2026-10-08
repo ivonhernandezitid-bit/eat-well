@@ -1,4 +1,8 @@
-<ion-content class="ion-padding perfil-config-page">
+<ion-content
+  class="perfil-config-page"
+  (touchstart)="onModuleTouchStart($event)"
+  (touchend)="onModuleTouchEnd($event)"
+>
   <div class="perfil-config-wrapper">
     <div *ngIf="view === 'settings'" class="perfil-config-shell">
       <div class="profile-summary">
@@ -69,9 +73,14 @@
     </div>
 
     <div *ngIf="view === 'r24h'" class="r24h-shell">
-      <app-profile-header title="RECORDATORIO 24H" (backClick)="view = 'settings'" (saveClick)="saveR24h()"></app-profile-header>
-
-      <p class="r24h-intro">Registra la rutina habitual de un día normal.</p>
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Recordatorio 24 horas</h1>
+        <p>Registra la rutina habitual de un día normal.</p>
+      </div>
 
       <section class="r24h-card">
         <h3>MAÑANA / INICIO DEL DÍA</h3>
@@ -120,9 +129,14 @@
     </div>
 
     <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
-      <app-profile-header title="ESTILO DE VIDA Y METAS" (backClick)="view = 'settings'" (saveClick)="saveLifestyleGoals()"></app-profile-header>
-
-      <p class="r24h-intro">Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Estilo de vida y metas</h1>
+        <p>Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
+      </div>
 
       <section class="lifestyle-card">
         <h3>META PRINCIPAL DE SALUD</h3>
@@ -220,8 +234,32 @@
       <ion-button class="profile-module-save-button" (click)="clearLifestyleModule()">Borrar datos y volver a capturar</ion-button>
     </div>
 
+    <div *ngIf="view === 'privacy'" class="privacy-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Privacidad y Datos</h1>
+        <p>Configuración de cuenta y seguridad.</p>
+      </div>
+
+      <section class="privacy-card">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <h2>Sección en proceso</h2>
+        <p>Esta sección aún no está disponible. Próximamente implementaremos aquí las opciones de privacidad y administración de tus datos.</p>
+      </section>
+    </div>
+
     <div *ngIf="view === 'clinical'" class="clinical-history-shell">
-      <app-profile-header title="HISTORIAL CLÍNICO" (backClick)="view = 'settings'" (saveClick)="saveClinicalHistory()"></app-profile-header>
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Historial clínico</h1>
+        <p>Comparte la información de salud que ayudará a personalizar tus recomendaciones.</p>
+      </div>
 
       <section class="clinical-card">
         <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>
@@ -313,7 +351,14 @@
     </div>
 
     <div *ngIf="view === 'general'" class="datos-generales-shell">
-      <app-profile-header title="DATOS GENERALES" (backClick)="view = 'settings'" (saveClick)="saveAndContinueToHistory()"></app-profile-header>
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Datos generales</h1>
+        <p>Actualiza tu información personal y medidas corporales.</p>
+      </div>
 
       <section class="datos-card">
         <h3>INFORMACIÓN PERSONAL</h3>
@@ -389,6 +434,7 @@
       <ion-button class="profile-module-save-button" (click)="clearGeneralModule()">Borrar datos y volver a capturar</ion-button>
 
     </div>
+
   </div>
 
   <ion-modal [isOpen]="isTimePickerOpen" (didDismiss)="closeTimePicker()" class="time-picker-modal">

@@ -1,18 +1,24 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 .perfil-config-page {
-  --background: #f1f8f1;
-  --ion-background-color: #f1f8f1;
+  height: 100%;
+  --background: var(--eatwell-mint);
+  --ion-background-color: var(--eatwell-mint);
 }
 
 .perfil-config-wrapper {
-  min-height: 100%;
   width: 100%;
-  background: transparent;
+  min-height: 100%;
+  background: var(--eatwell-mint);
 }
 
 .perfil-config-shell {
   width: min(100%, var(--eatwell-content-width, 620px));
   margin: 0 auto;
-  padding: 18px 16px 90px;
+  padding: 16px 16px 24px;
   color: var(--eatwell-ink, #1d2a22);
   font-family: inherit;
 }
@@ -41,14 +47,14 @@
   place-items: center;
   overflow: hidden;
   border-radius: 28px;
-  background: linear-gradient(180deg, #dff7ea 0%, #bbebd4 100%);
+  background: linear-gradient(180deg, var(--eatwell-mint) 0%, rgba(103, 184, 107, 0.28) 100%);
   border: 3px solid rgba(47, 125, 89, 0.14);
   box-shadow: 0 12px 24px rgba(70, 170, 120, 0.18);
 }
 
 .avatar-frame ion-icon {
   font-size: 64px;
-  color: #2c5d49;
+  color: var(--eatwell-green-900);
 }
 
 .avatar-frame img {
@@ -79,7 +85,7 @@
   margin: 0;
   font-size: 1.05rem;
   font-weight: 800;
-  color: var(--eatwell-green-900, #1d4d3d);
+  color: var(--eatwell-green-900);
 }
 
 .user-meta p {
@@ -114,12 +120,12 @@
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: inherit;
-  background: linear-gradient(90deg, #c7e86f 0%, #70c784 100%);
+  background: linear-gradient(90deg, var(--eatwell-lime) 0%, var(--eatwell-green-500) 100%);
 }
 
 .progress-card p {
   margin: 10px 0 0;
-  color: var(--eatwell-green-700, #2e7d5f);
+  color: var(--eatwell-green-700);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -248,12 +254,94 @@
 .datos-generales-shell,
 .clinical-history-shell,
 .r24h-shell,
-.lifestyle-shell {
+.lifestyle-shell,
+.privacy-shell {
   width: min(100%, var(--eatwell-content-width, 620px));
   margin: 0 auto;
-  padding: 0 16px 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 16px 20px;
   color: var(--eatwell-ink, #1d2a22);
   font-family: inherit;
+}
+
+.profile-module-title {
+  display: grid;
+  gap: 6px;
+  padding: 0 2px 4px;
+}
+
+.profile-module-back {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 2px -5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.profile-module-back ion-icon {
+  font-size: 1rem;
+}
+
+.profile-module-back:focus-visible {
+  outline: 2px solid var(--eatwell-green-700);
+  outline-offset: 1px;
+}
+
+.profile-module-title h1 {
+  margin: 0;
+  color: var(--eatwell-green-900);
+  font-size: 1.28rem;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.profile-module-title p {
+  margin: 0;
+  color: var(--eatwell-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.privacy-card {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px 18px;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 18px;
+  background: var(--eatwell-card);
+  box-shadow: 0 7px 18px rgba(31, 68, 48, 0.065);
+  text-align: center;
+}
+
+.privacy-card > ion-icon {
+  color: var(--eatwell-green-700);
+  font-size: 2rem;
+}
+
+.privacy-card h2 {
+  margin: 0;
+  color: var(--eatwell-green-900);
+  font-size: 1rem;
+}
+
+.privacy-card p {
+  max-width: 34ch;
+  margin: 0;
+  color: var(--eatwell-muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
 }
 
 .goal-options,
@@ -275,8 +363,10 @@
   padding: 9px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 14px;
-  background: #ffffff;
-  color: var(--eatwell-ink, #1d2a22);
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
   text-align: left;
   cursor: pointer;
 }
@@ -303,9 +393,15 @@
 .goal-option span,
 .activity-option span {
   min-width: 0;
-  font-size: 0.73rem;
+  color: var(--eatwell-ink);
+  font-size: 0.82rem;
   font-weight: 700;
   line-height: 1.25;
+}
+
+.goal-option ion-icon {
+  flex: 0 0 auto;
+  color: var(--eatwell-green-700);
 }
 
 .activity-option {
@@ -318,7 +414,7 @@
 }
 
 .activity-option span {
-  color: var(--eatwell-muted, #5d6d63);
+  color: var(--eatwell-muted);
   font-weight: 500;
 }
 
@@ -330,8 +426,10 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  font-size: 0.72rem;
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
   line-height: 1.25;
 }
 
@@ -368,25 +466,16 @@
   text-transform: none;
 }
 
-.r24h-intro {
-  margin: 18px 0 0;
-  color: var(--eatwell-muted, #5d6d63);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
 .r24h-card {
-  margin: 0;
-  padding: 16px 0;
-  border-bottom: 1px solid rgba(47, 125, 89, 0.14);
+  --profile-section-accent: var(--eatwell-green-700);
 }
 
 .r24h-card h3 {
   margin: 0 0 12px;
-  color: var(--eatwell-green-700, #2e7d5f);
+  color: var(--eatwell-green-700);
   font-size: 0.8rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.3;
 }
 
@@ -396,10 +485,10 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-ink, #1d2a22);
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .r24h-card textarea::placeholder {
@@ -415,10 +504,10 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-muted, #5d6d63);
+  background: var(--eatwell-card);
+  color: var(--eatwell-muted);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   text-align: left;
   cursor: pointer;
 }
@@ -439,7 +528,7 @@
 
 .time-picker-trigger::after {
   margin-left: auto;
-  color: var(--eatwell-green-700, #2e7d5f);
+  color: var(--eatwell-green-700);
   content: '›';
   font-size: 1.35rem;
   line-height: 1;
@@ -462,7 +551,7 @@
 }
 
 .time-picker-content {
-  --background: #f7fff4;
+  --background: var(--eatwell-mint);
   padding: 10px 16px 18px;
 }
 
@@ -504,7 +593,7 @@
   --background: #ffffff;
   --title-color: var(--eatwell-green-900, #1d4d3d);
   --wheel-highlight-background: rgba(47, 125, 89, 0.12);
-  --wheel-fade-background-rgb: 247, 255, 244;
+  --wheel-fade-background-rgb: 243, 251, 243;
   border-radius: 16px;
   box-shadow: 0 8px 18px rgba(20, 74, 48, 0.08);
 }
@@ -519,31 +608,64 @@
 }
 
 .clinical-card,
-.lifestyle-card {
+.lifestyle-card,
+.r24h-card,
+.datos-card {
+  position: relative;
+  overflow: hidden;
   margin: 0;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid rgba(47, 125, 89, 0.14);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  padding: 16px;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  border-radius: 18px;
+  background: var(--eatwell-card);
+  box-shadow: 0 7px 18px rgba(31, 68, 48, 0.065);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.clinical-card::before,
+.lifestyle-card::before,
+.r24h-card::before,
+.datos-card::before {
+  display: none;
+}
+
+.datos-card {
+  --profile-section-accent: var(--eatwell-green-700);
+}
+
+.clinical-card {
+  --profile-section-accent: var(--eatwell-green-700);
+}
+
+.lifestyle-card {
+  --profile-section-accent: var(--eatwell-green-700);
+}
+
+.clinical-card:active,
+.lifestyle-card:active,
+.r24h-card:active,
+.datos-card:active {
+  box-shadow: 0 3px 10px rgba(31, 68, 48, 0.08);
+  transform: scale(0.995);
 }
 
 .clinical-card h3,
-.lifestyle-card h3 {
+.lifestyle-card h3,
+.r24h-card h3,
+.datos-card h3 {
   margin: 0 0 14px;
-  color: var(--eatwell-green-700, #2e7d5f);
+  color: var(--eatwell-green-700);
   font-size: 0.8rem;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.3;
 }
 
 .clinical-help {
   margin: -4px 0 12px;
-  color: var(--eatwell-muted, #5d6d63);
-  font-size: 0.76rem;
-  line-height: 1.35;
+  color: var(--eatwell-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .clinical-check-grid {
@@ -560,7 +682,11 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  line-height: 1.35;
 }
 
 .clinical-check {
@@ -571,8 +697,8 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-green-900, #1d4d3d);
+  background: var(--eatwell-card);
+  color: var(--eatwell-green-900);
   font-weight: 700;
 }
 
@@ -630,32 +756,14 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-ink, #1d2a22);
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
   font-family: inherit;
-  font-size: 0.86rem;
+  font-size: 0.82rem;
 }
 
 .clinical-field input::placeholder {
   color: rgba(29, 42, 34, 0.46);
-}
-
-.datos-card {
-  margin: 0;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid rgba(47, 125, 89, 0.14);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-}
-
-.datos-card h3 {
-  margin: 0 0 12px;
-  font-size: 0.8rem;
-  letter-spacing: 0.08em;
-  color: var(--eatwell-green-700, #2e7d5f);
-  text-transform: uppercase;
 }
 
 .field-row {
@@ -678,9 +786,9 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-ink, #1d2a22);
-  font-size: 0.95rem;
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
+  font-size: 0.82rem;
   font-family: inherit;
 }
 
@@ -713,8 +821,9 @@
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
-  background: #ffffff;
-  color: var(--eatwell-ink, #1d2a22);
+  background: var(--eatwell-card);
+  color: var(--eatwell-ink);
+  font-size: 0.82rem;
   font-weight: 700;
 }
 
@@ -732,14 +841,15 @@
   min-height: 44px;
   border-radius: 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
-  background: #ffffff;
-  color: var(--eatwell-green-900, #1d4d3d);
+  background: var(--eatwell-card);
+  color: var(--eatwell-green-900);
   font-weight: 700;
   font-family: inherit;
+  font-size: 0.82rem;
 }
 
 .segmented-control button.active {
-  background: #edf7ef;
+  background: rgba(47, 125, 89, 0.09);
   border-color: rgba(47, 125, 89, 0.25);
 }
 
@@ -923,4 +1033,3 @@
     color: var(--eatwell-lime);
   }
 }
-

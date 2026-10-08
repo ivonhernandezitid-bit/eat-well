@@ -43,7 +43,7 @@ export class HomePage implements OnInit, OnDestroy {
   readonly waterGoalGlasses = 10;
   readonly stepGoal = 10000;
   readonly exerciseGoalMinutes = 30;
-  readonly waterGlassSlots = Array.from({ length: 8 }, (_, index) => index + 1);
+  readonly waterGlassSlots = Array.from({ length: 10 }, (_, index) => index + 1);
 
   private userSubscription?: Subscription;
   private tipTimer?: ReturnType<typeof setInterval>;
@@ -335,9 +335,28 @@ export class HomePage implements OnInit, OnDestroy {
     await this.router.navigateByUrl('/login');
   }
 
+  async openProfile(): Promise<void> {
+    await this.router.navigateByUrl('/tabs/datos-perfil');
+  }
+
   private touchStartX = 0;
   private touchStartY = 0;
   private dragStartX = 0;
+  private ignoreTipClickUntil = 0;
+
+  onTipClick(): void {
+    if (Date.now() < this.ignoreTipClickUntil) {
+      this.ignoreTipClickUntil = 0;
+      return;
+    }
+    this.cycleTip('next');
+  }
+
+  onTipKeyboardActivate(event: Event): void {
+    event.preventDefault();
+    this.ignoreTipClickUntil = Date.now() + 500;
+    this.cycleTip('next');
+  }
 
   cycleTip(direction: 'next' | 'prev' = 'next'): void {
     if (this.isFading || this.activeTips.length <= 1) {
@@ -370,6 +389,10 @@ export class HomePage implements OnInit, OnDestroy {
     
     const dx = touchEndX - this.touchStartX;
     const dy = touchEndY - this.touchStartY;
+
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      this.ignoreTipClickUntil = Date.now() + 500;
+    }
     
     // Swipe left (next tip) or right (previous tip)
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
@@ -391,6 +414,7 @@ export class HomePage implements OnInit, OnDestroy {
     
     // Drag left (next) or right (prev)
     if (Math.abs(dx) > 40) {
+      this.ignoreTipClickUntil = Date.now() + 500;
       if (dx < 0) {
         this.cycleTip('next');
       } else {

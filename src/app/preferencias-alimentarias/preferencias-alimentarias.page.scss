@@ -1,63 +1,65 @@
 :host {
-  --page-green: #1f6b45;
-  --page-lime: #dce98c;
-  --page-border: #dce5de;
+  --page-green: var(--eatwell-green-700);
+  --page-lime: var(--eatwell-lime);
+  --page-border: rgba(47, 125, 89, 0.14);
 }
 
 ion-content {
-  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+  --background: linear-gradient(180deg, var(--eatwell-mint) 0%, rgba(103, 184, 107, 0.12) 100%);
 }
 
 .preferences-wrapper {
   width: 100%;
-  max-width: 672px;
+  max-width: var(--eatwell-content-width, 620px);
   margin: 0 auto;
-  padding: 18px 16px calc(90px + env(safe-area-inset-bottom));
+  padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
 }
 
-.preferences-header {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 0 2px 10px;
-  border-bottom: 1px solid rgba(47, 125, 89, 0.14);
-}
-
-.preferences-header h1 {
-  min-width: 0;
-  flex: 1;
-  margin: 0 8px;
-  color: #174e35;
-  font-size: 0.95rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
-.preferences-header-button {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+.preferences-page-title {
   display: grid;
-  place-items: center;
-  padding: 0;
-  border: 1px solid rgba(47, 125, 89, 0.14);
+  gap: 5px;
+  margin: 0 0 14px;
+  padding: 4px 2px;
+}
+
+.preferences-back-button {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 2px -5px;
+  padding: 0 5px;
+  border: 0;
   border-radius: 8px;
-  background: #f2f7f0;
-  box-shadow: 0 1px 2px rgba(20, 74, 48, 0.08);
-  color: var(--page-green);
+  background: transparent;
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 750;
 }
 
-.preferences-header-button ion-icon {
-  font-size: 1.2rem;
+.preferences-back-button ion-icon {
+  font-size: 1rem;
 }
 
-.preferences-header-button:disabled {
-  opacity: 0.55;
+.preferences-back-button:focus-visible {
+  outline: 2px solid var(--eatwell-green-700);
+  outline-offset: 1px;
+}
+
+.preferences-page-title h1 {
+  margin: 0;
+  color: var(--eatwell-green-900);
+  font-size: 1.28rem;
+  font-weight: 850;
+}
+
+.preferences-page-title p {
+  margin: 0;
+  color: var(--eatwell-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
 }
 
 .loading-state {
@@ -69,12 +71,12 @@ ion-content {
 
 .preference-section {
   width: 100%;
-  margin: 0;
-  padding: 16px 0;
-  border: 0;
-  border-bottom: 1px solid var(--page-border);
-  border-radius: 0;
-  background: transparent;
+  margin: 0 0 12px;
+  padding: 16px;
+  border: 1px solid var(--page-border);
+  border-radius: 18px;
+  background: var(--eatwell-card);
+  box-shadow: 0 7px 18px rgba(31, 68, 48, 0.065);
 }
 
 h1,
@@ -97,7 +99,7 @@ h2 {
 }
 
 ion-segment {
-  background: #e9efea;
+  background: rgba(47, 125, 89, 0.08);
   border-radius: 12px;
   padding: 4px;
   width: 100%;
@@ -145,7 +147,7 @@ ion-segment-button {
   border: 1px solid var(--page-border);
   border-radius: 12px;
   background: #ffffff;
-  color: #30483a;
+  color: var(--eatwell-ink);
   font: inherit;
   font-weight: 700;
   text-align: left;
@@ -154,28 +156,28 @@ ion-segment-button {
 .food-option ion-icon {
   flex: 0 0 auto;
   font-size: 1.2rem;
-  color: #60836d;
+  color: var(--eatwell-green-700);
 }
 
 .food-option.selected {
-  border-color: #4d956c;
-  background: #edf7ef;
+  border-color: var(--eatwell-green-700);
+  background: rgba(47, 125, 89, 0.09);
   color: var(--page-green);
 }
 
 .fruit-option.selected ion-icon {
-  color: #bb594c;
+  color: var(--eatwell-green-700);
 }
 
 .vegetable-option.selected ion-icon {
-  color: #3a885d;
+  color: var(--eatwell-green-700);
 }
 
-.protein-option.selected ion-icon { color: #bd6655; }
-.carbohydrate-option.selected ion-icon { color: #b78b37; }
-.legume-option.selected ion-icon { color: #56824d; }
-.dairy-option.selected ion-icon { color: #5c8aa0; }
-.fat-option.selected ion-icon { color: #78913f; }
+.protein-option.selected ion-icon,
+.carbohydrate-option.selected ion-icon,
+.legume-option.selected ion-icon,
+.dairy-option.selected ion-icon,
+.fat-option.selected ion-icon { color: var(--eatwell-green-700); }
 
 .chip-list {
   display: flex;
@@ -189,19 +191,19 @@ ion-segment-button {
   align-items: center;
   gap: 6px;
   padding: 7px 11px;
-  border: 1px solid #dfc8c5;
+  border: 1px solid rgba(47, 125, 89, 0.18);
   border-radius: 999px;
   background: #ffffff;
-  color: #6d4742;
+  color: var(--eatwell-green-900);
   font: inherit;
   font-size: 0.82rem;
   font-weight: 700;
 }
 
 .allergy-chip.selected {
-  border-color: #bd6157;
-  background: #fff0ee;
-  color: #923e35;
+  border-color: var(--eatwell-green-700);
+  background: rgba(47, 125, 89, 0.09);
+  color: var(--eatwell-green-900);
 }
 
 .compact-section {
@@ -239,8 +241,8 @@ ion-segment-button {
 }
 
 ion-range {
-  --bar-background: #dbe5dd;
-  --bar-background-active: #4d956c;
+  --bar-background: rgba(47, 125, 89, 0.18);
+  --bar-background-active: var(--eatwell-green-700);
   --knob-background: var(--page-green);
   padding-inline: 2px;
 }

@@ -2,7 +2,7 @@
   <main class="home-wrapper">
     <header class="home-header">
       <div class="welcome-block">
-        <button class="profile-button" routerLink="/tabs/datos-perfil" aria-label="Abrir perfil">
+        <button class="profile-button" type="button" (click)="openProfile()" aria-label="Abrir perfil">
           <img *ngIf="user?.profileImage; else profileIcon" [src]="user?.profileImage" alt="Foto de perfil" />
           <ng-template #profileIcon><ion-icon name="person-circle-outline"></ion-icon></ng-template>
         </button>
@@ -16,7 +16,7 @@
       </button>
     </header>
 
-    <section class="tips-card" aria-label="Consejo del día" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)" (mousedown)="onMouseDown($event)" (mouseup)="onMouseUp($event)">
+    <section class="tips-card" role="button" tabindex="0" aria-label="Consejo del día. Toca o desliza para cambiar el consejo." (click)="onTipClick()" (keydown.enter)="onTipKeyboardActivate($event)" (keydown.space)="onTipKeyboardActivate($event)" (touchstart)="onTouchStart($event)" (touchend)="onTouchEnd($event)" (mousedown)="onMouseDown($event)" (mouseup)="onMouseUp($event)">
       <div class="tips-body">
         <div class="tips-copy" [class.fade-out]="isFading">
           <span class="tips-label">Consejo del día</span>
@@ -28,10 +28,7 @@
         <div class="tips-indicators" *ngIf="activeTips.length > 1" aria-hidden="true">
           <span *ngFor="let tip of activeTips; let i = index" class="tip-dot" [class.active]="i === currentTipIndex"></span>
         </div>
-        <div class="tips-controls" *ngIf="activeTips.length > 1">
-          <button type="button" (click)="cycleTip('prev'); $event.stopPropagation()" aria-label="Consejo anterior"><ion-icon name="chevron-back-outline"></ion-icon></button>
-          <button type="button" (click)="cycleTip('next'); $event.stopPropagation()" aria-label="Siguiente consejo"><ion-icon name="chevron-forward-outline"></ion-icon></button>
-        </div>
+        <span class="tips-hint" *ngIf="activeTips.length > 1">Toca o desliza para cambiar</span>
       </div>
     </section>
 
@@ -122,6 +119,7 @@
           <span>{{ dailyLog.waterGlasses }} de {{ waterGoalGlasses }} vasos</span>
           <button type="button" (click)="addWaterGlass()" [disabled]="dailyLog.waterGlasses >= waterGoalGlasses" aria-label="Agregar un vaso de agua"><ion-icon name="add-outline"></ion-icon></button>
         </div>
+        <p class="water-goal">Meta diaria: {{ waterGoalGlasses }} vasos (2.5 L)</p>
       </section>
 
       <section class="metric-card activity-card" aria-label="Actividad física diaria">

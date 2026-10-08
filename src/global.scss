@@ -83,10 +83,14 @@ button,
   display: block;
   width: 100%;
   min-height: 46px;
-  margin: 18px 0 12px;
+  margin: 8px 0 0;
   font-size: 1rem;
   font-weight: 800;
   text-transform: none;
+}
+
+.profile-module-save-button + .profile-module-save-button {
+  margin-top: 6px;
 }
 
 .profile-progress-heading {
@@ -667,4 +671,3 @@ ion-content.modal-content-container::part(scroll) {
     min-height: 38px;
   }
 }
-

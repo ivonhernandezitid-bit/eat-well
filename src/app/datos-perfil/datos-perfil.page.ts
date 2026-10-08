@@ -1,6 +1,8 @@
+import { CommonModule } from '@angular/common';
 import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController } from '@ionic/angular';
+import { AlertController, IonicModule, IonContent } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
 import { ActivityBand, LifestyleSettings, loadLifestyleSettings, lifestyleStorageKey } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
@@ -13,10 +15,12 @@ type R24hTimeField = 'wakeTime' | 'breakfastTime' | 'snackTime' | 'lunchTime' | 
   selector: 'app-datos-perfil',
   templateUrl: './datos-perfil.page.html',
   styleUrls: ['./datos-perfil.page.scss'],
-  standalone: false
+  standalone: true,
+  imports: [CommonModule, FormsModule, IonicModule],
 })
 export class DatosPerfilPage implements OnInit {
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild(IonContent) private content?: IonContent;
 
   fullName = '';
   username = '';
@@ -34,7 +38,11 @@ export class DatosPerfilPage implements OnInit {
   isOnboarding = false;
   foodPreferencesCompleted = false;
   showProfileModuleDetails = false;
-  view: 'settings' | 'general' | 'clinical' | 'r24h' | 'lifestyle' = 'settings';
+  view: 'settings' | 'general' | 'clinical' | 'r24h' | 'lifestyle' | 'privacy' = 'settings';
+
+  private moduleTouchStartX = 0;
+  private moduleTouchStartY = 0;
+  private moduleSwipeEligible = false;
 
   lifestyleSettings: LifestyleSettings = {
     goal: 'improve_health',
@@ -194,7 +202,7 @@ export class DatosPerfilPage implements OnInit {
       icon: 'shield-checkmark-outline',
       title: 'Privacidad y Datos',
       subtitle: 'Configuración de cuenta y seguridad',
-      route: '/tabs/home',
+      route: '/tabs/datos-perfil',
     },
   ];
 
@@ -218,6 +226,56 @@ export class DatosPerfilPage implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly alertController = inject(AlertController);
+
+  openProfileModule(view: Exclude<DatosPerfilPage['view'], 'settings'>): void {
+    if (view === 'general') {
+      this.syncGeneralFormFromProfile();
+    } else if (view === 'lifestyle') {
+      const activeUser = this.eatWellService.getActiveUser();
+      if (activeUser) {
+        this.loadLifestyleForm(activeUser.id, activeUser.goal);
+      }
+    }
+
+    this.view = view;
+    void this.content?.scrollToTop(0);
+  }
+
+  returnToProfile(): void {
+    this.view = 'settings';
+    void this.content?.scrollToTop(0);
+  }
+
+  onModuleTouchStart(event: TouchEvent): void {
+    this.moduleTouchStartX = event.touches[0]?.clientX ?? 0;
+    this.moduleTouchStartY = event.touches[0]?.clientY ?? 0;
+    const target = event.target;
+    const startedOnControl = target instanceof Element
+      && target.closest('button, input, select, textarea, ion-button, ion-datetime, ion-range, .crop-area');
+
+    this.moduleSwipeEligible = this.view !== 'settings'
+      && !this.isCroppingModalOpen
+      && !this.isTimePickerOpen
+      && !startedOnControl;
+  }
+
+  onModuleTouchEnd(event: TouchEvent): void {
+    if (!this.moduleSwipeEligible) {
+      return;
+    }
+
+    this.moduleSwipeEligible = false;
+    const touch = event.changedTouches[0];
+    const swipeDistanceX = (touch?.clientX ?? 0) - this.moduleTouchStartX;
+    const swipeDistanceY = (touch?.clientY ?? 0) - this.moduleTouchStartY;
+
+    if (Math.abs(swipeDistanceX) < 70 || Math.abs(swipeDistanceX) <= Math.abs(swipeDistanceY)) {
+      return;
+    }
+
+    event.stopPropagation();
+    this.returnToProfile();
+  }
 
   ngOnInit() {
     this.loadProfileData();
@@ -347,27 +405,27 @@ export class DatosPerfilPage implements OnInit {
 
   async handleSettingsItem(item: { route?: string; title: string; id?: string }): Promise<void> {
     if (item.id === 'general') {
-      this.view = 'general';
-      this.syncGeneralFormFromProfile();
+      this.openProfileModule('general');
       return;
     }
 
     if (item.id === 'clinical') {
-      this.view = 'clinical';
+      this.openProfileModule('clinical');
       return;
     }
 
     if (item.id === 'record') {
-      this.view = 'r24h';
+      this.openProfileModule('r24h');
       return;
     }
 
     if (item.id === 'lifestyle') {
-      const activeUser = this.eatWellService.getActiveUser();
-      if (activeUser) {
-        this.loadLifestyleForm(activeUser.id, activeUser.goal);
-      }
-      this.view = 'lifestyle';
+      this.openProfileModule('lifestyle');
+      return;
+    }
+
+    if (item.id === 'privacy') {
+      this.openProfileModule('privacy');
       return;
     }
 
