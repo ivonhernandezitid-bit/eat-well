@@ -1,0 +1,1023 @@
+ion-content {
+  --background: #f7fff4;
+}
+
+.plan-wrapper {
+  width: 100%;
+  max-width: 620px;
+  margin: 0 auto;
+  color: var(--eatwell-ink);
+}
+
+.topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.topbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.filter-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  width: 100%;
+  scrollbar-width: none;
+  
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  background: #fff;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  color: var(--eatwell-green-900);
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(31, 68, 48, 0.04);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  ion-icon {
+    font-size: 16px;
+  }
+
+  &.active {
+    background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 6px 16px rgba(111, 204, 115, 0.3);
+  }
+}
+
+.search-block {
+  min-width: 0;
+  position: relative;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(31, 68, 48, 0.08);
+}
+
+.search-input {
+  --padding-start: 16px;
+  --padding-end: 40px;
+}
+
+.search-icon {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--eatwell-muted);
+  pointer-events: none;
+}
+
+.topbar-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.icon-toggle-btn {
+  background: #fff;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 18px;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  color: var(--eatwell-green-900);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
+.scanner-button {
+  --color: var(--eatwell-green-900);
+  --background: #fff;
+  --border-radius: 18px;
+  width: 46px;
+  height: 46px;
+  margin: 0;
+}
+
+.food-image-input {
+  display: none;
+}
+
+.scan-result {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 1fr auto;
+  gap: 14px;
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.scan-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.scan-copy {
+  min-width: 0;
+}
+
+.scan-label {
+  color: var(--eatwell-green-700);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.scan-copy h2 {
+  margin: 4px 0 6px;
+  color: var(--eatwell-green-900);
+}
+
+.scan-copy p {
+  margin: 0;
+  color: var(--eatwell-muted);
+}
+.scan-copy .detected-ingredients {
+  margin-bottom: 5px;
+  color: var(--eatwell-green-900);
+  font-weight: 700;
+}
+
+.clear-scan {
+  --color: var(--eatwell-green-900);
+  margin: -8px -8px 0 0;
+}
+
+.screen-title {
+  margin: 28px 0 16px;
+  color: var(--eatwell-green-900);
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.macro-targets {
+  margin: 0 0 22px;
+  padding: 16px;
+  border: 1px solid rgba(47, 125, 89, 0.15);
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #eef8eb 100%);
+  box-shadow: 0 8px 20px rgba(31, 68, 48, 0.06);
+}
+
+.macro-targets-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.macro-targets-heading span {
+  color: var(--eatwell-green-700);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.macro-targets-heading h2 {
+  margin: 4px 0 0;
+  color: var(--eatwell-green-900);
+  font-size: 1.08rem;
+  font-weight: 850;
+}
+
+.macro-targets-heading > ion-icon {
+  flex: 0 0 auto;
+  padding: 10px;
+  border-radius: 10px;
+  background: rgba(47, 125, 89, 0.1);
+  color: var(--eatwell-green-700);
+  font-size: 1.25rem;
+}
+
+.macro-targets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(47, 125, 89, 0.12);
+}
+
+.macro-targets-grid div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.macro-targets-grid strong {
+  color: var(--eatwell-ink);
+  font-size: 0.92rem;
+}
+
+.macro-targets-grid span {
+  color: var(--eatwell-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+}
+
+.macro-targets > p {
+  margin: 11px 0 0;
+  color: var(--eatwell-muted);
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+.meal-list {
+  display: grid;
+  gap: 14px;
+}
+
+.meal-card {
+  position: relative;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(31, 68, 48, 0.1);
+  color: inherit;
+  overflow: hidden;
+}
+
+.meal-open:active {
+  transform: scale(0.99);
+}
+
+.meal-open {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 54px 16px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.favorite-button {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  --color: #b44858;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  z-index: 2;
+}
+
+.meal-icon-box {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+}
+
+.meal-icon-box ion-icon {
+  font-size: 28px;
+}
+
+.meal-copy h2 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  color: var(--eatwell-green-900);
+}
+
+.meal-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.meal-copy p {
+  margin: 0;
+  color: var(--eatwell-muted);
+  line-height: 1.35;
+}
+
+@media (max-width: 380px) {
+  .screen-title {
+    margin-top: 22px;
+  }
+
+  .scan-result {
+    grid-template-columns: 72px 1fr auto;
+    gap: 10px;
+  }
+
+  .scan-photo {
+    width: 72px;
+    height: 72px;
+  }
+}
+
+.recipe-loading {
+  position: absolute;
+  right: 12px;
+  bottom: 10px;
+  width: 20px;
+  height: 20px;
+  color: var(--eatwell-green-700);
+}
+
+ion-modal {
+  --width: min(100%, 560px);
+  --height: min(100%, 760px);
+  --border-radius: 8px;
+}
+
+.recipe-detail-content {
+  --background: #f7fff4;
+}
+
+.recipe-detail-image {
+  width: 100%;
+  max-height: 270px;
+  object-fit: cover;
+}
+
+.recipe-detail-body {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 20px 18px 40px;
+  color: var(--eatwell-ink);
+}
+
+.recipe-description,
+.empty-detail {
+  color: var(--eatwell-muted);
+  line-height: 1.5;
+}
+
+.recipe-section {
+  margin-top: 26px;
+}
+
+.recipe-section h2 {
+  margin: 0 0 12px;
+  color: var(--eatwell-green-900);
+  font-size: 1.2rem;
+}
+
+.recipe-section ul,
+.recipe-section ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding-left: 24px;
+  line-height: 1.45;
+}
+
+@media (max-width: 600px) {
+  ion-modal {
+    --width: 100%;
+    --height: 100%;
+    --border-radius: 0;
+  }
+}
+
+.meal-image {
+  width: 92px;
+  height: 76px;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+@media (max-width: 340px) {
+  .meal-card {
+    border-radius: 8px;
+  }
+
+  .meal-open {
+    gap: 10px;
+    padding: 13px 50px 13px 13px;
+  }
+
+  .meal-icon-box {
+    width: 44px;
+    height: 44px;
+  }
+
+  .meal-image {
+    width: 72px;
+    height: 72px;
+  }
+
+}
+
+/* Estilos de Categoría e Insignias del Plan Alimenticio */
+.section-container {
+  margin-top: 14px;
+}
+
+.suggested-section {
+  margin-top: 24px;
+}
+
+.section-subtitle {
+  margin: 20px 0 12px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--eatwell-green-900);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  ion-icon {
+    font-size: 18px;
+    color: var(--eatwell-green-700);
+  }
+}
+
+.empty-list-text {
+  margin: 16px 0;
+  color: var(--eatwell-muted);
+  font-style: italic;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.badge-fallback {
+  --background: rgba(111, 128, 119, 0.1);
+  --color: var(--eatwell-muted);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.badge-ai {
+  --background: rgba(47, 125, 89, 0.12);
+  --color: var(--eatwell-green-700);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.badge-favorite {
+  --background: rgba(180, 72, 88, 0.1);
+  --color: #b44858;
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.ai-icon {
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+}
+
+.suggested-icon {
+  background: #fbf3f5;
+  color: #b44858;
+}
+
+.badge-personal {
+  --background: rgba(47, 125, 89, 0.12);
+  --color: var(--eatwell-green-700);
+  font-weight: 700;
+  font-size: 0.68rem;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.history-arrow {
+  color: var(--eatwell-muted);
+  font-size: 18px;
+}
+
+/* Sección de Recetas Favoritas */
+.favorites-section {
+  margin-top: 24px;
+}
+
+.favorite-icon {
+  background: #fbf3f5;
+  color: #b44858;
+
+  ion-icon {
+    font-size: 28px;
+  }
+}
+
+.text-hint {
+  font-size: 0.85rem;
+  max-width: 92%;
+  margin: 14px auto;
+  line-height: 1.45;
+  color: var(--eatwell-muted);
+  text-align: center;
+  font-style: italic;
+}
+
+.history-section {
+  margin-top: 28px;
+  padding-bottom: 24px;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+}
+
+.history-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(31, 68, 48, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(47, 125, 89, 0.06);
+
+  &:active {
+    transform: scale(0.98);
+    background: #fafefa;
+  }
+}
+
+.history-icon-box {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: #edf8df;
+  color: var(--eatwell-green-700);
+
+  ion-icon {
+    font-size: 20px;
+  }
+}
+
+.history-copy {
+  min-width: 0;
+
+  h2 {
+    margin: 0 0 3px;
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--eatwell-muted);
+  }
+}
+
+.history-arrow {
+  color: var(--eatwell-muted);
+  font-size: 18px;
+}
+
+.onboarding-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 16px;
+  align-items: start;
+  background: #fff;
+  border: 1px dashed var(--eatwell-green-700);
+  border-radius: 24px;
+  padding: 20px;
+  margin: 12px 0 20px;
+  box-shadow: 0 8px 24px rgba(31, 68, 48, 0.04);
+}
+
+.onboarding-icon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  background: rgba(47, 125, 89, 0.1);
+  color: var(--eatwell-green-700);
+  border-radius: 14px;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 22px;
+  }
+}
+
+.onboarding-copy {
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+
+  p {
+    margin: 0 0 14px;
+    font-size: 0.88rem;
+    line-height: 1.4;
+    color: var(--eatwell-muted);
+  }
+
+  .onboarding-btn {
+    --background: var(--eatwell-green-700);
+    --border-radius: 12px;
+    font-weight: 800;
+    font-size: 0.88rem;
+    margin: 0;
+  }
+}
+
+.loading-recipes-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--eatwell-muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+
+  ion-spinner {
+    color: var(--eatwell-green-700);
+    width: 36px;
+    height: 36px;
+  }
+}
+
+/* DISEÑO EN CUADRÍCULA (GRID MODE) */
+.meal-list.grid-mode {
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.meal-card.grid-card {
+  border-radius: 20px;
+  height: 100%;
+}
+
+.meal-open.grid-open {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px;
+  gap: 8px;
+  height: 100%;
+}
+
+.meal-image.grid-image {
+  width: 100%;
+  height: 100px;
+  border-radius: 14px;
+  object-fit: cover;
+}
+
+.meal-icon-box.grid-icon-box {
+  width: 100%;
+  height: 100px;
+  border-radius: 14px;
+  margin: 0;
+  
+  ion-icon {
+    font-size: 32px;
+  }
+}
+
+.meal-copy.grid-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  
+  h2 {
+    margin: 4px 0 0;
+    font-size: 0.88rem;
+    font-weight: 800;
+    line-height: 1.25;
+    text-align: center;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ESTADOS VACÍOS PREMIUM (EMPTY STATES) */
+.empty-state-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 20px;
+  background: #fff;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(31, 68, 48, 0.04);
+  border: 1px solid rgba(47, 125, 89, 0.06);
+  margin: 20px 0;
+  
+  h3 {
+    margin: 0 0 6px;
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--eatwell-green-900);
+  }
+  
+  p {
+    margin: 0 0 16px;
+    font-size: 0.88rem;
+    color: var(--eatwell-muted);
+    line-height: 1.45;
+    max-width: 280px;
+  }
+}
+
+.empty-state-icon {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  
+  ion-icon {
+    font-size: 32px;
+  }
+  
+  &.favorite-empty {
+    background: #fbf3f5;
+    color: #b44858;
+  }
+  
+  &.history-empty {
+    background: #edf8df;
+    color: var(--eatwell-green-700);
+  }
+}
+
+.empty-state-action {
+  --border-color: var(--eatwell-green-700);
+  --color: var(--eatwell-green-700);
+  --border-radius: 12px;
+  font-weight: 800;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+/* INGREDIENTES INTERACTIVOS */
+.subtitle-hint {
+  font-size: 0.78rem;
+  color: var(--eatwell-muted);
+  font-weight: normal;
+  text-transform: none;
+}
+
+.interactive-ingredients {
+  list-style: none;
+  padding: 0 !important;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+  
+  li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid rgba(47, 125, 89, 0.08);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9rem;
+    
+    ion-icon {
+      font-size: 20px;
+      color: var(--eatwell-muted);
+      flex-shrink: 0;
+    }
+    
+    &.checked {
+      background: #edf8df;
+      border-color: rgba(47, 125, 89, 0.2);
+      text-decoration: line-through;
+      color: var(--eatwell-muted);
+      
+      ion-icon {
+        color: var(--eatwell-green-700);
+      }
+    }
+  }
+}
+
+/* TEMPORIZADOR EN INSTRUCCIONES */
+.instruction-row {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+}
+
+.instruction-text {
+  flex: 1;
+}
+
+.step-timer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 14px;
+  background: rgba(47, 125, 89, 0.08);
+  border: 1px solid rgba(47, 125, 89, 0.15);
+  color: var(--eatwell-green-700);
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  
+  &:active {
+    transform: scale(0.94);
+  }
+  
+  ion-icon {
+    font-size: 14px;
+  }
+}
+
+/* BARRA DE TEMPORIZADOR DE COCCIÓN FLOTANTE EN MODAL */
+.recipe-detail-body.has-timer {
+  padding-bottom: 96px;
+}
+
+.modal-timer-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid rgba(47, 125, 89, 0.1);
+  box-shadow: 0 -8px 24px rgba(31, 68, 48, 0.1);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 999;
+}
+
+.timer-bar-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timer-bar-icon {
+  color: var(--eatwell-green-700);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  
+  .pulse {
+    animation: pulseTimer 1s infinite alternate;
+  }
+}
+
+@keyframes pulseTimer {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+.timer-bar-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.timer-bar-step {
+  font-size: 0.78rem;
+  color: var(--eatwell-muted);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timer-bar-time {
+  font-size: 1.15rem;
+  color: var(--eatwell-green-900);
+  font-weight: 900;
+  font-family: monospace;
+}
+
+.timer-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer-action-btn {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(47, 125, 89, 0.1);
+  color: var(--eatwell-green-700);
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  
+  &:active {
+    transform: scale(0.92);
+  }
+  
+  &.stop-btn {
+    background: rgba(180, 72, 88, 0.1);
+    color: #b44858;
+  }
+}
+
+.timer-progress-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(47, 125, 89, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.timer-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--eatwell-green-700), #8dcc73);
+  transition: width 1s linear;
+}
+
+

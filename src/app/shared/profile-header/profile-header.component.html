@@ -1,0 +1,23 @@
+<header class="profile-module-header">
+  <button
+    type="button"
+    class="profile-header-action"
+    [routerLink]="backHref"
+    [attr.aria-label]="backLabel"
+    (click)="backClick.emit()"
+  >
+    <ion-icon name="chevron-back-outline"></ion-icon>
+  </button>
+
+  <h1>{{ title }}</h1>
+
+  <button
+    type="button"
+    class="profile-header-action"
+    [disabled]="saveDisabled"
+    [attr.aria-label]="saveLabel"
+    (click)="saveClick.emit()"
+  >
+    <ion-icon name="save-outline"></ion-icon>
+  </button>
+</header>

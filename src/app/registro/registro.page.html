@@ -1,0 +1,50 @@
+<ion-content class="ion-padding">
+  <div class="registro-wrapper">
+    
+    <div class="registro-card">
+      
+      <div class="logo-container">
+        <img src="assets/icon/EatWell.png" alt="Logo de EatWell" class="robot-logo">
+      </div>
+
+      <div class="form-box">
+        <div class="input-group">
+          <ion-input type="email" placeholder="Correo" class="custom-field" [(ngModel)]="email"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="password" placeholder="Contraseña" class="custom-field" [(ngModel)]="password" (ionInput)="validatePasswordStrength()"></ion-input>
+        </div>
+
+        <div class="password-requirements" *ngIf="password">
+          <div class="requirement" [class.met]="hasMinLength">
+            <ion-icon [name]="hasMinLength ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>Mínimo 8 caracteres</span>
+          </div>
+          <div class="requirement" [class.met]="hasLetterAndNumber">
+            <ion-icon [name]="hasLetterAndNumber ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>Al menos una letra y un número</span>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="Nombre completo" class="custom-field" [(ngModel)]="fullName"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="Usuario" class="custom-field" [(ngModel)]="username"></ion-input>
+        </div>
+
+        <ion-button expand="block" class="btn-signup" (click)="register()">
+          Registrarme
+        </ion-button>
+      </div>
+
+      <div class="navigation-links">
+        <p class="login-link" routerLink="/login">¿Ya tienes cuenta? <span>Inicia sesión</span></p>
+      </div>
+
+    </div>
+
+  </div>
+</ion-content>

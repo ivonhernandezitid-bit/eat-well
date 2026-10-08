@@ -1,0 +1,214 @@
+<ion-content
+  (touchstart)="onModuleTouchStart($event)"
+  (touchend)="onModuleTouchEnd($event)"
+>
+  <main class="preferences-wrapper">
+    <div class="preferences-page-title">
+      <button type="button" class="preferences-back-button" aria-label="Volver al perfil" (click)="returnToProfile()">
+        <ion-icon name="chevron-back-outline"></ion-icon>
+        <span>Perfil</span>
+      </button>
+      <h1>Preferencias alimentarias</h1>
+      <p>Personaliza tus comidas según tus gustos y necesidades.</p>
+    </div>
+
+    <div class="loading-state" *ngIf="isLoading">
+      <ion-spinner name="crescent"></ion-spinner>
+    </div>
+
+    <ng-container *ngIf="!isLoading">
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h1>Tu alimentación</h1>
+        <ion-segment [scrollable]="true" [value]="preferences.dietType" (ionChange)="setDietType($any($event.detail.value))">
+          <ion-segment-button value="omnivore">Omnívora</ion-segment-button>
+          <ion-segment-button value="vegetarian">Vegetariana</ion-segment-button>
+          <ion-segment-button value="vegan">Vegana</ion-segment-button>
+        </ion-segment>
+      </section>
+
+      <section class="preference-section profile-preferences" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Objetivo y actividad</h2>
+        <div class="select-grid">
+          <ion-item lines="none" class="text-field">
+            <ion-label position="stacked">Objetivo principal</ion-label>
+            <ion-select [(ngModel)]="fitnessGoal" interface="popover">
+              <ion-select-option value="improve_health">Mejorar salud</ion-select-option>
+              <ion-select-option value="maintain">Mantenerme</ion-select-option>
+              <ion-select-option value="lose_weight">Bajar de peso</ion-select-option>
+              <ion-select-option value="gain_muscle">Ganar músculo</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item lines="none" class="text-field">
+            <ion-label position="stacked">Actividad habitual</ion-label>
+            <ion-select [(ngModel)]="activityLevel" interface="popover">
+              <ion-select-option value="low">Baja</ion-select-option>
+              <ion-select-option value="moderate">Moderada</ion-select-option>
+              <ion-select-option value="high">Alta</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'fruits'">
+        <h2>Frutas preferidas</h2>
+        <div class="option-grid">
+          <button
+            type="button"
+            *ngFor="let fruit of fruits"
+            class="food-option fruit-option"
+            [class.selected]="isSelected('preferredFruits', fruit)"
+            (click)="togglePreference('preferredFruits', fruit)"
+          >
+            <ion-icon [name]="isSelected('preferredFruits', fruit) ? 'checkmark-circle' : 'nutrition-outline'"></ion-icon>
+            <span>{{ fruit }}</span>
+          </button>
+        </div>
+        <ion-item lines="none" class="text-field other-input-item">
+          <ion-label position="stacked">Otras frutas (separadas por comas)</ion-label>
+          <ion-input
+            [(ngModel)]="otherFruitsInput"
+            placeholder="Ej. Mandarina, Coco, Maracuyá"
+          ></ion-input>
+        </ion-item>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'vegetables'">
+        <h2>Verduras preferidas</h2>
+        <div class="option-grid">
+          <button
+            type="button"
+            *ngFor="let vegetable of vegetables"
+            class="food-option vegetable-option"
+            [class.selected]="isSelected('preferredVegetables', vegetable)"
+            (click)="togglePreference('preferredVegetables', vegetable)"
+          >
+            <ion-icon [name]="isSelected('preferredVegetables', vegetable) ? 'checkmark-circle' : 'leaf-outline'"></ion-icon>
+            <span>{{ vegetable }}</span>
+          </button>
+        </div>
+        <ion-item lines="none" class="text-field other-input-item">
+          <ion-label position="stacked">Otras verduras (separadas por comas)</ion-label>
+          <ion-input
+            [(ngModel)]="otherVegetablesInput"
+            placeholder="Ej. Espárragos, Alcachofa"
+          ></ion-input>
+        </ion-item>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>{{ preferences.dietType === 'omnivore' ? 'Carnes y proteínas' : preferences.dietType === 'vegetarian' ? 'Proteínas vegetarianas' : 'Proteínas vegetales' }}</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of proteinsForDiet" class="food-option protein-option" [class.selected]="isSelected('preferredProteins', food)" (click)="togglePreference('preferredProteins', food)">
+            <ion-icon [name]="isSelected('preferredProteins', food) ? 'checkmark-circle' : 'restaurant-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Carbohidratos y cereales</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of carbohydrates" class="food-option carbohydrate-option" [class.selected]="isSelected('preferredCarbohydrates', food)" (click)="togglePreference('preferredCarbohydrates', food)">
+            <ion-icon [name]="isSelected('preferredCarbohydrates', food) ? 'checkmark-circle' : 'grid-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Legumbres y proteína vegetal</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of legumes" class="food-option legume-option" [class.selected]="isSelected('preferredLegumes', food)" (click)="togglePreference('preferredLegumes', food)">
+            <ion-icon [name]="isSelected('preferredLegumes', food) ? 'checkmark-circle' : 'leaf-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>{{ preferences.dietType === 'vegan' ? 'Bebidas y alternativas vegetales' : 'Lácteos y alternativas' }}</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of dairyForDiet" class="food-option dairy-option" [class.selected]="isSelected('preferredDairy', food)" (click)="togglePreference('preferredDairy', food)">
+            <ion-icon [name]="isSelected('preferredDairy', food) ? 'checkmark-circle' : 'water-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+        <h2>Grasas, semillas y frutos secos</h2>
+        <div class="option-grid">
+          <button type="button" *ngFor="let food of fats" class="food-option fat-option" [class.selected]="isSelected('preferredFats', food)" (click)="togglePreference('preferredFats', food)">
+            <ion-icon [name]="isSelected('preferredFats', food) ? 'checkmark-circle' : 'nutrition-outline'"></ion-icon><span>{{ food }}</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="preference-section allergy-section" *ngIf="!currentSection || currentSection === 'allergies'">
+        <h2>Alergias</h2>
+        <div class="chip-list">
+          <button
+            type="button"
+            *ngFor="let allergy of allergyOptions"
+            class="allergy-chip"
+            [class.selected]="isSelected('allergies', allergy)"
+            (click)="togglePreference('allergies', allergy)"
+          >
+            <ion-icon name="alert-circle-outline"></ion-icon>
+            {{ allergy }}
+          </button>
+        </div>
+        <ion-item lines="none" class="text-field other-input-item">
+          <ion-label position="stacked">Otras alergias (separadas por comas)</ion-label>
+          <ion-input
+            [(ngModel)]="otherAllergiesInput"
+            placeholder="Ej. Kiwi, Chocolate"
+          ></ion-input>
+        </ion-item>
+      </section>
+
+      <section class="preference-section compact-section" *ngIf="!currentSection || currentSection === 'general'">
+        <div>
+          <h2>Alimentos que no te gustan</h2>
+          <div class="chip-list" style="margin-bottom: 14px;">
+            <button
+              type="button"
+              *ngFor="let food of commonDislikedFoods"
+              class="allergy-chip"
+              [class.selected]="isSelected('dislikedFoods', food)"
+              (click)="togglePreference('dislikedFoods', food)"
+            >
+              <ion-icon name="close-circle-outline"></ion-icon>
+              {{ food }}
+            </button>
+          </div>
+          <ion-item lines="none" class="text-field">
+            <ion-label position="stacked">Otros alimentos que no te gustan (separados por comas)</ion-label>
+            <ion-input
+              [(ngModel)]="dislikedFoodsInput"
+              placeholder="Ej. Hígado, Pasas"
+            ></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="time-control">
+          <div>
+            <h2>Tiempo para cocinar</h2>
+            <span>{{ preferences.cookingTimeMinutes }} min</span>
+          </div>
+          <ion-range
+            min="10"
+            max="90"
+            step="5"
+            snaps="true"
+            [(ngModel)]="preferences.cookingTimeMinutes"
+          ></ion-range>
+        </div>
+      </section>
+
+      <ion-button class="profile-module-save-button" [disabled]="isSaving" (click)="save()">
+        <ion-spinner *ngIf="isSaving; else saveLabel" name="crescent"></ion-spinner>
+        <ng-template #saveLabel>Guardar y continuar</ng-template>
+      </ion-button>
+      <ion-button *ngIf="!currentSection || currentSection === 'general'" class="profile-module-save-button" [disabled]="isSaving" (click)="clearPreferences()">
+        Borrar datos y volver a capturar
+      </ion-button>
+    </ng-container>
+  </main>
+</ion-content>

@@ -1,0 +1,262 @@
+:host {
+  --page-green: var(--eatwell-green-700);
+  --page-lime: var(--eatwell-lime);
+  --page-border: rgba(47, 125, 89, 0.14);
+}
+
+ion-content {
+  --background: linear-gradient(180deg, var(--eatwell-mint) 0%, rgba(103, 184, 107, 0.12) 100%);
+}
+
+.preferences-wrapper {
+  width: 100%;
+  max-width: var(--eatwell-content-width, 620px);
+  margin: 0 auto;
+  padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+.preferences-page-title {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 14px;
+  padding: 4px 2px;
+}
+
+.preferences-back-button {
+  width: fit-content;
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin: 0 0 2px -5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 750;
+}
+
+.preferences-back-button ion-icon {
+  font-size: 1rem;
+}
+
+.preferences-back-button:focus-visible {
+  outline: 2px solid var(--eatwell-green-700);
+  outline-offset: 1px;
+}
+
+.preferences-page-title h1 {
+  margin: 0;
+  color: var(--eatwell-green-900);
+  font-size: 1.28rem;
+  font-weight: 850;
+}
+
+.preferences-page-title p {
+  margin: 0;
+  color: var(--eatwell-muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.loading-state {
+  min-height: 70vh;
+  display: grid;
+  place-items: center;
+  color: var(--page-green);
+}
+
+.preference-section {
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 16px;
+  border: 1px solid var(--page-border);
+  border-radius: 18px;
+  background: var(--eatwell-card);
+  box-shadow: 0 7px 18px rgba(31, 68, 48, 0.065);
+}
+
+h1,
+h2 {
+  margin: 0 0 12px;
+  color: var(--eatwell-green-900, #1d4d3d);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+h1 {
+  font-size: 1rem;
+}
+
+h2 {
+  color: var(--eatwell-green-700, #2e7d5f);
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+ion-segment {
+  background: rgba(47, 125, 89, 0.08);
+  border-radius: 12px;
+  padding: 4px;
+  width: 100%;
+  max-width: 100%;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+ion-segment-button {
+  flex: 1 1 0px;
+  min-width: 0;
+  min-height: 42px;
+  --border-radius: 10px;
+  --indicator-color: #ffffff;
+  --color-checked: var(--page-green);
+  --padding-start: 6px;
+  --padding-end: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+
+  @media (max-width: 380px) {
+    font-size: 0.72rem;
+    --padding-start: 4px;
+    --padding-end: 4px;
+  }
+}
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.food-option {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  background: #ffffff;
+  color: var(--eatwell-ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.food-option ion-icon {
+  flex: 0 0 auto;
+  font-size: 1.2rem;
+  color: var(--eatwell-green-700);
+}
+
+.food-option.selected {
+  border-color: var(--eatwell-green-700);
+  background: rgba(47, 125, 89, 0.09);
+  color: var(--page-green);
+}
+
+.fruit-option.selected ion-icon {
+  color: var(--eatwell-green-700);
+}
+
+.vegetable-option.selected ion-icon {
+  color: var(--eatwell-green-700);
+}
+
+.protein-option.selected ion-icon,
+.carbohydrate-option.selected ion-icon,
+.legume-option.selected ion-icon,
+.dairy-option.selected ion-icon,
+.fat-option.selected ion-icon { color: var(--eatwell-green-700); }
+
+.chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.allergy-chip {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid rgba(47, 125, 89, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--eatwell-green-900);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.allergy-chip.selected {
+  border-color: var(--eatwell-green-700);
+  background: rgba(47, 125, 89, 0.09);
+  color: var(--eatwell-green-900);
+}
+
+.compact-section {
+  display: grid;
+  gap: 20px;
+}
+
+.select-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.text-field {
+  --background: #ffffff;
+  --border-radius: 12px;
+  --padding-start: 12px;
+  --inner-padding-end: 12px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+}
+
+.time-control > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.time-control h2 {
+  margin: 0;
+}
+
+.time-control span {
+  color: var(--page-green);
+  font-weight: 800;
+}
+
+ion-range {
+  --bar-background: rgba(47, 125, 89, 0.18);
+  --bar-background-active: var(--eatwell-green-700);
+  --knob-background: var(--page-green);
+  padding-inline: 2px;
+}
+
+@media (min-width: 560px) {
+  .option-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .select-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.other-input-item {
+  margin-top: 14px;
+}

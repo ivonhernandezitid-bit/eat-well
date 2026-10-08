@@ -1,0 +1,168 @@
+.registro-wrapper {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  width: min(100%, var(--eatwell-content-width, 620px));
+  margin: 0 auto;
+  padding: 24px 4px;
+}
+
+.registro-card {
+  width: 100%;
+  padding: 24px 4px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+.robot-logo {
+  width: 96px;
+  max-width: 52%;
+  height: auto;
+  object-fit: contain;
+  margin-bottom: 10px;
+}
+
+.brand-name {
+  margin: 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: var(--eatwell-green-900);
+}
+
+.form-box {
+  display: grid;
+  gap: 12px;
+  width: min(100%, var(--eatwell-form-width, 420px));
+  margin: 0 auto;
+}
+
+.input-group {
+  border-radius: 18px;
+  background: #f4f8f1;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  overflow: hidden;
+}
+
+.custom-field {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 13px;
+  --padding-bottom: 13px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
+}
+
+@media (max-width: 360px) {
+  .registro-card {
+    padding: 18px 4px;
+  }
+
+  .logo-container {
+    margin-bottom: 16px;
+  }
+
+  .navigation-links {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 720px) {
+  .registro-wrapper {
+    place-items: start center;
+  }
+
+  .registro-card {
+    padding-top: 18px;
+  }
+
+  .robot-logo {
+    width: 76px;
+  }
+}
+
+ion-content {
+  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+}
+
+.btn-signup {
+  --background: var(--eatwell-green-700);
+  --background-activated: var(--eatwell-green-900);
+  --color: #ffffff;
+  --color-activated: #ffffff;
+  --border-radius: 20px;
+  --box-shadow: none;
+  height: 52px;
+  margin-top: 8px;
+  font-weight: 800;
+  font-family: inherit;
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.navigation-links {
+  text-align: center;
+  margin-top: 20px;
+  color: var(--eatwell-muted);
+  font-family: inherit;
+}
+
+.navigation-links p {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.navigation-links span {
+  color: var(--eatwell-green-700);
+  font-weight: 800;
+}
+
+.password-requirements {
+  margin-top: -4px;
+  margin-bottom: 4px;
+  padding: 0 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #8c9b88;
+  transition: all 0.2s ease-in-out;
+
+  ion-icon {
+    font-size: 1rem;
+    transition: transform 0.25s ease;
+  }
+
+  &.met {
+    color: var(--eatwell-green-700);
+    font-weight: 500;
+
+    ion-icon {
+      transform: scale(1.1);
+    }
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

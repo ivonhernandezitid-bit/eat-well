@@ -1,0 +1,538 @@
+<ion-content
+  class="perfil-config-page"
+  (touchstart)="onModuleTouchStart($event)"
+  (touchend)="onModuleTouchEnd($event)"
+>
+  <div class="perfil-config-wrapper">
+    <div *ngIf="view === 'settings'" class="perfil-config-shell">
+      <div class="profile-summary">
+        <button type="button" class="avatar-card" (click)="openPhotoPicker()" aria-label="Cambiar foto de perfil">
+          <div class="avatar-frame">
+            <img *ngIf="profileImage; else defaultAvatar" [src]="profileImage" alt="Foto de perfil" />
+            <ng-template #defaultAvatar>
+              <ion-icon name="person-circle-outline"></ion-icon>
+            </ng-template>
+          </div>
+          <div class="camera-badge">
+            <ion-icon name="camera-outline"></ion-icon>
+          </div>
+        </button>
+        <input
+          #photoInput
+          class="hidden-file-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          (change)="onPhotoSelected($event)"
+        />
+
+        <div class="user-meta">
+          <h2>{{ fullName || 'Usuario' }}</h2>
+          <p>{{ email }}</p>
+        </div>
+      </div>
+
+      <div class="progress-card">
+        <div class="progress-header profile-progress-heading">
+          <strong>Progreso del Perfil: {{ profileCompletion }}%</strong>
+          <button type="button" class="profile-progress-info" [title]="profileModulesTooltip" aria-label="Ver módulos completos y pendientes" [attr.aria-expanded]="showProfileModuleDetails" (click)="toggleProfileModuleDetails()">
+            <ion-icon name="information-circle-outline"></ion-icon>
+          </button>
+        </div>
+        <div class="progress-track">
+          <span [style.width.%]="profileCompletion"></span>
+        </div>
+        <p>{{ completedProfileModules }} de 5 módulos completados</p>
+        <div class="profile-module-status-list" *ngIf="showProfileModuleDetails">
+          <div *ngFor="let module of profileModules" [class.complete]="module.completed">
+            <ion-icon [name]="module.completed ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
+            <span>{{ module.name }}</span>
+            <small>{{ module.completed ? 'Completo' : 'Pendiente' }}</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-list">
+        <button
+          class="settings-item"
+          *ngFor="let item of settingsItems"
+          type="button"
+          (click)="handleSettingsItem(item)"
+        >
+          <div class="item-icon" [attr.data-tone]="item.id">
+            <ion-icon [name]="item.icon"></ion-icon>
+          </div>
+          <div class="item-copy">
+            <strong>{{ item.title }}</strong>
+            <span>{{ item.subtitle }}</span>
+          </div>
+          <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
+        </button>
+      </div>
+
+    </div>
+
+    <div *ngIf="view === 'r24h'" class="r24h-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Recordatorio 24 horas</h1>
+        <p>Registra la rutina habitual de un día normal.</p>
+      </div>
+
+      <section class="r24h-card">
+        <h3>MAÑANA / INICIO DEL DÍA</h3>
+        <div class="clinical-field"><label>Hora de despertar:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.wakeTime" (click)="openTimePicker('wakeTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.wakeTime) }}</span></button></div>
+        <div class="clinical-field"><label>Actividad al despertar:</label><input [(ngModel)]="r24hData.wakeActivity" placeholder="Trabajo de oficina, traslado..." /></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>DESAYUNO</h3>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.breakfastTime" (click)="openTimePicker('breakfastTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.breakfastTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.breakfastPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.breakfastDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>COLACIÓN / SNACK MAÑANA</h3>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.snackTime" (click)="openTimePicker('snackTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.snackTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.snackPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.snackDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>TARDE / JORNADA</h3>
+        <div class="clinical-field"><label>Hora de comida:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.lunchTime" (click)="openTimePicker('lunchTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.lunchTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.lunchPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>Fonda / Restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.lunchDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>ACTIVIDAD FÍSICA / MOVILIDAD COTIDIANA</h3>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.activityTime" (click)="openTimePicker('activityTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.activityTime) }}</span></button></div>
+        <div class="clinical-field"><label>Tipo de actividad o movimiento:</label><input [(ngModel)]="r24hData.activityType" placeholder="Caminata, ejercicio en casa, traslado..." /></div>
+        <div class="clinical-field"><label>Duración aproximada:</label><input [(ngModel)]="r24hData.activityDuration" placeholder="Ej. 45 minutos" /></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>NOCHE / CIERRE DEL DÍA</h3>
+        <div class="clinical-field"><label>Hora de cena:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.dinnerTime" (click)="openTimePicker('dinnerTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.dinnerTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.dinnerPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.dinnerDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+        <div class="clinical-field"><label>Hora de dormir:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.sleepTime" (click)="openTimePicker('sleepTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.sleepTime) }}</span></button></div>
+      </section>
+
+      <ion-button class="profile-module-save-button" (click)="saveR24h()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearR24hModule()">Borrar datos y volver a capturar</ion-button>
+    </div>
+
+    <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Estilo de vida y metas</h1>
+        <p>Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
+      </div>
+
+      <section class="lifestyle-card">
+        <h3>META PRINCIPAL DE SALUD</h3>
+        <div class="goal-options" role="radiogroup" aria-label="Meta principal de salud">
+          <label
+            class="goal-option"
+            *ngFor="let goal of lifestyleGoals"
+            [class.selected]="lifestyleSettings.goal === goal.value"
+          >
+            <input type="radio" name="fitnessGoal" [value]="goal.value" [(ngModel)]="lifestyleSettings.goal" />
+            <ion-icon [name]="goal.icon"></ion-icon>
+            <span>{{ goal.label }}</span>
+          </label>
+        </div>
+        <div class="clinical-field target-weight-field">
+          <label for="target-weight">Peso meta deseado</label>
+          <div class="weight-input-wrap">
+            <input id="target-weight" type="number" min="25" max="350" step="0.1" [(ngModel)]="lifestyleSettings.targetWeightKg" />
+            <span>kg</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="lifestyle-card">
+        <h3>ACTIVIDAD FÍSICA Y EJERCICIO</h3>
+        <p class="clinical-help">¿Cuántos días por semana sueles realizar actividad?</p>
+        <div class="activity-options" role="group" aria-label="Nivel habitual de actividad">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'sedentary'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'sedentary'" (click)="lifestyleSettings.activityBand = 'sedentary'">
+            <strong>Sedentario</strong><span>Sin ejercicio planificado</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'light'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'light'" (click)="lifestyleSettings.activityBand = 'light'">
+            <strong>Ligero</strong><span>1 a 2 días por semana</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'moderate'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'moderate'" (click)="lifestyleSettings.activityBand = 'moderate'">
+            <strong>Moderado</strong><span>3 a 5 días por semana</span>
+          </button>
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'intense'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'intense'" (click)="lifestyleSettings.activityBand = 'intense'">
+            <strong>Intenso</strong><span>6 a 7 días por semana</span>
+          </button>
+        </div>
+
+        <div class="clinical-field">
+          <label>Tipo de ejercicio habitual</label>
+          <div class="exercise-options">
+            <label class="exercise-option" *ngFor="let option of exerciseOptions" [class.selected]="isExerciseSelected(option.value)">
+              <input type="checkbox" [checked]="isExerciseSelected(option.value)" (change)="toggleExerciseType(option.value)" />
+              <span>{{ option.label }}</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="lifestyle-field-grid">
+          <div class="clinical-field">
+            <label for="session-duration">Duración por sesión</label>
+            <select id="session-duration" [(ngModel)]="lifestyleSettings.sessionDuration">
+              <option [ngValue]="30">30 minutos</option>
+              <option [ngValue]="45">45 minutos</option>
+              <option [ngValue]="60">60 minutos</option>
+              <option [ngValue]="90">90 minutos</option>
+            </select>
+          </div>
+          <div class="clinical-field">
+            <label for="training-time">Horario habitual</label>
+            <select id="training-time" [(ngModel)]="lifestyleSettings.trainingTime">
+              <option value="morning">Por la mañana</option>
+              <option value="afternoon">Por la tarde</option>
+              <option value="evening">Por la noche</option>
+              <option value="variable">Varía</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="lifestyle-card">
+        <h3>HÁBITOS Y DISPONIBILIDAD</h3>
+        <div class="clinical-field">
+          <label for="cooking-time">Tiempo disponible para cocinar</label>
+          <select id="cooking-time" [(ngModel)]="lifestyleSettings.cookingTime">
+            <option value="short">Poco tiempo (menos de 30 min)</option>
+            <option value="medium">Tiempo medio (30 a 60 min)</option>
+            <option value="flexible">Flexible (más de 1 hora)</option>
+          </select>
+        </div>
+        <div class="clinical-field">
+          <label for="stress-level">Nivel de estrés percibido</label>
+          <select id="stress-level" [(ngModel)]="lifestyleSettings.stressLevel">
+            <option value="low">Bajo</option>
+            <option value="moderate">Moderado</option>
+            <option value="high">Alto</option>
+          </select>
+        </div>
+      </section>
+
+      <ion-button class="profile-module-save-button" (click)="saveLifestyleGoals()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearLifestyleModule()">Borrar datos y volver a capturar</ion-button>
+    </div>
+
+    <div *ngIf="view === 'privacy'" class="privacy-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Privacidad y Datos</h1>
+        <p>Configuración de cuenta y seguridad.</p>
+      </div>
+
+      <section class="privacy-card">
+        <ion-icon name="shield-checkmark-outline" aria-hidden="true"></ion-icon>
+        <h2>Sección en proceso</h2>
+        <p>Esta sección aún no está disponible. Próximamente implementaremos aquí las opciones de privacidad y administración de tus datos.</p>
+      </section>
+    </div>
+
+    <div *ngIf="view === 'clinical'" class="clinical-history-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Historial clínico</h1>
+        <p>Comparte la información de salud que ayudará a personalizar tus recomendaciones.</p>
+      </div>
+
+      <section class="clinical-card">
+        <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>
+        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.familyNone" /> No aplica</label>
+        <div class="clinical-check-grid">
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyDiabetes" /> Diabetes Mellitus</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyHypertension" /> Hipertensión</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyObesity" /> Obesidad / Sobrepeso</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyCholesterol" /> Colesterol / Triglic.</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyCancer" /> Cáncer</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyRenal" /> Enfermedades renales</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.familyThyroid" /> Tiroides</label>
+        </div>
+      </section>
+
+      <section class="clinical-card">
+        <h3>2. ANTECEDENTES PATOLÓGICOS PERSONALES</h3>
+        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.diagnosisNone" /> No aplica</label>
+        <div class="clinical-check-grid">
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisDiabetes" /> Diabetes (Tipo 1 / 2)</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisHypertension" /> Hipertensión Arterial</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisFattyLiver" /> Hígado Graso</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisSop" /> SOP (Ovario Poliq.)</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisGout" /> Ácido Úrico Alto / Gota</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisHypothyroidism" /> Hipotiroidismo</label>
+        </div>
+        <div class="clinical-field"><label>Cirugías previas:</label><input [(ngModel)]="clinicalData.surgeries" placeholder="Escribe cirugías y año..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.surgeriesNone" /> No aplica</label></div>
+        <div class="clinical-field"><label>Hospitalizaciones:</label><input [(ngModel)]="clinicalData.hospitalizations" placeholder="Escribe motivo y fecha..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.hospitalizationsNone" /> No aplica</label></div>
+      </section>
+
+      <section class="clinical-card">
+        <h3>3. SALUD INTEGRAL Y BIENESTAR EMOCIONAL</h3>
+        <p class="clinical-help">Selecciona cualquier condición actual o previa. Si ninguna corresponde, marca No aplica.</p>
+        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.wellbeingNone" /> No aplica</label>
+        <div class="clinical-check-grid">
+          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingAnemia" /> Anemia</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingBulimia" /> Bulimia</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingDepression" /> Depresión</label>
+          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingAnxiety" /> Ansiedad diagnosticada</label>
+        </div>
+        <div class="clinical-field"><label>Otra condición o situación relevante:</label><input [(ngModel)]="clinicalData.wellbeingOther" placeholder="Escribe una condición o situación..." /></div>
+        <div class="clinical-field"><label>¿Recibes tratamiento o seguimiento?</label><select [(ngModel)]="clinicalData.wellbeingTreatment"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
+        <div class="clinical-field"><label>¿Cuentas con apoyo profesional?</label><select [(ngModel)]="clinicalData.wellbeingSupport"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
+        <div class="clinical-field"><label>Información adicional que quieras compartir:</label><input [(ngModel)]="clinicalData.wellbeingNotes" placeholder="Opcional" /></div>
+      </section>
+
+      <section class="clinical-card" *ngIf="gender === 'female'">
+        <h3>4. SALUD GINECO-OBSTÉTRICA</h3>
+        <div class="clinical-field"><label>¿Embarazada actualmente?</label><select [(ngModel)]="clinicalData.pregnant"><option>No</option><option>Sí</option></select></div>
+        <div class="clinical-field"><label>¿En periodo de lactancia?</label><select [(ngModel)]="clinicalData.lactating"><option>No</option><option>Sí</option></select></div>
+        <div class="clinical-field"><label>Ciclo menstrual:</label><select [(ngModel)]="clinicalData.menstrualCycle"><option>Regular</option><option>Irregular</option></select></div>
+      </section>
+
+      <section class="clinical-card">
+        <h3>5. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
+        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.allergiesNone" /> No aplica</label>
+        <div class="clinical-check-grid allergy-grid">
+          <label *ngFor="let allergy of allergyOptions"><input type="checkbox" [checked]="clinicalData.allergies.includes(allergy)" (change)="toggleClinicalAllergy(allergy)" /> {{ allergy }}</label>
+        </div>
+        <div class="clinical-field"><label>Otras alergias:</label><input [(ngModel)]="clinicalData.otherAllergies" placeholder="Escribe otras alergias..." /></div>
+        <div class="clinical-field"><label>Medicamentos actuales:</label><input [(ngModel)]="clinicalData.medications" placeholder="Fármaco, dosis y frecuencia" /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.medicationsNone" /> No aplica</label></div>
+        <div class="clinical-field"><label>Alergias a medicamentos:</label><input [(ngModel)]="clinicalData.medicationAllergies" placeholder="Ej. Penicilina..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.medicationAllergiesNone" /> No aplica</label></div>
+        <div class="clinical-field"><label>Suplementos / Proteínas:</label><input [(ngModel)]="clinicalData.supplements" placeholder="Ej. Omega 3, creatina..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.supplementsNone" /> No aplica</label></div>
+        <div class="clinical-field"><label>¿Has usado pastillas para bajar de peso?</label><select [(ngModel)]="clinicalData.weightLossTreatment"><option>No</option><option>Sí</option></select></div>
+      </section>
+
+      <section class="clinical-card">
+        <h3>6. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
+        <div class="clinical-field"><label>Horas de sueño:</label><select [(ngModel)]="clinicalData.sleepHours"><option>7-8 hrs</option><option>Menos de 6 hrs</option><option>Más de 8 hrs</option></select></div>
+        <div class="clinical-field"><label>Calidad del sueño:</label><select [(ngModel)]="clinicalData.sleepQuality"><option>Reparador</option><option>No reparador</option></select></div>
+        <div class="clinical-field"><label>Frecuencia evacuaciones / baño:</label><select [(ngModel)]="clinicalData.bowelFrequency"><option>1 a 2 veces al día</option><option>Menos de 1 vez al día</option></select></div>
+        <div class="clinical-field"><label>Consumo de alcohol:</label><select [(ngModel)]="clinicalData.alcohol"><option>Ocasional</option><option>Frecuente</option><option>No consumo</option></select></div>
+        <div class="clinical-field"><label>Consumo de tabaco:</label><select [(ngModel)]="clinicalData.tobacco"><option>No fumo</option><option>Fumo</option></select></div>
+        <div class="clinical-field" *ngIf="clinicalData.tobacco === 'Fumo'"><label>Cigarrillos al día:</label><input type="number" min="0" [(ngModel)]="clinicalData.cigarettesPerDay" /></div>
+        <div class="clinical-field"><label>Vapeo / Otras sustancias:</label><select [(ngModel)]="clinicalData.otherSubstances"><option>No</option><option>Sí</option></select></div>
+      </section>
+
+      <section class="clinical-card">
+        <h3>7. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
+        <div class="clinical-field"><label>¿Quién cocina en casa?</label><select [(ngModel)]="clinicalData.cooksAtHome"><option>Yo mismo(a)</option><option>Otra persona</option></select></div>
+        <div class="clinical-field"><label>Lugar donde comes entre semana:</label><select [(ngModel)]="clinicalData.weekdayPlace"><option>En casa</option><option>En el trabajo</option></select></div>
+        <div class="clinical-field"><label>Apetito general:</label><select [(ngModel)]="clinicalData.appetite"><option>Normal</option><option>Bajo</option><option>Alto</option></select></div>
+        <div class="clinical-field"><label>Ansiedad / Atracones:</label><select [(ngModel)]="clinicalData.anxiety"><option>Sí</option><option>No</option></select></div>
+        <div class="clinical-field"><label>Agua natural al día:</label><select [(ngModel)]="clinicalData.waterLiters"><option [ngValue]="2">2 litros</option><option [ngValue]="1">1 litro</option><option [ngValue]="3">3 litros</option></select></div>
+      </section>
+
+      <ion-button class="profile-module-save-button" (click)="saveClinicalHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearClinicalModule()">Borrar datos y volver a capturar</ion-button>
+    </div>
+
+    <div *ngIf="view === 'general'" class="datos-generales-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()">
+          <ion-icon name="chevron-back-outline"></ion-icon>
+          <span>Perfil</span>
+        </button>
+        <h1>Datos generales</h1>
+        <p>Actualiza tu información personal y medidas corporales.</p>
+      </div>
+
+      <section class="datos-card">
+        <h3>INFORMACIÓN PERSONAL</h3>
+
+        <div class="field-row">
+          <label>Nombre completo:</label>
+          <input type="text" [(ngModel)]="formName" placeholder="Gabriel Alonso" />
+        </div>
+
+        <div class="field-split">
+          <div class="field-row inline">
+            <label>Fecha de nacimiento:</label>
+            <input type="date" [(ngModel)]="birthDate" />
+          </div>
+
+          <div class="field-row inline">
+            <label>Edad:</label>
+            <span class="static-value">{{ calculateAgeFromBirthDate(birthDate) }} años</span>
+          </div>
+        </div>
+
+        <div class="field-row gender-group">
+          <label>Género biológico:</label>
+          <div class="segmented-control">
+            <button type="button" [class.active]="gender === 'male'" (click)="gender = 'male'">Masculino</button>
+            <button type="button" [class.active]="gender === 'female'" (click)="gender = 'female'">Femenino</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="datos-card">
+        <h3>MEDIDAS ANTROPOMÉTRICAS (INICIALES)</h3>
+
+        <div class="field-split">
+          <div class="field-row inline">
+            <label>Estatura:</label>
+            <input type="number" [(ngModel)]="heightCm" placeholder="170" />
+            <span class="unit">cm</span>
+          </div>
+
+          <div class="field-row inline">
+            <label>Peso actual:</label>
+            <input type="number" [(ngModel)]="weightKg" placeholder="70.5" />
+            <span class="unit">kg</span>
+          </div>
+        </div>
+
+        <div class="field-row">
+          <label>Ocupación / Actividad laboral:</label>
+          <select [(ngModel)]="activityLevel">
+            <option value="sedentary">Sedentario (trabajo de oficina)</option>
+            <option value="standing">De pie (vendedor / docente)</option>
+            <option value="active">Activa (trabajo físico)</option>
+          </select>
+        </div>
+      </section>
+
+      <section class="datos-card">
+        <h3>CONTACTO Y LOCALIZACIÓN</h3>
+
+        <div class="field-row">
+          <label>Teléfono de contacto:</label>
+          <input type="tel" [(ngModel)]="phone" placeholder="618 123 4567" />
+        </div>
+
+        <div class="field-row">
+          <label>Ciudad / Municipio:</label>
+          <input type="text" [(ngModel)]="municipality" placeholder="Durango, Dgo." />
+        </div>
+      </section>
+
+      <ion-button class="profile-module-save-button" (click)="saveAndContinueToHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" (click)="clearGeneralModule()">Borrar datos y volver a capturar</ion-button>
+
+    </div>
+
+  </div>
+
+  <ion-modal [isOpen]="isTimePickerOpen" (didDismiss)="closeTimePicker()" class="time-picker-modal">
+    <ng-template>
+      <ion-header class="ion-no-border">
+        <ion-toolbar>
+          <ion-title>Elige la hora</ion-title>
+          <ion-buttons slot="end">
+            <ion-button (click)="closeTimePicker()">Cancelar</ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+      <ion-content class="time-picker-content">
+        <div class="time-picker-heading">
+          <ion-icon name="time-outline"></ion-icon>
+          <div>
+            <strong>Selecciona la hora</strong>
+            <span>Desliza para ajustar horas y minutos</span>
+          </div>
+        </div>
+        <ion-datetime
+          presentation="time"
+          locale="es-ES"
+          hour-cycle="h12"
+          prefer-wheel="true"
+          [value]="timePickerValue"
+          (ionChange)="onTimePickerChange($event)"
+        ></ion-datetime>
+        <button type="button" class="primary-cta time-picker-confirm" (click)="confirmTimePicker()"><ion-icon name="checkmark-outline"></ion-icon> Usar esta hora</button>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal [isOpen]="isCroppingModalOpen" (didDismiss)="cancelCropping()" class="crop-modal">
+    <ng-template>
+      <ion-header class="ion-no-border">
+        <ion-toolbar class="crop-toolbar">
+          <ion-buttons slot="start">
+            <ion-button color="medium" (click)="cancelCropping()">
+              Cancelar
+            </ion-button>
+          </ion-buttons>
+          <ion-title>Ajustar foto</ion-title>
+          <ion-buttons slot="end">
+            <ion-button color="success" (click)="cropAndSave()" class="btn-done">
+              Listo
+            </ion-button>
+          </ion-buttons>
+        </ion-toolbar>
+      </ion-header>
+
+      <ion-content class="crop-modal-content" scroll-y="false">
+        <div class="crop-container-wrapper">
+          <div 
+            class="crop-area"
+            (pointerdown)="onPointerDown($event)"
+            (pointermove)="onPointerMove($event)"
+            (pointerup)="onPointerUp($event)"
+            (pointercancel)="onPointerUp($event)"
+          >
+            <!-- Visor circular en el centro -->
+            <div class="crop-mask"></div>
+            
+            <!-- Imagen cargada -->
+            <img 
+              *ngIf="selectedPhotoUrl" 
+              [src]="selectedPhotoUrl" 
+              [style.width.px]="dispWidth"
+              [style.height.px]="dispHeight"
+              [style.transform]="'translate(-50%, -50%) translate(' + translateX + 'px, ' + translateY + 'px) scale(' + scale + ') rotate(' + rotation + 'deg)'"
+              class="crop-image"
+              alt="Ajustar"
+              draggable="false"
+            />
+          </div>
+        </div>
+
+        <div class="crop-controls">
+          <div class="control-row zoom-control">
+            <ion-icon name="image-outline" class="zoom-icon-small"></ion-icon>
+            <ion-range 
+              [min]="1" 
+              [max]="3" 
+              [step]="0.05" 
+              [(ngModel)]="scale"
+              class="zoom-slider"
+            ></ion-range>
+            <ion-icon name="image-outline" class="zoom-icon-large"></ion-icon>
+          </div>
+
+          <div class="control-row action-control">
+            <button type="button" class="btn-rotate" (click)="rotateImage()">
+              <ion-icon name="refresh-outline"></ion-icon>
+              Rotar 90°
+            </button>
+          </div>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

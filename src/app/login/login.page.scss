@@ -1,0 +1,112 @@
+.login-wrapper {
+  min-height: 100%;
+  display: grid;
+  place-items: center;
+  width: min(100%, var(--eatwell-content-width, 620px));
+  margin: 0 auto;
+  padding: 24px 4px;
+}
+
+.login-card {
+  width: 100%;
+  padding: 28px 4px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
+}
+
+.logo-container {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.real-logo {
+  width: 150px;
+  max-width: 70%;
+  height: auto;
+  object-fit: contain;
+}
+
+.form-box {
+  display: grid;
+  gap: 14px;
+  width: min(100%, var(--eatwell-form-width, 420px));
+  margin: 0 auto;
+}
+
+.input-group {
+  border-radius: 18px;
+  background: #f4f8f1;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  overflow: hidden;
+}
+
+.custom-field {
+  --padding-start: 16px;
+  --padding-end: 16px;
+  --padding-top: 14px;
+  --padding-bottom: 14px;
+  color: var(--eatwell-ink);
+  font-family: inherit;
+}
+
+@media (max-width: 360px) {
+  .login-card {
+    padding: 22px 4px;
+  }
+
+  .logo-container {
+    margin-bottom: 22px;
+  }
+
+  .navigation-links {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-height: 640px) {
+  .login-wrapper {
+    place-items: start center;
+  }
+
+  .login-card {
+    padding-top: 22px;
+  }
+}
+
+ion-content {
+  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+}
+
+.btn-login {
+  --background: var(--eatwell-green-700);
+  --background-activated: var(--eatwell-green-900);
+  --color: #ffffff;
+  --color-activated: #ffffff;
+  --border-radius: 20px;
+  --box-shadow: none;
+  height: 52px;
+  margin-top: 8px;
+  font-weight: 800;
+  font-family: inherit;
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.navigation-links {
+  text-align: center;
+  margin-top: 22px;
+  color: var(--eatwell-muted);
+  font-family: inherit;
+}
+
+.navigation-links p {
+  margin: 0;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.navigation-links span {
+  color: var(--eatwell-green-700);
+  font-weight: 800;
+}
