@@ -241,6 +241,15 @@ export class DatosPerfilPage implements OnInit {
     void this.content?.scrollToTop(0);
   }
 
+  private async continueToNextProfileModule(view: 'clinical' | 'r24h' | 'lifestyle' | 'food'): Promise<void> {
+    if (view === 'food') {
+      await this.router.navigateByUrl('/tabs/preferencias-alimentarias');
+      return;
+    }
+
+    this.openProfileModule(view);
+  }
+
   returnToProfile(): void {
     this.view = 'settings';
     void this.content?.scrollToTop(0);
@@ -506,7 +515,7 @@ export class DatosPerfilPage implements OnInit {
       this.lifestyleSettings.targetWeightKg = targetWeight;
       localStorage.setItem(lifestyleStorageKey(activeUser.id), JSON.stringify(this.lifestyleSettings));
       await this.showAlert('Objetivos guardados', 'El plan alimenticio actualizará sus recomendaciones y distribución estimada de macronutrientes.');
-      this.view = 'settings';
+      await this.continueToNextProfileModule('food');
     } catch (error) {
       await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
     }
@@ -633,7 +642,7 @@ export class DatosPerfilPage implements OnInit {
     }
 
     await this.showAlert('Guardado', 'El historial clínico se guardó correctamente.');
-    this.view = 'settings';
+    await this.continueToNextProfileModule('r24h');
   }
 
   async saveR24h(): Promise<void> {
@@ -664,7 +673,7 @@ export class DatosPerfilPage implements OnInit {
     }
 
     await this.showAlert('Guardado', 'El recordatorio de 24 horas se guardó correctamente.');
-    this.view = 'settings';
+    await this.continueToNextProfileModule('lifestyle');
   }
 
   openTimePicker(field: R24hTimeField): void {
@@ -783,7 +792,7 @@ export class DatosPerfilPage implements OnInit {
       this.syncDisplayValues();
 
       await this.showAlert('Guardado', 'Datos generales guardados correctamente.');
-      this.view = 'settings';
+      await this.continueToNextProfileModule('clinical');
     } catch (error) {
       await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudo guardar la información.');
     }

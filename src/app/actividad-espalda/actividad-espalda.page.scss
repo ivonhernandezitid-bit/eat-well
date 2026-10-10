@@ -122,12 +122,10 @@ ion-content {
 
 .activity-map-badge {
   flex: 0 0 auto;
-  padding: 5px 9px;
-  border-radius: 999px;
-  background: rgba(204, 232, 107, 0.32);
-  color: var(--eatwell-green-900);
-  font-size: 0.66rem;
-  font-weight: 800;
+  color: var(--eatwell-muted);
+  font-size: 0.64rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .activity-map-hint {
@@ -156,6 +154,46 @@ ion-content {
   position: relative;
   display: flex;
   justify-content: center;
+}
+
+.activity-image-box--locked {
+  width: 100%;
+  max-width: 420px;
+  min-height: 210px;
+  aspect-ratio: auto;
+  align-items: center;
+}
+
+.activity-profile-required {
+  display: grid;
+  justify-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 22px 18px;
+  border: 1px solid rgba(47, 125, 89, 0.14);
+  border-radius: 16px;
+  background: rgba(47, 125, 89, 0.055);
+  text-align: center;
+}
+
+.activity-profile-required ion-icon {
+  color: var(--eatwell-green-700);
+  font-size: 2rem;
+}
+
+.activity-profile-required strong {
+  color: var(--eatwell-green-900);
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.activity-profile-required p {
+  max-width: 340px;
+  margin: 0;
+  color: var(--eatwell-muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
 }
 
 .activity-image {

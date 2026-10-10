@@ -9,6 +9,8 @@ import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from
   standalone: false
 })
 export class ActividadFrentePage implements OnInit {
+  isFemaleUser = false;
+  canAccessMuscleMap = false;
   selectedMuscle: string | null = null;
   exercises: GeminiExercise[] = [];
   isLoadingExercises = false;
@@ -54,6 +56,14 @@ export class ActividadFrentePage implements OnInit {
 
   ionViewWillEnter() {
     this.loadSavedRoutine();
+    const activeUser = this.eatWellService.getActiveUser();
+    this.isFemaleUser = activeUser?.gender === 'female';
+    this.canAccessMuscleMap = !!activeUser
+      && !!activeUser.name.trim()
+      && activeUser.age > 0
+      && activeUser.weightKg > 0
+      && activeUser.heightCm > 0
+      && activeUser.gender !== 'other';
   }
 
   loadSavedRoutine() {

@@ -28,8 +28,13 @@
         <span class="activity-map-badge">Interactivo</span>
       </div>
 
-      <div class="activity-image-box">
-        <img src="assets/icon/Frente.png" alt="Actividad frente" class="activity-image" />
+      <div class="activity-image-box" [class.activity-image-box--locked]="!canAccessMuscleMap">
+        <ng-container *ngIf="canAccessMuscleMap; else profileRequiredFront">
+        <img
+          [src]="isFemaleUser ? 'assets/icon/MujerFrente.png' : 'assets/icon/Frente.png'"
+          [alt]="isFemaleUser ? 'Mapa muscular femenino, vista frontal' : 'Mapa muscular, vista frontal'"
+          class="activity-image"
+        />
 
         <!-- Interactive Muscles (Front view) -->
         <button class="zone zone-traps" [class.selected]="selectedMuscle === 'Trapecios'" aria-label="Trapecios" (click)="selectMuscle('Trapecios')">
@@ -78,9 +83,20 @@
         <button class="zone zone-calves-right" [class.selected]="selectedMuscle === 'Pantorrillas'" aria-label="Pantorrillas" (click)="selectMuscle('Pantorrillas')">
           <span class="hotspot-dot" data-label="Pantorrillas"></span>
         </button>
+        </ng-container>
+        <ng-template #profileRequiredFront>
+          <div class="activity-profile-required" role="status">
+            <ion-icon name="person-circle-outline" aria-hidden="true"></ion-icon>
+            <strong>Completa tu perfil para activar el mapa muscular</strong>
+            <p>
+              Agrega tus datos generales y antropométricos en Perfil para que podamos
+              ofrecerte información y ejercicios mejor adaptados a tu perfil.
+            </p>
+          </div>
+        </ng-template>
       </div>
 
-      <div class="activity-map-hint">
+      <div class="activity-map-hint" *ngIf="canAccessMuscleMap">
         <ion-icon name="hand-left-outline" aria-hidden="true"></ion-icon>
         <span>Toca una zona del cuerpo para ver ejercicios.</span>
       </div>

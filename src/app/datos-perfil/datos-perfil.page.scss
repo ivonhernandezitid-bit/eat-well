@@ -94,6 +94,65 @@
   color: var(--eatwell-muted, #5d6d63);
 }
 
+.profile-welcome-card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  margin: 12px 0 4px;
+  padding: 16px;
+  border: 1px solid rgba(47, 125, 89, 0.16);
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 6px 18px rgba(31, 68, 48, 0.06);
+}
+
+.profile-welcome-icon {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(204, 232, 107, 0.32);
+  color: var(--eatwell-green-700);
+  font-size: 1.25rem;
+}
+
+.profile-welcome-copy h2 {
+  margin: 0;
+  color: var(--eatwell-green-900);
+  font-size: 0.98rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.profile-welcome-copy p {
+  margin: 6px 0 12px;
+  color: var(--eatwell-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.profile-welcome-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--eatwell-green-700);
+  color: #ffffff;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-welcome-action ion-icon {
+  font-size: 1rem;
+}
+
 .progress-card {
   margin-top: 8px;
   padding: 16px 0;

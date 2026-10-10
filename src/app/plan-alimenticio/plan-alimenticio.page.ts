@@ -55,6 +55,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
+  private mealsLoadInFlight: { userId: string; promise: Promise<void> } | null = null;
 
   private readonly eatWellService = inject(EatWellService);
   private readonly alertController = inject(AlertController);
@@ -459,29 +460,46 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private async loadMealsForUser(user: UserProfile): Promise<void> {
+    if (this.mealsLoadInFlight?.userId === user.id) {
+      await this.mealsLoadInFlight.promise;
+      return;
+    }
+
+    const promise = this.fetchMealsForUser(user);
+    this.mealsLoadInFlight = { userId: user.id, promise };
+
+    try {
+      await promise;
+    } finally {
+      if (this.mealsLoadInFlight?.promise === promise) {
+        this.mealsLoadInFlight = null;
+      }
+    }
+  }
+
+  private async fetchMealsForUser(user: UserProfile): Promise<void> {
     const lifestyleSettings = loadLifestyleSettings(user.id);
     this.macroTargets = lifestyleSettings ? calculateMacroTargets(user, lifestyleSettings) : null;
 
     try {
-      let prefs;
-      try {
-        prefs = await this.eatWellService.getFoodPreferences();
-        this.preferencesCompleted = prefs.completed;
-      } catch {
-        this.preferencesCompleted = false;
-      }
-
-      const [general, favorites] = await Promise.all([
+      const [prefs, general, favorites, scanHistory] = await Promise.all([
+        this.eatWellService.getFoodPreferences().catch(() => null),
         this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
+        this.eatWellService.getScanHistory().catch(error => {
+          console.error('Error loading scan history', error);
+          return [];
+        }),
       ]);
 
       if (this.activeUserId !== user.id) {
         return;
       }
 
+      this.preferencesCompleted = prefs?.completed ?? false;
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
+      this.scanHistory = scanHistory;
 
       if (this.preferencesCompleted) {
         this.isLoadingPersonalized = true;
@@ -496,8 +514,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       } else {
         this.recipes = [];
       }
-
-      await this.loadScanHistory();
     } catch (error) {
       if (this.activeUserId === user.id) {
         this.recipes = [];

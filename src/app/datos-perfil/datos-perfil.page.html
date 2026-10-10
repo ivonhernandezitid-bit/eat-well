@@ -32,6 +32,23 @@
         </div>
       </div>
 
+      <section *ngIf="isOnboarding" class="profile-welcome-card" aria-live="polite">
+        <div class="profile-welcome-icon">
+          <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+        </div>
+        <div class="profile-welcome-copy">
+          <h2>¡Bienvenido a Eat Well, {{ fullName || 'Usuario' }}!</h2>
+          <p>
+            Este es tu perfil. Completa tus datos para personalizar tu experiencia
+            y acceder a todos los beneficios de Eat Well.
+          </p>
+          <button type="button" class="profile-welcome-action" (click)="openProfileModule('general')">
+            Completar mis datos
+            <ion-icon name="arrow-forward-outline" aria-hidden="true"></ion-icon>
+          </button>
+        </div>
+      </section>
+
       <div class="progress-card">
         <div class="progress-header profile-progress-heading">
           <strong>Progreso del Perfil: {{ profileCompletion }}%</strong>
@@ -314,7 +331,7 @@
       </section>
 
       <section class="clinical-card">
-        <h3>5. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
+        <h3>{{ gender === 'female' ? 5 : 4 }}. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
         <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.allergiesNone" /> No aplica</label>
         <div class="clinical-check-grid allergy-grid">
           <label *ngFor="let allergy of allergyOptions"><input type="checkbox" [checked]="clinicalData.allergies.includes(allergy)" (change)="toggleClinicalAllergy(allergy)" /> {{ allergy }}</label>
@@ -327,7 +344,7 @@
       </section>
 
       <section class="clinical-card">
-        <h3>6. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
+        <h3>{{ gender === 'female' ? 6 : 5 }}. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
         <div class="clinical-field"><label>Horas de sueño:</label><select [(ngModel)]="clinicalData.sleepHours"><option>7-8 hrs</option><option>Menos de 6 hrs</option><option>Más de 8 hrs</option></select></div>
         <div class="clinical-field"><label>Calidad del sueño:</label><select [(ngModel)]="clinicalData.sleepQuality"><option>Reparador</option><option>No reparador</option></select></div>
         <div class="clinical-field"><label>Frecuencia evacuaciones / baño:</label><select [(ngModel)]="clinicalData.bowelFrequency"><option>1 a 2 veces al día</option><option>Menos de 1 vez al día</option></select></div>
@@ -338,7 +355,7 @@
       </section>
 
       <section class="clinical-card">
-        <h3>7. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
+        <h3>{{ gender === 'female' ? 7 : 6 }}. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
         <div class="clinical-field"><label>¿Quién cocina en casa?</label><select [(ngModel)]="clinicalData.cooksAtHome"><option>Yo mismo(a)</option><option>Otra persona</option></select></div>
         <div class="clinical-field"><label>Lugar donde comes entre semana:</label><select [(ngModel)]="clinicalData.weekdayPlace"><option>En casa</option><option>En el trabajo</option></select></div>
         <div class="clinical-field"><label>Apetito general:</label><select [(ngModel)]="clinicalData.appetite"><option>Normal</option><option>Bajo</option><option>Alto</option></select></div>
