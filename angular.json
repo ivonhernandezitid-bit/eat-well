@@ -73,6 +73,10 @@
         "serve": {
           "builder": "@angular-devkit/build-angular:dev-server",
           "options": {
+            "allowedHosts": [
+              "ira-upstanding-zonally.ngrok-free.dev",
+              "192.168.1.102"
+            ],
             "proxyConfig": "proxy.conf.json"
           },
           "configurations": {
