@@ -6,10 +6,13 @@ import { AlertController, IonicModule, IonContent } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
 import { ActivityBand, LifestyleSettings, loadLifestyleSettings, lifestyleStorageKey } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
+import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, emptyClinicalHistory } from '../core/clinical-history';
+import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
+import { MealSchedule, mealScheduleError, scheduleMeals } from '../core/meal-schedule';
 
 type WeightUnit = 'kg' | 'lbs';
 type HeightUnit = 'cm' | 'ft';
-type R24hTimeField = 'wakeTime' | 'breakfastTime' | 'snackTime' | 'lunchTime' | 'activityTime' | 'dinnerTime' | 'sleepTime';
+type R24hTimeField = 'wakeTime' | 'breakfastTime' | 'snackTime' | 'lunchTime' | 'afternoonSnackTime' | 'activityTime' | 'dinnerTime' | 'sleepTime';
 
 @Component({
   selector: 'app-datos-perfil',
@@ -38,7 +41,12 @@ export class DatosPerfilPage implements OnInit {
   isOnboarding = false;
   foodPreferencesCompleted = false;
   showProfileModuleDetails = false;
-  view: 'settings' | 'general' | 'clinical' | 'r24h' | 'lifestyle' | 'privacy' = 'settings';
+  view: 'settings' | 'general' | 'clinical' | 'r24h' | 'schedule' | 'lifestyle' | 'privacy' = 'settings';
+  mealSchedule: MealSchedule | null = null;
+  scheduleLoading = false;
+  scheduleSaving = false;
+  readonly scheduleMeals = scheduleMeals;
+  private scheduleLoadVersion = 0;
 
   private moduleTouchStartX = 0;
   private moduleTouchStartY = 0;
@@ -71,97 +79,40 @@ export class DatosPerfilPage implements OnInit {
     { value: 'none', label: 'Ninguno por ahora' },
   ];
 
-  r24hData = {
-    wakeTime: '',
-    wakeActivity: '',
-    breakfastTime: '',
-    breakfastPlace: '',
-    breakfastDetails: '',
-    snackTime: '',
-    snackPlace: '',
-    snackDetails: '',
-    lunchTime: '',
-    lunchPlace: '',
-    lunchDetails: '',
-    activityTime: '',
-    activityType: '',
-    activityDuration: '',
-    dinnerTime: '',
-    dinnerPlace: '',
-    dinnerDetails: '',
-    sleepTime: '',
-  };
+  r24hData = emptyDietaryRecall();
+  r24hDate = previousRecallDate();
+  r24hMaxDate = calendarDate();
+  r24hLoading = false;
+  r24hSaving = false;
+  private r24hSaved = false;
+  private r24hOwnerId: string | null = null;
+  private r24hLoadVersion = 0;
+  private r24hLoadError = '';
+  private r24hLoadedDate = this.r24hDate;
+  private r24hSnapshot = JSON.stringify(this.r24hData);
 
   isTimePickerOpen = false;
   activeTimeField: R24hTimeField | null = null;
   timePickerValue = '2000-01-01T00:00:00';
 
-  clinicalData = {
-    familyNone: false,
-    familyDiabetes: false,
-    familyHypertension: false,
-    familyObesity: false,
-    familyCholesterol: false,
-    familyCancer: false,
-    familyRenal: false,
-    familyThyroid: false,
-    diagnosisNone: false,
-    diagnosisDiabetes: false,
-    diagnosisHypertension: false,
-    diagnosisFattyLiver: false,
-    diagnosisSop: false,
-    diagnosisGout: false,
-    diagnosisHypothyroidism: false,
-    wellbeingNone: false,
-    wellbeingAnemia: false,
-    wellbeingBulimia: false,
-    wellbeingDepression: false,
-    wellbeingAnxiety: false,
-    wellbeingOther: '',
-    wellbeingTreatment: '',
-    wellbeingSupport: '',
-    wellbeingNotes: '',
-    surgeriesNone: false,
-    surgeries: '',
-    hospitalizationsNone: false,
-    hospitalizations: '',
-    pregnant: 'No',
-    lactating: 'No',
-    menstrualCycle: 'Regular',
-    allergies: [] as string[],
-    allergiesNone: false,
-    otherAllergies: '',
-    medicationsNone: false,
-    medications: '',
-    medicationAllergiesNone: false,
-    medicationAllergies: '',
-    supplementsNone: false,
-    supplements: '',
-    weightLossTreatment: 'No',
-    sleepHours: '7-8 hrs',
-    sleepQuality: 'Reparador',
-    bowelFrequency: '1 a 2 veces al día',
-    alcohol: 'Ocasional',
-    tobacco: 'No fumo',
-    cigarettesPerDay: 0,
-    otherSubstances: 'No',
-    cooksAtHome: 'Yo mismo(a)',
-    weekdayPlace: 'En casa',
-    appetite: 'Normal',
-    anxiety: 'Sí',
-    waterLiters: 2,
-  };
-  private readonly clinicalDataDefaults = structuredClone(this.clinicalData);
+  clinicalData = emptyClinicalHistory();
+  clinicalLoading = false;
+  clinicalSaving = false;
+  private clinicalLoadVersion = 0;
+  private clinicalLoadError = '';
+  private clinicalHistorySaved = false;
 
   readonly allergyOptions = ['Lactosa', 'Gluten', 'Marisco', 'Nuez/Maní'];
 
   formName = '';
   birthDate = '';
   activityLevel: 'sedentary' | 'standing' | 'active' = 'sedentary';
-  phone = '';
-  municipality = '';
 
-  readonly settingsItems = [
+  get activityLevelLabel(): string {
+    return { sedentary: 'Sentado', standing: 'De pie', active: 'Trabajo físico' }[this.activityLevel];
+  }
+
+  readonly baseSettingsItems = [
     {
       id: 'general',
       icon: 'person-outline',
@@ -206,6 +157,11 @@ export class DatosPerfilPage implements OnInit {
     },
   ];
 
+  get settingsItems() {
+    const items = this.baseSettingsItems.filter(item => item.id !== 'record' || (!this.r24hSaved && !this.r24hLoading));
+    return this.r24hSaved ? [...items, {id:'schedule',icon:'time-outline',title:'Horarios de alimentación',subtitle:'Desayuno, colaciones, comida y cena',route:'/tabs/datos-perfil'}] : items;
+  }
+
   isCroppingModalOpen = false;
   selectedPhotoUrl: string | null = null;
   translateX = 0;
@@ -228,6 +184,8 @@ export class DatosPerfilPage implements OnInit {
   private readonly alertController = inject(AlertController);
 
   openProfileModule(view: Exclude<DatosPerfilPage['view'], 'settings'>): void {
+    if(view==='r24h' && this.r24hSaved) view='schedule';
+    if(view==='schedule') void this.loadMealSchedule();
     if (view === 'general') {
       this.syncGeneralFormFromProfile();
     } else if (view === 'lifestyle') {
@@ -238,6 +196,10 @@ export class DatosPerfilPage implements OnInit {
     }
 
     this.view = view;
+    if (view === 'clinical' && this.clinicalLoadError) {
+      void this.showAlert('No se pudo cargar el historial', this.clinicalLoadError);
+    }
+    if (view === 'r24h' && this.r24hLoadError) void this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
     void this.content?.scrollToTop(0);
   }
 
@@ -299,6 +261,18 @@ export class DatosPerfilPage implements OnInit {
     const activeUser = this.eatWellService.getActiveUser();
 
     if (!activeUser) {
+      ++this.clinicalLoadVersion;
+      this.clinicalData = emptyClinicalHistory();
+      this.clinicalHistorySaved = false;
+      this.clinicalLoading = false;
+      ++this.r24hLoadVersion;
+      this.r24hData = emptyDietaryRecall();
+      this.r24hSaved = false;
+      this.r24hLoading = false;
+      this.r24hOwnerId = null;
+      this.closeTimePicker();
+      ++this.scheduleLoadVersion;
+      this.mealSchedule=null;
       void this.router.navigateByUrl('/login');
       return;
     }
@@ -315,11 +289,12 @@ export class DatosPerfilPage implements OnInit {
     this.foodPreferencesCompleted = false;
     void this.loadFoodPreferencesCompletion(activeUser.id);
     this.loadLifestyleForm(activeUser.id, activeUser.goal);
+    void this.loadClinicalHistory(activeUser.id);
+    this.r24hMaxDate = calendarDate();
+    void this.loadR24h(activeUser.id);
 
     this.formName = this.fullName;
     this.birthDate = this.buildBirthDateFromAge(this.age);
-    this.phone = this.phone || '';
-    this.municipality = this.municipality || '';
     this.syncDisplayValues();
   }
 
@@ -356,47 +331,99 @@ export class DatosPerfilPage implements OnInit {
   }
 
   private get isClinicalHistoryComplete(): boolean {
-    const data = this.clinicalData;
-    const hasFamilyAnswer = data.familyNone || [
-      data.familyDiabetes,
-      data.familyHypertension,
-      data.familyObesity,
-      data.familyCholesterol,
-      data.familyCancer,
-      data.familyRenal,
-      data.familyThyroid,
-    ].some(Boolean);
-    const hasDiagnosisAnswer = data.diagnosisNone || [
-      data.diagnosisDiabetes,
-      data.diagnosisHypertension,
-      data.diagnosisFattyLiver,
-      data.diagnosisSop,
-      data.diagnosisGout,
-      data.diagnosisHypothyroidism,
-    ].some(Boolean);
-    const hasWellbeingAnswer = data.wellbeingNone || [
-      data.wellbeingAnemia,
-      data.wellbeingBulimia,
-      data.wellbeingDepression,
-      data.wellbeingAnxiety,
-    ].some(Boolean) || data.wellbeingOther.trim().length > 0;
-    const hasAllergyAnswer = data.allergiesNone || data.allergies.length > 0 || data.otherAllergies.trim().length > 0;
+    return this.clinicalHistorySaved && clinicalHistoryError(this.clinicalData, this.clinicalGender) === null;
+  }
 
-    return hasFamilyAnswer
-      && hasDiagnosisAnswer
-      && hasWellbeingAnswer
-      && hasAllergyAnswer
-      && (data.surgeriesNone || data.surgeries.trim().length > 0)
-      && (data.hospitalizationsNone || data.hospitalizations.trim().length > 0)
-      && (data.medicationsNone || data.medications.trim().length > 0)
-      && (data.medicationAllergiesNone || data.medicationAllergies.trim().length > 0)
-      && (data.supplementsNone || data.supplements.trim().length > 0)
-      && !!data.wellbeingTreatment
-      && !!data.wellbeingSupport;
+  get clinicalGender(): Gender {
+    return this.eatWellService.getActiveUser()?.gender ?? 'other';
+  }
+
+  setClinicalField<K extends keyof ClinicalHistoryData>(field: K, value: ClinicalHistoryData[K]): void {
+    if (this.clinicalLoading || this.clinicalSaving) return;
+    this.clinicalData = clinicalHistoryForSex(changeClinicalField(this.clinicalData, field, value), this.clinicalGender);
   }
 
   private get isR24hComplete(): boolean {
-    return Object.values(this.r24hData).every(value => value.trim().length > 0);
+    return this.r24hSaved;
+  }
+
+  private async loadR24h(userId: string, date = this.r24hDate): Promise<void> {
+    const newOwner = this.r24hOwnerId !== userId;
+    if (newOwner) { date = previousRecallDate(); this.mealSchedule=null; ++this.scheduleLoadVersion; this.view='settings'; }
+    if (!newOwner && this.r24hLoading && this.r24hDate === date) return;
+    this.r24hOwnerId = userId;
+    const version = ++this.r24hLoadVersion;
+    this.r24hDate = date;
+    this.r24hLoadedDate = date;
+    this.r24hData = emptyDietaryRecall();
+    if(newOwner) this.r24hSaved = false;
+    this.r24hLoadError = '';
+    this.r24hLoading = true;
+    this.closeTimePicker();
+    try {
+      const response = await this.eatWellService.getInitialDietaryRecall();
+      if (version === this.r24hLoadVersion && this.eatWellService.getActiveUser()?.id === userId) {
+        this.r24hData = response.recall ?? emptyDietaryRecall();
+        this.r24hSaved = response.completed;
+        if(response.completed) {
+          this.r24hDate=response.recallDate;
+          this.r24hLoadedDate=response.recallDate;
+          if(this.view==='r24h') this.openProfileModule('schedule');
+        }
+      }
+    } catch (error) {
+      if (version === this.r24hLoadVersion && this.eatWellService.getActiveUser()?.id === userId) {
+        this.r24hLoadError = error instanceof Error ? error.message : 'No se pudo cargar el recordatorio.';
+        if (this.view === 'r24h') void this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
+      }
+    } finally {
+      if (version === this.r24hLoadVersion) {
+        this.r24hLoading = false;
+        this.r24hSnapshot = JSON.stringify(this.r24hData);
+        const requested=this.route.snapshot.queryParamMap.get('module');
+        if(this.view==='settings' && requested==='schedule' && this.r24hSaved) this.openProfileModule('schedule');
+        if(this.view==='settings' && requested==='r24h' && !this.r24hSaved) this.openProfileModule('r24h');
+      }
+    }
+  }
+
+  async changeRecallDate(date: string): Promise<void> {
+    if(this.r24hSaved) return;
+    if (this.r24hLoading || this.r24hSaving) {
+      this.r24hDate = this.r24hLoadedDate;
+      return;
+    }
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!userId || date === this.r24hLoadedDate) return;
+    const error = recallDateError(date);
+    if (error) {
+      this.r24hDate = this.r24hLoadedDate;
+      await this.showAlert('Revisa la fecha', error);
+      return;
+    }
+    if (JSON.stringify(this.r24hData) !== this.r24hSnapshot) {
+      const alert = await this.alertController.create({
+        header: 'Cambios sin guardar', message: 'Al cambiar de día se descartarán las respuestas que no guardaste.',
+        buttons: [{ text: 'Cancelar', role: 'cancel' }, { text: 'Cambiar de día', role: 'change' }],
+      });
+      await alert.present();
+      if ((await alert.onDidDismiss()).role !== 'change') {
+        this.r24hDate = this.r24hLoadedDate;
+        return;
+      }
+    }
+    if (this.eatWellService.getActiveUser()?.id === userId) await this.loadR24h(userId, date);
+  }
+
+  setR24hSkipped(field: 'noBreakfast' | 'noSnack' | 'noLunch' | 'noAfternoonSnack' | 'noDinner' | 'noActivity', skipped: boolean): void {
+    if (this.r24hLoading || this.r24hSaving) return;
+    this.r24hData = setRecallSkipped(this.r24hData, field, skipped);
+  }
+
+  private isRecallTimeSkipped(field: R24hTimeField): boolean {
+    if (field === 'activityTime') return this.r24hData.noActivity;
+    const meal = recallMeals.find(item => item.time === field);
+    return meal ? this.r24hData[meal.skipped] : false;
   }
 
   private async loadFoodPreferencesCompletion(userId: string): Promise<void> {
@@ -412,7 +439,30 @@ export class DatosPerfilPage implements OnInit {
     }
   }
 
+  private async loadClinicalHistory(userId: string): Promise<void> {
+    const version = ++this.clinicalLoadVersion;
+    this.clinicalData = emptyClinicalHistory();
+    this.clinicalHistorySaved = false;
+    this.clinicalLoadError = '';
+    this.clinicalLoading = true;
+    try {
+      const response = await this.eatWellService.getClinicalHistory();
+      if (version === this.clinicalLoadVersion && this.eatWellService.getActiveUser()?.id === userId) {
+        this.clinicalData = clinicalHistoryForSex(response.history ?? emptyClinicalHistory(), this.clinicalGender);
+        this.clinicalHistorySaved = response.completed;
+      }
+    } catch (error) {
+      if (version === this.clinicalLoadVersion && this.eatWellService.getActiveUser()?.id === userId) {
+        this.clinicalLoadError = error instanceof Error ? error.message : 'No se pudo cargar el historial.';
+        if (this.view === 'clinical') void this.showAlert('No se pudo cargar el historial', this.clinicalLoadError);
+      }
+    } finally {
+      if (version === this.clinicalLoadVersion) this.clinicalLoading = false;
+    }
+  }
+
   async handleSettingsItem(item: { route?: string; title: string; id?: string }): Promise<void> {
+    if(item.id==='schedule') { this.openProfileModule('schedule'); return; }
     if (item.id === 'general') {
       this.openProfileModule('general');
       return;
@@ -457,9 +507,9 @@ export class DatosPerfilPage implements OnInit {
 
   toggleClinicalAllergy(allergy: string): void {
     const allergies = this.clinicalData.allergies;
-    this.clinicalData.allergies = allergies.includes(allergy)
+    this.setClinicalField('allergies', allergies.includes(allergy)
       ? allergies.filter(item => item !== allergy)
-      : [...allergies, allergy];
+      : [...allergies, allergy]);
   }
 
   toggleExerciseType(value: string): void {
@@ -521,58 +571,6 @@ export class DatosPerfilPage implements OnInit {
     }
   }
 
-  async clearGeneralModule(): Promise<void> {
-    if (!await this.confirmModuleReset('datos generales y antropométricos')) {
-      return;
-    }
-
-    try {
-      const user = await this.eatWellService.updateProfile({
-        age: 18,
-        gender: 'other',
-        heightCm: 170,
-        weightKg: 70,
-        activityLevel: 'moderate',
-      });
-      this.age = user.age;
-      this.gender = user.gender;
-      this.heightCm = user.heightCm;
-      this.weightKg = user.weightKg;
-      this.imc = user.imc;
-      this.formName = user.name;
-      this.birthDate = this.buildBirthDateFromAge(user.age);
-      this.phone = '';
-      this.municipality = '';
-      this.syncDisplayValues();
-      this.view = 'settings';
-      await this.showAlert('Datos eliminados', 'Se restablecieron las medidas para que puedas volver a capturarlas.');
-    } catch (error) {
-      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron borrar los datos generales.');
-    }
-  }
-
-  async clearClinicalModule(): Promise<void> {
-    if (!await this.confirmModuleReset('historial clínico')) {
-      return;
-    }
-
-    this.clinicalData = structuredClone(this.clinicalDataDefaults);
-    this.view = 'settings';
-    await this.showAlert('Datos eliminados', 'El historial clínico quedó listo para volver a capturarse.');
-  }
-
-  async clearR24hModule(): Promise<void> {
-    if (!await this.confirmModuleReset('recordatorio de 24 horas')) {
-      return;
-    }
-
-    for (const field of Object.keys(this.r24hData) as (keyof typeof this.r24hData)[]) {
-      this.r24hData[field] = '';
-    }
-    this.view = 'settings';
-    await this.showAlert('Datos eliminados', 'El recordatorio de 24 horas quedó vacío.');
-  }
-
   async clearLifestyleModule(): Promise<void> {
     const activeUser = this.eatWellService.getActiveUser();
     if (!activeUser || !await this.confirmModuleReset('estilo de vida y metas')) {
@@ -604,79 +602,102 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async saveClinicalHistory(): Promise<void> {
-    const hasFamilyAnswer = this.clinicalData.familyNone || [
-      this.clinicalData.familyDiabetes,
-      this.clinicalData.familyHypertension,
-      this.clinicalData.familyObesity,
-      this.clinicalData.familyCholesterol,
-      this.clinicalData.familyCancer,
-      this.clinicalData.familyRenal,
-      this.clinicalData.familyThyroid,
-    ].some(Boolean);
-    const hasDiagnosisAnswer = this.clinicalData.diagnosisNone || [
-      this.clinicalData.diagnosisDiabetes,
-      this.clinicalData.diagnosisHypertension,
-      this.clinicalData.diagnosisFattyLiver,
-      this.clinicalData.diagnosisSop,
-      this.clinicalData.diagnosisGout,
-      this.clinicalData.diagnosisHypothyroidism,
-    ].some(Boolean);
-    const hasWellbeingAnswer = this.clinicalData.wellbeingNone || [
-      this.clinicalData.wellbeingAnemia,
-      this.clinicalData.wellbeingBulimia,
-      this.clinicalData.wellbeingDepression,
-      this.clinicalData.wellbeingAnxiety,
-    ].some(Boolean) || this.clinicalData.wellbeingOther.trim().length > 0;
-    const hasAllergyAnswer = this.clinicalData.allergiesNone
-      || this.clinicalData.allergies.length > 0
-      || this.clinicalData.otherAllergies.trim().length > 0;
-    const hasSurgeriesAnswer = this.clinicalData.surgeriesNone || this.clinicalData.surgeries.trim().length > 0;
-    const hasHospitalizationAnswer = this.clinicalData.hospitalizationsNone || this.clinicalData.hospitalizations.trim().length > 0;
-    const hasMedicationAnswer = this.clinicalData.medicationsNone || this.clinicalData.medications.trim().length > 0;
-    const hasMedicationAllergyAnswer = this.clinicalData.medicationAllergiesNone || this.clinicalData.medicationAllergies.trim().length > 0;
-    const hasSupplementAnswer = this.clinicalData.supplementsNone || this.clinicalData.supplements.trim().length > 0;
-
-    if (!hasFamilyAnswer || !hasDiagnosisAnswer || !hasWellbeingAnswer || !hasAllergyAnswer || !hasSurgeriesAnswer || !hasHospitalizationAnswer || !hasMedicationAnswer || !hasMedicationAllergyAnswer || !hasSupplementAnswer || !this.clinicalData.wellbeingTreatment || !this.clinicalData.wellbeingSupport) {
-      await this.showAlert('Historial incompleto', 'Responde todas las preguntas o selecciona Ninguno / No aplica cuando corresponda.');
+    if (this.clinicalLoading || this.clinicalSaving) return;
+    if (this.clinicalLoadError) {
+      await this.showAlert('No se pudo cargar el historial', this.clinicalLoadError);
+      return;
+    }
+    this.clinicalData = clinicalHistoryForSex(this.clinicalData, this.clinicalGender);
+    const validationError = clinicalHistoryError(this.clinicalData, this.clinicalGender);
+    if (validationError) {
+      await this.showAlert('Revisa el historial', validationError);
       return;
     }
 
-    await this.showAlert('Guardado', 'El historial clínico se guardó correctamente.');
-    await this.continueToNextProfileModule('r24h');
+    const userId = this.eatWellService.getActiveUser()?.id;
+    this.clinicalSaving = true;
+    try {
+      const response = await this.eatWellService.saveClinicalHistory(this.clinicalData);
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.clinicalData = response.history ?? emptyClinicalHistory();
+      this.clinicalHistorySaved = response.completed;
+      await this.showAlert('Guardado', 'El historial clínico se guardó correctamente.');
+      await this.continueToNextProfileModule('r24h');
+    } catch (error) {
+      await this.showAlert('No se pudo guardar', error instanceof Error ? error.message : 'Inténtalo nuevamente.');
+    } finally {
+      this.clinicalSaving = false;
+    }
   }
 
   async saveR24h(): Promise<void> {
-    const requiredValues = [
-      this.r24hData.wakeTime,
-      this.r24hData.wakeActivity,
-      this.r24hData.breakfastTime,
-      this.r24hData.breakfastPlace,
-      this.r24hData.breakfastDetails,
-      this.r24hData.snackTime,
-      this.r24hData.snackPlace,
-      this.r24hData.snackDetails,
-      this.r24hData.lunchTime,
-      this.r24hData.lunchPlace,
-      this.r24hData.lunchDetails,
-      this.r24hData.activityTime,
-      this.r24hData.activityType,
-      this.r24hData.activityDuration,
-      this.r24hData.dinnerTime,
-      this.r24hData.dinnerPlace,
-      this.r24hData.dinnerDetails,
-      this.r24hData.sleepTime,
-    ];
-
-    if (requiredValues.some(value => !value.trim())) {
-      await this.showAlert('Recordatorio incompleto', 'Completa todos los horarios, lugares, alimentos y datos de actividad antes de guardar.');
+    if(this.r24hSaved) { this.openProfileModule('schedule'); return; }
+    if (this.r24hLoading || this.r24hSaving) return;
+    if (this.r24hLoadError) {
+      await this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
       return;
     }
+    const validationError = dietaryRecallError(this.r24hData, this.r24hDate);
+    if (validationError) {
+      await this.showAlert('Revisa el recordatorio', validationError);
+      return;
+    }
+    const userId = this.eatWellService.getActiveUser()?.id;
+    this.r24hSaving = true;
+    try {
+      const response = await this.eatWellService.saveDietaryRecall(this.r24hDate, this.r24hData);
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.r24hData = response.recall ?? emptyDietaryRecall();
+      this.r24hSaved = response.completed;
+      this.r24hSnapshot = JSON.stringify(this.r24hData);
+      await this.showAlert('Guardado', 'El recordatorio inicial se guardó correctamente.');
+      this.openProfileModule('schedule');
+    } catch (error) {
+      if(error instanceof Error && error.message.includes('El recordatorio inicial ya fue completado')) {
+        const active=this.eatWellService.getActiveUser();
+        if(active && active.id===userId) await this.loadR24h(active.id);
+      }
+      await this.showAlert('No se pudo guardar', error instanceof Error ? error.message : 'Inténtalo nuevamente.');
+    } finally {
+      this.r24hSaving = false;
+    }
+  }
 
-    await this.showAlert('Guardado', 'El recordatorio de 24 horas se guardó correctamente.');
-    await this.continueToNextProfileModule('lifestyle');
+  private async loadMealSchedule(): Promise<void> {
+    const userId=this.eatWellService.getActiveUser()?.id;
+    if(!userId) return;
+    const version=++this.scheduleLoadVersion;
+    this.scheduleLoading=true;
+    this.mealSchedule=null;
+    try {
+      const response=await this.eatWellService.getMealSchedule();
+      if(version===this.scheduleLoadVersion && this.eatWellService.getActiveUser()?.id===userId) {
+        this.mealSchedule=response.schedule;
+        this.r24hSaved=response.initialCompleted;
+      }
+    } catch(error) {
+      if(version===this.scheduleLoadVersion && this.eatWellService.getActiveUser()?.id===userId) await this.showAlert('No se pudieron cargar los horarios',error instanceof Error?error.message:'Inténtalo nuevamente.');
+    } finally { if(version===this.scheduleLoadVersion) this.scheduleLoading=false; }
+  }
+
+  async saveMealSchedule(): Promise<void> {
+    if(this.scheduleLoading || this.scheduleSaving || !this.mealSchedule) return;
+    const error=mealScheduleError(this.mealSchedule);
+    if(error) { await this.showAlert('Revisa los horarios',error); return; }
+    const userId=this.eatWellService.getActiveUser()?.id;
+    this.scheduleSaving=true;
+    try {
+      const response=await this.eatWellService.saveMealSchedule(this.mealSchedule);
+      if(this.eatWellService.getActiveUser()?.id!==userId) return;
+      this.mealSchedule=response.schedule;
+      await this.showAlert('Guardado','Tus horarios de alimentación se actualizaron.');
+      if(this.isOnboarding) await this.continueToNextProfileModule('lifestyle'); else this.returnToProfile();
+    } catch(error) { await this.showAlert('No se pudieron guardar',error instanceof Error?error.message:'Inténtalo nuevamente.'); }
+    finally { this.scheduleSaving=false; }
   }
 
   openTimePicker(field: R24hTimeField): void {
+    if (this.r24hLoading || this.r24hSaving || this.isRecallTimeSkipped(field)) return;
     this.activeTimeField = field;
     const selectedTime = this.r24hData[field];
     this.timePickerValue = selectedTime
@@ -692,7 +713,7 @@ export class DatosPerfilPage implements OnInit {
   }
 
   confirmTimePicker(): void {
-    if (this.activeTimeField) {
+    if (this.activeTimeField && !this.r24hLoading && !this.r24hSaving && !this.isRecallTimeSkipped(this.activeTimeField)) {
       this.r24hData[this.activeTimeField] = this.timePickerValue.slice(11, 16);
     }
     this.closeTimePicker();
@@ -762,8 +783,8 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async saveAndContinueToHistory(): Promise<void> {
-    if (!this.formName.trim() || !this.birthDate || !this.heightCm || !this.weightKg || !this.phone.trim() || !this.municipality.trim()) {
-      await this.showAlert('Datos incompletos', 'Completa la información personal, medidas y contacto para continuar.');
+    if (!this.formName.trim() || !this.birthDate || !this.heightCm || !this.weightKg) {
+      await this.showAlert('Datos incompletos', 'Completa la información personal y las medidas para continuar.');
       return;
     }
 

@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/auth-session.php';
+require_once __DIR__ . '/clinical-history.php';
+require_once __DIR__ . '/dietary-recall.php';
+require_once __DIR__ . '/meal-schedule.php';
+require_once __DIR__ . '/recipe-generation.php';
+require_once __DIR__ . '/meal-plan.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
@@ -215,6 +222,23 @@ try {
         case 'auth.login':
             loginUser($pdo, $input);
             break;
+        case 'auth.logout':
+            logoutSession($pdo);
+            break;
+        case 'clinical.get':
+        case 'clinical.save':
+        case 'clinical.delete':
+            handleClinicalHistory($pdo, $action, $input);
+            break;
+        case 'recall.get':
+        case 'recall.initial':
+        case 'recall.save':
+            handleDietaryRecall($pdo, $action, $input);
+            break;
+        case 'schedule.get':
+        case 'schedule.save':
+            handleMealSchedule($pdo,$action,$input);
+            break;
         case 'profile.get':
             getProfile($pdo, (int)($_GET['userId'] ?? 0));
             break;
@@ -237,6 +261,11 @@ try {
                 $geminiApiKey,
                 $geminiModel,
             );
+            break;
+        case 'plan.options':
+        case 'plan.get':
+        case 'plan.choose':
+            handleMealPlan($pdo, $action, $input, $geminiApiKey, $geminiModel);
             break;
         case 'recipes.general':
             getGeneralRecipes($pdo, (int)($_GET['userId'] ?? 0));
@@ -323,7 +352,8 @@ function registerUser(PDO $pdo, array $input): void
         $passwordHash,
     ]);
 
-    sendJson(['user' => mapUser(getUserById($pdo, (int)$pdo->lastInsertId()))], 201);
+    $userId = (int)$pdo->lastInsertId();
+    sendJson(['user' => mapUser(getUserById($pdo, $userId)), 'authToken' => issueAuthToken($userId)], 201);
 }
 
 function loginUser(PDO $pdo, array $input): void
@@ -339,7 +369,7 @@ function loginUser(PDO $pdo, array $input): void
         sendError('Correo o contrasena incorrectos.', 401);
     }
 
-    sendJson(['user' => mapUser($user)]);
+    sendJson(['user' => mapUser($user), 'authToken' => issueAuthToken((int)$user['id'])]);
 }
 
 function getProfile(PDO $pdo, int $userId): void
@@ -355,13 +385,14 @@ function updateProfile(PDO $pdo, array $input): void
         sendError('Usuario invalido.', 422);
     }
 
+    $bmiColumn = array_key_exists('bmi', getUserById($pdo, $userId)) ? 'bmi' : 'imc';
     $heightCm = (float)($input['heightCm'] ?? 170);
     $weightKg = (float)($input['weightKg'] ?? 70);
     $imc = calculateImc($weightKg, $heightCm);
 
     $statement = $pdo->prepare(
         'UPDATE users
-         SET name = ?, age = ?, gender = ?, height_cm = ?, weight_kg = ?, imc = ?, activity_level = ?, goal = ?
+         SET name = ?, age = ?, gender = ?, height_cm = ?, weight_kg = ?, ' . $bmiColumn . ' = ?, activity_level = ?, goal = ?
          WHERE id = ?',
     );
     $statement->execute([
@@ -498,64 +529,39 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
     $user = getUserById($pdo, $userId);
     $preferences = getFoodPreferencesRecord($pdo, $userId);
     $mappedPreferences = mapFoodPreferences($preferences);
-    $preferenceHash = hash('sha256', json_encode([
-        $user['goal'],
-        $user['imc'],
-        $mappedPreferences,
-    ], JSON_UNESCAPED_UNICODE));
+    $preferenceHash = recipePreferenceHash($user, $mappedPreferences);
 
     // Check cache — only use it if we have at least 5 recipes for this exact hash
     $cachedStatement = $pdo->prepare(
         'SELECT * FROM personalized_recipes
          WHERE user_id = ? AND preference_hash = ? ORDER BY id ASC LIMIT 5',
     );
-    $cachedStatement->execute([$userId, $preferenceHash]);
-    $cachedRecipes = $cachedStatement->fetchAll();
-
-    if (count($cachedRecipes) >= 5) {
-        sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedRecipes)]);
-        return;
+    foreach (compatibleRecipeHashes($user, $mappedPreferences) as $hash) {
+        $cachedStatement->execute([$userId, $hash]);
+        $cachedRecipes = $cachedStatement->fetchAll();
+        if (count($cachedRecipes) >= 5) {
+            sendJson(['recipes' => array_map(fn($recipe) => withRecipeNutrition($pdo, mapPersonalizedRecipe($recipe)), $cachedRecipes)]);
+            return;
+        }
     }
 
     if ($mappedPreferences['completed'] && $apiKey !== '') {
-        $dislikedList = implode(', ', array_merge($mappedPreferences['dislikedFoods'], $mappedPreferences['allergies']));
-        $timePref = (int)$mappedPreferences['cookingTimeMinutes'];
-        $prompt = "Genera exactamente 5 recetas practicas y saludables en espanol para este perfil. "
-            . "Objetivo: {$user['goal']}. IMC: {$user['imc']}. "
-            . "Tipo de alimentacion: {$mappedPreferences['dietType']}. "
-            . "Frutas preferidas: " . implode(', ', $mappedPreferences['preferredFruits']) . ". "
-            . "Verduras preferidas: " . implode(', ', $mappedPreferences['preferredVegetables']) . ". "
-            . "Carnes y proteínas preferidas: " . implode(', ', $mappedPreferences['preferredProteins']) . ". "
-            . "Carbohidratos y cereales preferidos: " . implode(', ', $mappedPreferences['preferredCarbohydrates']) . ". "
-            . "Legumbres y proteínas vegetales preferidas: " . implode(', ', $mappedPreferences['preferredLegumes']) . ". "
-            . "Lácteos y alternativas preferidos: " . implode(', ', $mappedPreferences['preferredDairy']) . ". "
-            . "Grasas, semillas y frutos secos preferidos: " . implode(', ', $mappedPreferences['preferredFats']) . ". "
-            . "PROHIBIDO usar o mencionar en cualquier receta estos ingredientes (alergias o alimentos no deseados): {$dislikedList}. "
-            . "El usuario prefiere un tiempo de coccion maximo de {$timePref} minutos. Intenta de preferencia apegarte a ese tiempo, pero si una receta requiere mas tiempo de coccion para estar lista y deliciosa, tienes permitido excederlo. "
-            . "Asegurate de que las recetas tengan una preparacion paso a paso muy detallada, e ingredientes precisos con sus porciones/cantidades correctas. "
-            . "Ninguna receta puede contener ni mencionar los ingredientes prohibidos bajo ninguna circunstancia. "
-            . "Devuelve unicamente un array JSON con exactamente 5 objetos. "
-            . "Cada receta debe tener title, description, ingredients e instructions.";
+        $prompt = recipeGenerationPrompt($user, $mappedPreferences, recipeBamContext($pdo, $mappedPreferences))
+            . "\nGenera exactamente cinco recetas: una para cada uno de los cinco momentos de alimentacion. Devuelve un array JSON de cinco objetos.";
         $schema = [
             'type' => 'ARRAY',
             'minItems' => 5,
             'maxItems' => 5,
-            'items' => [
-                'type' => 'OBJECT',
-                'required' => ['title', 'description', 'ingredients', 'instructions'],
-                'properties' => [
-                    'title' => ['type' => 'STRING'],
-                    'description' => ['type' => 'STRING'],
-                    'ingredients' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                    'instructions' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                ],
-            ],
+            'items' => recipeGenerationSchema(),
         ];
-        $generatedRecipes = requestGeminiText($apiKey, $model, $prompt, $schema, true);
+        $generatedRecipes = requestGeminiText($apiKey, $model, $prompt, $schema);
+        $generatedRecipes = validateGeneratedRecipeList($generatedRecipes);
 
         if (is_array($generatedRecipes) && count($generatedRecipes) >= 5) {
+            $pdo->beginTransaction();
+            try {
             // Delete ALL stale cached recipes for this user before inserting fresh ones
-            $pdo->prepare('DELETE FROM personalized_recipes WHERE user_id = ?')->execute([$userId]);
+            $pdo->prepare('DELETE FROM personalized_recipes WHERE user_id = ? AND preference_hash = ?')->execute([$userId, $preferenceHash]);
 
             $insert = $pdo->prepare(
                 'INSERT INTO personalized_recipes
@@ -574,17 +580,23 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
                     cleanText($recipe['title'] ?? 'Receta sugerida', 180),
                     cleanText($recipe['description'] ?? 'Recomendacion segun tus preferencias.', 255),
                     json_encode(cleanStringList($recipe['ingredients'] ?? [], 30), JSON_UNESCAPED_UNICODE),
-                    json_encode(cleanStringList($recipe['instructions'] ?? [], 20), JSON_UNESCAPED_UNICODE),
+                    encodeRecipeInstructions($recipe),
                 ]);
             }
 
             $cachedStatement->execute([$userId, $preferenceHash]);
-            sendJson(['recipes' => array_map('mapPersonalizedRecipe', $cachedStatement->fetchAll())]);
+            $savedRecipes = $cachedStatement->fetchAll();
+            $pdo->commit();
+            } catch (Throwable $error) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                throw $error;
+            }
+            sendJson(['recipes' => array_map(fn($recipe) => withRecipeNutrition($pdo, mapPersonalizedRecipe($recipe)), $savedRecipes)]);
             return;
         }
     }
 
-    // No fallback: return empty list for personalized recipes section if Gemini is offline
+    if ($mappedPreferences['completed'] && $apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503);
     sendJson(['recipes' => []]);
 }
 
@@ -599,7 +611,7 @@ function mapPersonalizedRecipe(array $recipe): array
         'carbsGrams' => 0,
         'fatGrams' => 0,
         'ingredients' => decodeJsonList($recipe['ingredients']),
-        'instructions' => decodeJsonList($recipe['instructions']),
+        ...readRecipeInstructions($recipe['instructions']),
         'goals' => [],
     ];
 }
@@ -611,7 +623,7 @@ function getFavoriteRecipes(PDO $pdo, int $userId): void
         'SELECT * FROM favorite_recipes WHERE user_id = ? ORDER BY created_at DESC',
     );
     $statement->execute([$userId]);
-    sendJson(['recipes' => array_map('mapFavoriteRecipe', $statement->fetchAll())]);
+    sendJson(['recipes' => array_map(fn($recipe) => withRecipeNutrition($pdo, mapFavoriteRecipe($recipe)), $statement->fetchAll())]);
 }
 
 function addFavoriteRecipe(PDO $pdo, array $input): void
@@ -641,12 +653,12 @@ function addFavoriteRecipe(PDO $pdo, array $input): void
         cleanText($input['description'] ?? '', 255),
         cleanText($input['imageUrl'] ?? '', 2000) ?: null,
         json_encode(cleanStringList($input['ingredients'] ?? [], 30), JSON_UNESCAPED_UNICODE),
-        json_encode(cleanStringList($input['instructions'] ?? [], 20), JSON_UNESCAPED_UNICODE),
+        encodeRecipeInstructions($input),
         cleanText($input['sourceType'] ?? 'generated', 30),
     ]);
     $select = $pdo->prepare('SELECT * FROM favorite_recipes WHERE user_id = ? AND title = ? LIMIT 1');
     $select->execute([$userId, $title]);
-    sendJson(['recipe' => mapFavoriteRecipe($select->fetch())], 201);
+    sendJson(['recipe' => withRecipeNutrition($pdo, mapFavoriteRecipe($select->fetch()))], 201);
 }
 
 function removeFavoriteRecipe(PDO $pdo, array $input): void
@@ -669,7 +681,7 @@ function mapFavoriteRecipe(array $recipe): array
         'imageUrl' => $recipe['image_url'] ?? '',
         'sourceUrl' => '',
         'ingredients' => decodeJsonList($recipe['ingredients']),
-        'instructions' => decodeJsonList($recipe['instructions']),
+        ...readRecipeInstructions($recipe['instructions']),
         'detailsLoaded' => true,
     ];
 }
@@ -708,6 +720,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
         $mimeType,
         $user,
         $preferences,
+        recipeBamContext($pdo, $preferences),
     );
     $foodName = cleanText($geminiResult['foodName'] ?? 'Ingredientes detectados', 150);
     $detectedIngredients = cleanStringList($geminiResult['detectedIngredients'] ?? [], 20);
@@ -717,7 +730,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
     );
     $generatedRecipes = [];
 
-    foreach (array_slice($geminiResult['recipes'] ?? [], 0, 5) as $recipe) {
+    foreach (validateGeneratedRecipeList($geminiResult['recipes'] ?? null) as $recipe) {
         if (!is_array($recipe)) {
             continue;
         }
@@ -731,6 +744,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
         }
 
         $generatedRecipes[] = [
+            ...recipeMetadata($recipe),
             'title' => $title,
             'description' => cleanText(
                 $recipe['description'] ?? 'Receta creada con los ingredientes detectados.',
@@ -776,13 +790,14 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
             $recipe['title'],
             $recipe['description'],
             json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE),
-            json_encode($recipe['instructions'], JSON_UNESCAPED_UNICODE),
+            encodeRecipeInstructions($recipe),
             'gemini',
             $model
         ]);
         $recipeDbId = (int)$pdo->lastInsertId();
 
-        $suggestedRecipes[] = [
+        $suggestedRecipes[] = withRecipeNutrition($pdo, [
+            ...recipeMetadata($recipe),
             'id' => "scan-{$scanId}-{$recipeDbId}",
             'title' => $recipe['title'],
             'description' => $recipe['description'],
@@ -791,7 +806,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
             'ingredients' => $recipe['ingredients'],
             'instructions' => $recipe['instructions'],
             'detailsLoaded' => true,
-        ];
+        ]);
     }
 
     sendJson([
@@ -836,7 +851,7 @@ function getScanRecommendations(PDO $pdo, int $userId): void
     }
     
     $recipes = array_map(
-        'mapGeneratedRecipe',
+        fn($recipe) => withRecipeNutrition($pdo, mapGeneratedRecipe($recipe)),
         $statement->fetchAll(),
     );
 
@@ -894,7 +909,7 @@ function getScanRecipeDetail(PDO $pdo, int $userId, int $recipeId): void
         sendError('La receta generada no pertenece al usuario.', 404);
     }
 
-    sendJson(['recipe' => mapGeneratedRecipe($savedRecipe)]);
+    sendJson(['recipe' => withRecipeNutrition($pdo, mapGeneratedRecipe($savedRecipe))]);
 }
 
 function mapGeneratedRecipe(array $recipe): array
@@ -906,7 +921,7 @@ function mapGeneratedRecipe(array $recipe): array
         'imageUrl' => '',
         'sourceUrl' => '',
         'ingredients' => is_array($recipe['ingredients']) ? $recipe['ingredients'] : decodeJsonList($recipe['ingredients']),
-        'instructions' => is_array($recipe['instructions']) ? $recipe['instructions'] : decodeJsonList($recipe['instructions']),
+        ...readRecipeInstructions($recipe['instructions']),
         'detailsLoaded' => true,
     ];
 }
@@ -975,35 +990,14 @@ function requestGeminiFoodAnalysis(
     string $mimeType,
     array $user,
     array $preferences,
+    array $foods = [],
 ): array {
     if (!function_exists('curl_init')) {
         sendError('La extension cURL de PHP no esta activa en XAMPP.', 500);
     }
 
-    $goalLabels = [
-        'lose_weight' => 'bajar de peso',
-        'maintain' => 'mantener su peso',
-        'gain_muscle' => 'ganar masa muscular',
-        'improve_health' => 'mejorar su salud',
-    ];
-    $goal = $goalLabels[$user['goal'] ?? ''] ?? 'comer de forma equilibrada';
-    $preferenceContext = "Tipo de alimentacion: {$preferences['dietType']}. "
-        . "Frutas preferidas: " . implode(', ', $preferences['preferredFruits']) . ". "
-        . "Verduras preferidas: " . implode(', ', $preferences['preferredVegetables']) . ". "
-        . "Alergias: " . implode(', ', $preferences['allergies']) . ". "
-        . "Alimentos no deseados: " . implode(', ', $preferences['dislikedFoods']) . ". ";
-    $prompt = "Analiza la fotografia de alimentos o ingredientes. Responde en espanol. "
-        . "Identifica solamente ingredientes que sean razonablemente visibles. Despues crea exactamente cinco "
-        . "recetas practicas que aprovechen esos ingredientes para una persona cuyo objetivo es {$goal}. "
-        . $preferenceContext
-        . "Nunca incluyas alergenos ni alimentos no deseados; usa sustituciones seguras cuando sea necesario. "
-        . "Si los alimentos o ingredientes detectados en la imagen son pocos o insuficientes para elaborar recetas completas, tienes total libertad de añadir otros ingredientes complementarios y saludables recomendados para el platillo. "
-        . "El usuario prefiere un tiempo de coccion maximo de {$preferences['cookingTimeMinutes']} minutos. Intenta de preferencia apegarte a ese tiempo, pero si una receta requiere mas tiempo de coccion para estar lista, tienes permitido excederlo. "
-        . "Asegurate de que las recetas tengan una preparacion paso a paso muy detallada, e ingredientes precisos con sus porciones/cantidades correctas. "
-        . "Puedes agregar agua, sal y una pequena cantidad de aceite como basicos de despensa. "
-        . "No incluyas frases de transicion hacia las recetas (como 'Aqui tienes 5 recetas...' o 'A continuacion se sugieren...'). "
-        . "No incluyas calorias, macronutrientes, porcentajes de confianza ni afirmaciones medicas. "
-        . "Cada receta debe incluir una descripcion breve, ingredientes con cantidades y pasos completos.";
+    $prompt = recipeGenerationPrompt($user, $preferences, $foods)
+        . "\nAnaliza la fotografia e identifica solamente ingredientes razonablemente visibles, no supongas cantidades exactas de la foto. Crea exactamente cinco recetas que aprovechen esos ingredientes sin incluir alergenos. Puedes agregar ingredientes complementarios compatibles y distinguirlos de los detectados. No incluyas frases de transicion. Devuelve el objeto JSON del esquema con foodName, detectedIngredients, recommendation y recipes.";
     $schema = [
         'type' => 'OBJECT',
         'required' => ['foodName', 'detectedIngredients', 'recommendation', 'recipes'],
@@ -1015,16 +1009,7 @@ function requestGeminiFoodAnalysis(
                 'type' => 'ARRAY',
                 'minItems' => 5,
                 'maxItems' => 5,
-                'items' => [
-                    'type' => 'OBJECT',
-                    'required' => ['title', 'description', 'ingredients', 'instructions'],
-                    'properties' => [
-                        'title' => ['type' => 'STRING'],
-                        'description' => ['type' => 'STRING'],
-                        'ingredients' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                        'instructions' => ['type' => 'ARRAY', 'items' => ['type' => 'STRING']],
-                    ],
-                ],
+                'items' => recipeGenerationSchema(),
             ],
         ],
     ];
@@ -1123,6 +1108,7 @@ function getUserById(PDO $pdo, int $userId): array
         sendError('Usuario no encontrado.', 404);
     }
 
+    $user['imc'] = $user['bmi'] ?? $user['imc'];
     return $user;
 }
 
@@ -1138,7 +1124,7 @@ function mapUser(array $user): array
         'gender' => $user['gender'],
         'heightCm' => (float)$user['height_cm'],
         'weightKg' => (float)$user['weight_kg'],
-        'imc' => (float)$user['imc'],
+        'imc' => (float)($user['bmi'] ?? $user['imc']),
         'activityLevel' => $user['activity_level'],
         'goal' => $user['goal'],
         'createdAt' => $user['created_at'],
@@ -1148,6 +1134,8 @@ function mapUser(array $user): array
 
 function mapRecipe(array $recipe): array
 {
+    $recipe['min_imc'] = $recipe['min_bmi'] ?? $recipe['min_imc'] ?? null;
+    $recipe['max_imc'] = $recipe['max_bmi'] ?? $recipe['max_imc'] ?? null;
     return [
         'id' => (string)$recipe['id'],
         'title' => $recipe['title'],
@@ -1710,7 +1698,7 @@ function getFallbackTips(string $goal, string $dietType): array
 function getGeneralRecipes(PDO $pdo, int $userId): void
 {
     $statement = $pdo->query('SELECT * FROM recipes ORDER BY title ASC');
-    $recipes = array_map('mapRecipe', $statement->fetchAll());
+    $recipes = array_map(fn($recipe) => withRecipeNutrition($pdo, mapRecipe($recipe)), $statement->fetchAll());
     
     if ($userId > 0) {
         $preferences = getFoodPreferencesRecord($pdo, $userId);

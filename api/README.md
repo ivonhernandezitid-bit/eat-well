@@ -28,6 +28,14 @@ http://localhost/eatwell-api/index.php?action=exercises.byZone&bodyZone=abdomen
 ```text
 POST index.php?action=auth.register
 POST index.php?action=auth.login
+POST index.php?action=auth.logout
+GET  index.php?action=clinical.get
+POST index.php?action=clinical.save
+POST index.php?action=clinical.delete
+GET  index.php?action=recall.initial
+POST index.php?action=recall.save
+GET  index.php?action=schedule.get
+POST index.php?action=schedule.save
 GET  index.php?action=profile.get&userId=1
 POST index.php?action=profile.update
 GET  index.php?action=preferences.get&userId=1
@@ -65,6 +73,51 @@ recomendaciones de Meal Plan se almacenan por version de preferencias para no
 generarlas de nuevo en cada visita.
 
 Si Google responde que el proyecto no tiene acceso, crea una clave nueva desde Google AI Studio con un proyecto habilitado para Gemini API.
-## Nota
+## Historial clinico
+
+Las operaciones `clinical.get`, `clinical.save` y `clinical.delete` utilizan la
+tabla `clinical_histories`. Requieren la identificacion `authToken` entregada por
+registro o login en la cabecera `Authorization: Bearer <authToken>`.
+La cuenta propietaria se obtiene de la sesion PHP; no se permite solicitar el
+historial de otra cuenta. Al actualizar, cerrar sesion e iniciar sesion de nuevo.
+
+Copiar `index.php`, `auth-session.php`, `clinical-history.php`, `dietary-recall.php`, `meal-schedule.php`, `recipe-generation.php`, `recipe-nutrition.php` y `meal-plan.php` en la carpeta
+de la API de XAMPP, conservando `config.local.php`. El registro de sesiones PHP
+debe poder escribir en su carpeta de sesiones. No se necesitan nuevas tablas si
+ya existe `clinical_histories`. Usar HTTPS para un despliegue publico.
+
+La prueba de backend puede ejecutarse con PHP desde `api/tests/clinical-history.test.php`;
+crea y elimina una base temporal con pacientes ficticios.
+
+## Recordatorio de 24 horas
+
+`recall.initial` consulta si la cuenta ya completo su recordatorio inicial.
+`recall.save` recibe `recallDate` y `recall` y solo permite una captura inicial
+completada por usuario. Los registros anteriores no se borran; se utiliza el
+primer recordatorio completado como referencia. Las cinco comidas son desayuno,
+colacion matutina, comida, colacion vespertina y cena.
+
+`schedule.get` consulta o prepara los horarios basados en esa referencia.
+`schedule.save` permite ajustar los cinco horarios sin modificar lo consumido.
+Las operaciones requieren `Authorization: Bearer <authToken>`. La nueva tabla
+`meal_schedules` conserva los horarios por usuario y el recordatorio de origen.
+La base local ya incluye esta tabla; el SQL completo y `schema.sql` tambien la
+incluyen para otras instalaciones. No volver a importar el SQL completo sobre
+una base que ya fue actualizada.
+
+El guardado inicial utiliza una transaccion para confirmar o cancelar el dia,
+sus cinco comidas y sus horarios juntos. Las sugerencias de horarios son una
+propuesta editable, no una evaluacion nutricional ni una prescripcion medica.
+
+La prueba de backend se ejecuta con PHP desde `api/tests/dietary-recall.test.php`.
+Utiliza una base temporal y no necesita llamadas a Google.
+
+## Catalogo BAM
+
+La base incluye tablas para almacenar el catalogo BAM. Para cargar sus datos en
+otra instalacion, consulta la [guia del catalogo](data/README.md). La carga es
+independiente de las recetas y no conecta funciones ni modifica las pantallas.
+
+## Conexion movil
 
 La app movil no debe conectarse directamente a MySQL. Ionic llama a esta API, y esta API consulta la base de datos.

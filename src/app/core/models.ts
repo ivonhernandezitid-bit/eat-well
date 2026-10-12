@@ -1,3 +1,5 @@
+import { RecipeMetadata } from './recipe-meals';
+
 export type Gender = 'female' | 'male' | 'other';
 
 export type ActivityLevel = 'low' | 'moderate' | 'high';
@@ -57,14 +59,14 @@ export interface UserAccount {
   password: string;
 }
 
-export interface Recipe {
+export interface Recipe extends RecipeMetadata {
   id: string;
   title: string;
   description: string;
-  calories: number;
-  proteinGrams: number;
-  carbsGrams: number;
-  fatGrams: number;
+  calories: number | null;
+  proteinGrams: number | null;
+  carbsGrams: number | null;
+  fatGrams: number | null;
   ingredients: string[];
   instructions: string[];
   goals: FitnessGoal[];
@@ -87,7 +89,7 @@ export interface FoodScanInput {
   imageBase64?: string;
 }
 
-export interface SuggestedFoodRecipe {
+export interface SuggestedFoodRecipe extends RecipeMetadata {
   id: string;
   title: string;
   description: string;

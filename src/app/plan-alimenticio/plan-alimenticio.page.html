@@ -60,7 +60,7 @@
         <span class="scan-label">Comida escaneada</span>
         <h2>{{ isScanning ? 'Analizando...' : (scanResult?.foodName || 'Comida') }}</h2>
         <p class="detected-ingredients" *ngIf="scanResult?.detectedIngredients?.length">
-          Ingredientes: {{ scanResult?.detectedIngredients?.join(', ') }}
+          Ingredientes: {{ scanResult?.detectedIngredients?.join(', ') | lowercase }}
         </p>
       </div>
       <ion-button fill="clear" class="clear-scan" aria-label="Quitar escaneo" (click)="clearScan($event)">
@@ -103,6 +103,7 @@
             </ng-template>
             <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
               <h2>{{ recipe.title }}</h2>
+              <div class="meal-tags"><span *ngFor="let type of recipe.mealTypes">{{ recipeMealLabels[type] }}</span></div>
               <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
             </div>
           </button>
@@ -140,10 +141,27 @@
         </div>
       </div>
 
+      <div class="meal-day-list" *ngIf="preferencesCompleted">
+        <div class="meal-day-row" *ngFor="let type of mealTypes">
+          <button type="button" class="meal-day-heading" [id]="'meal-heading-' + type" [attr.aria-expanded]="expandedMealType === type" [attr.aria-controls]="'meal-options-' + type" (click)="toggleMealType(type)">
+            <span class="meal-day-copy">
+              <strong>{{ recipeMealLabels[type] }}</strong>
+              <small *ngIf="chosenMealTitle(type) as title">{{ title }}</small>
+            </span>
+            <ion-icon *ngIf="chosenMealTitle(type)" name="checkmark-circle" class="meal-day-chosen" aria-label="Comida elegida"></ion-icon>
+            <ion-icon [name]="expandedMealType === type ? 'chevron-up-outline' : 'chevron-down-outline'" aria-hidden="true"></ion-icon>
+          </button>
+          <div [id]="'meal-options-' + type" [hidden]="expandedMealType !== type" role="region" [attr.aria-labelledby]="'meal-heading-' + type">
+            <ng-container *ngIf="expandedMealType === type" [ngTemplateOutlet]="mealOptions"></ng-container>
+          </div>
+        </div>
+      </div>
+
+      <ng-template #mealOptions>
       <!-- Caso 2: Cargando recetas con IA -->
       <div class="loading-recipes-box" *ngIf="preferencesCompleted && isLoadingPersonalized">
         <ion-spinner name="crescent"></ion-spinner>
-        <p>Se están procesando tus recetas personalizadas con IA...</p>
+        <p>Preparando tus opciones de {{ recipeMealLabels[selectedMealType].toLowerCase() }}...</p>
       </div>
 
       <!-- Caso 3: Listado de recetas IA -->
@@ -159,8 +177,14 @@
               </ng-template>
               <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
                 <h2>{{ recipe.title }}</h2>
+                <div class="meal-tags"><span *ngFor="let type of recipe.mealTypes">{{ recipeMealLabels[type] }}</span></div>
                 <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
               </div>
+            </button>
+            <button type="button" class="meal-choice-button" [class.chosen]="isMealChosen(recipe)" [attr.aria-pressed]="isMealChosen(recipe)" [disabled]="!!savingChoiceId" (click)="chooseMeal(recipe)">
+              <ion-spinner *ngIf="savingChoiceId === recipe.id; else choiceIcon" name="crescent"></ion-spinner>
+              <ng-template #choiceIcon><ion-icon [name]="isMealChosen(recipe) ? 'close-circle-outline' : 'add-circle-outline'"></ion-icon></ng-template>
+              {{ isMealChosen(recipe) ? 'Quitar selección' : 'Elegir para hoy' }}
             </button>
             <ion-button
               fill="clear"
@@ -174,9 +198,10 @@
           </article>
         </div>
         <ng-template #noAiMeals>
-          <p class="empty-list-text">No se encontraron recetas personalizadas.</p>
+          <p class="empty-list-text" [attr.role]="personalizedError ? 'alert' : null">{{ personalizedError || 'No se encontraron recetas personalizadas.' }}</p>
         </ng-template>
       </div>
+      </ng-template>
     </div>
 
     <!-- Sección de Otras Recetas (Locales/Base de datos) -->
@@ -196,6 +221,7 @@
             </ng-template>
             <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
               <h2>{{ recipe.title }}</h2>
+              <div class="meal-tags"><span *ngFor="let type of recipe.mealTypes">{{ recipeMealLabels[type] }}</span></div>
               <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
             </div>
           </button>
@@ -232,6 +258,7 @@
             </ng-template>
             <div class="meal-copy" [class.grid-copy]="viewMode === 'grid'">
               <h2>{{ recipe.title }}</h2>
+              <div class="meal-tags"><span *ngFor="let type of recipe.mealTypes">{{ recipeMealLabels[type] }}</span></div>
               <p *ngIf="viewMode === 'list'">{{ recipe.description }}</p>
             </div>
           </button>
@@ -321,6 +348,12 @@
         [alt]="selectedRecipe?.title"
       />
       <div class="recipe-detail-body" [class.has-timer]="timerSecondsLeft > 0">
+        <div class="meal-tags"><span *ngFor="let type of selectedRecipe?.mealTypes">{{ recipeMealLabels[type] }}</span></div>
+        <p *ngIf="selectedRecipe?.servings || selectedRecipe?.preparationMinutes" class="recipe-description">
+          <span *ngIf="selectedRecipe?.servings">Porciones: {{ selectedRecipe?.servings }}</span>
+          <span *ngIf="selectedRecipe?.servings && selectedRecipe?.preparationMinutes"> · </span>
+          <span *ngIf="selectedRecipe?.preparationMinutes">Preparación: {{ selectedRecipe?.preparationMinutes }} min</span>
+        </p>
         <p class="recipe-description">{{ selectedRecipe?.description }}</p>
 
         <!-- Lista de Ingredientes Interactiva -->
@@ -331,7 +364,7 @@
                 [class.checked]="checkedIngredients.has(ingredient)"
                 (click)="toggleIngredient(ingredient)">
               <ion-icon [name]="checkedIngredients.has(ingredient) ? 'checkbox' : 'square-outline'"></ion-icon>
-              <span>{{ ingredient }}</span>
+              <span>{{ ingredient | lowercase }}</span>
             </li>
           </ul>
           <ng-template #noIngredients>

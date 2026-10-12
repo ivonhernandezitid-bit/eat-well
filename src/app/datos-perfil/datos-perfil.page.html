@@ -95,54 +95,82 @@
           <ion-icon name="chevron-back-outline"></ion-icon>
           <span>Perfil</span>
         </button>
-        <h1>Recordatorio 24 horas</h1>
-        <p>Registra la rutina habitual de un día normal.</p>
+        <h1>Recordatorio inicial</h1>
+        <p>Alimentos, bebidas y actividades de las últimas 24 horas.</p>
       </div>
 
       <section class="r24h-card">
         <h3>MAÑANA / INICIO DEL DÍA</h3>
-        <div class="clinical-field"><label>Hora de despertar:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.wakeTime" (click)="openTimePicker('wakeTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.wakeTime) }}</span></button></div>
-        <div class="clinical-field"><label>Actividad al despertar:</label><input [(ngModel)]="r24hData.wakeActivity" placeholder="Trabajo de oficina, traslado..." /></div>
+        <div class="clinical-field"><label for="r24h-date">Día recordado:</label><input id="r24h-date" type="date" min="1900-01-01" [max]="r24hMaxDate" [disabled]="r24hLoading || r24hSaving" [(ngModel)]="r24hDate" (ngModelChange)="changeRecallDate($event)" /></div>
+        <div class="clinical-field"><label>Hora de despertar:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving" [class.has-time]="r24hData.wakeTime" (click)="openTimePicker('wakeTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.wakeTime) }}</span></button></div>
+        <div class="clinical-field"><label>Actividad al despertar:</label><input [disabled]="r24hLoading || r24hSaving" [(ngModel)]="r24hData.wakeActivity" placeholder="Trabajo de oficina, traslado..." /></div>
       </section>
 
       <section class="r24h-card">
         <h3>DESAYUNO</h3>
-        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.breakfastTime" (click)="openTimePicker('breakfastTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.breakfastTime) }}</span></button></div>
-        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.breakfastPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
-        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.breakfastDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noBreakfast" (ngModelChange)="setR24hSkipped('noBreakfast', $event)" /> No desayuné</label>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noBreakfast" [class.has-time]="r24hData.breakfastTime" (click)="openTimePicker('breakfastTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.breakfastTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [disabled]="r24hLoading || r24hSaving || r24hData.noBreakfast" [(ngModel)]="r24hData.breakfastPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noBreakfast" [(ngModel)]="r24hData.breakfastDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
       </section>
 
       <section class="r24h-card">
-        <h3>COLACIÓN / SNACK MAÑANA</h3>
-        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.snackTime" (click)="openTimePicker('snackTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.snackTime) }}</span></button></div>
-        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.snackPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
-        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.snackDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+        <h3>COLACIÓN MATUTINA</h3>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noSnack" (ngModelChange)="setR24hSkipped('noSnack', $event)" /> No tomé colación</label>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noSnack" [class.has-time]="r24hData.snackTime" (click)="openTimePicker('snackTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.snackTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [disabled]="r24hLoading || r24hSaving || r24hData.noSnack" [(ngModel)]="r24hData.snackPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noSnack" [(ngModel)]="r24hData.snackDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
       </section>
 
       <section class="r24h-card">
-        <h3>TARDE / JORNADA</h3>
-        <div class="clinical-field"><label>Hora de comida:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.lunchTime" (click)="openTimePicker('lunchTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.lunchTime) }}</span></button></div>
-        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.lunchPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>Fonda / Restaurante</option><option>En otro lugar</option></select></div>
-        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.lunchDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+        <h3>COMIDA</h3>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noLunch" (ngModelChange)="setR24hSkipped('noLunch', $event)" /> No realicé esta comida</label>
+        <div class="clinical-field"><label>Hora de comida:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noLunch" [class.has-time]="r24hData.lunchTime" (click)="openTimePicker('lunchTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.lunchTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [disabled]="r24hLoading || r24hSaving || r24hData.noLunch" [(ngModel)]="r24hData.lunchPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>Fonda / Restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noLunch" [(ngModel)]="r24hData.lunchDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+      </section>
+
+      <section class="r24h-card">
+        <h3>COLACIÓN VESPERTINA</h3>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noAfternoonSnack" (ngModelChange)="setR24hSkipped('noAfternoonSnack', $event)" /> No tomé colación vespertina</label>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noAfternoonSnack" [class.has-time]="r24hData.afternoonSnackTime" (click)="openTimePicker('afternoonSnackTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.afternoonSnackTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [disabled]="r24hLoading || r24hSaving || r24hData.noAfternoonSnack" [(ngModel)]="r24hData.afternoonSnackPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noAfternoonSnack" [(ngModel)]="r24hData.afternoonSnackDetails" placeholder="Describe alimentos, cantidades y bebidas..."></textarea></div>
       </section>
 
       <section class="r24h-card">
         <h3>ACTIVIDAD FÍSICA / MOVILIDAD COTIDIANA</h3>
-        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.activityTime" (click)="openTimePicker('activityTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.activityTime) }}</span></button></div>
-        <div class="clinical-field"><label>Tipo de actividad o movimiento:</label><input [(ngModel)]="r24hData.activityType" placeholder="Caminata, ejercicio en casa, traslado..." /></div>
-        <div class="clinical-field"><label>Duración aproximada:</label><input [(ngModel)]="r24hData.activityDuration" placeholder="Ej. 45 minutos" /></div>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noActivity" (ngModelChange)="setR24hSkipped('noActivity', $event)" /> No realicé actividad física</label>
+        <div class="clinical-field"><label>Hora:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noActivity" [class.has-time]="r24hData.activityTime" (click)="openTimePicker('activityTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.activityTime) }}</span></button></div>
+        <div class="clinical-field"><label>Tipo de actividad o movimiento:</label><input [disabled]="r24hLoading || r24hSaving || r24hData.noActivity" [(ngModel)]="r24hData.activityType" placeholder="Caminata, ejercicio en casa, traslado..." /></div>
+        <div class="clinical-field"><label>Duración aproximada:</label><input [disabled]="r24hLoading || r24hSaving || r24hData.noActivity" [(ngModel)]="r24hData.activityDuration" placeholder="Ej. 45 minutos" /></div>
       </section>
 
       <section class="r24h-card">
-        <h3>NOCHE / CIERRE DEL DÍA</h3>
-        <div class="clinical-field"><label>Hora de cena:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.dinnerTime" (click)="openTimePicker('dinnerTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.dinnerTime) }}</span></button></div>
-        <div class="clinical-field"><label>Lugar:</label><select [(ngModel)]="r24hData.dinnerPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
-        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [(ngModel)]="r24hData.dinnerDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
-        <div class="clinical-field"><label>Hora de dormir:</label><button type="button" class="time-picker-trigger" [class.has-time]="r24hData.sleepTime" (click)="openTimePicker('sleepTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.sleepTime) }}</span></button></div>
+        <h3>CENA</h3>
+        <label class="clinical-check clinical-optional"><input type="checkbox" [disabled]="r24hLoading || r24hSaving" [ngModel]="r24hData.noDinner" (ngModelChange)="setR24hSkipped('noDinner', $event)" /> No cené</label>
+        <div class="clinical-field"><label>Hora de cena:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving || r24hData.noDinner" [class.has-time]="r24hData.dinnerTime" (click)="openTimePicker('dinnerTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.dinnerTime) }}</span></button></div>
+        <div class="clinical-field"><label>Lugar:</label><select [disabled]="r24hLoading || r24hSaving || r24hData.noDinner" [(ngModel)]="r24hData.dinnerPlace"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En la oficina</option><option>En restaurante</option><option>En otro lugar</option></select></div>
+        <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noDinner" [(ngModel)]="r24hData.dinnerDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
+        <div class="clinical-field"><label>Hora de dormir:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving" [class.has-time]="r24hData.sleepTime" (click)="openTimePicker('sleepTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.sleepTime) }}</span></button></div>
       </section>
 
-      <ion-button class="profile-module-save-button" (click)="saveR24h()">Guardar y continuar</ion-button>
-      <ion-button class="profile-module-save-button" (click)="clearR24hModule()">Borrar datos y volver a capturar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">Guardar y continuar</ion-button>
+    </div>
+
+    <div *ngIf="view === 'schedule'" class="r24h-shell">
+      <div class="profile-module-title">
+        <button type="button" class="profile-module-back" (click)="returnToProfile()"><ion-icon name="chevron-back-outline"></ion-icon><span>Perfil</span></button>
+        <h1>Horarios de alimentación</h1>
+      </div>
+      <p *ngIf="scheduleLoading">Cargando horarios...</p>
+      <section *ngIf="mealSchedule as schedule" class="r24h-card">
+        <div *ngFor="let meal of scheduleMeals" class="clinical-field">
+          <label [for]="'meal-time-' + meal.field">{{ meal.label }}</label>
+          <input type="time" [id]="'meal-time-' + meal.field" [(ngModel)]="schedule[meal.field]" [disabled]="scheduleLoading || scheduleSaving" />
+        </div>
+      </section>
+      <ion-button *ngIf="mealSchedule" class="profile-module-save-button" [disabled]="scheduleLoading || scheduleSaving" (click)="saveMealSchedule()">Guardar horarios</ion-button>
     </div>
 
     <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
@@ -280,91 +308,90 @@
 
       <section class="clinical-card">
         <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>
-        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.familyNone" /> No aplica</label>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyNone" (ngModelChange)="setClinicalField('familyNone', $event)" /> No aplica</label>
         <div class="clinical-check-grid">
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyDiabetes" /> Diabetes Mellitus</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyHypertension" /> Hipertensión</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyObesity" /> Obesidad / Sobrepeso</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyCholesterol" /> Colesterol / Triglic.</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyCancer" /> Cáncer</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyRenal" /> Enfermedades renales</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.familyThyroid" /> Tiroides</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyDiabetes" (ngModelChange)="setClinicalField('familyDiabetes', $event)" /> Diabetes Mellitus</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyHypertension" (ngModelChange)="setClinicalField('familyHypertension', $event)" /> Hipertensión</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyObesity" (ngModelChange)="setClinicalField('familyObesity', $event)" /> Obesidad / Sobrepeso</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyCholesterol" (ngModelChange)="setClinicalField('familyCholesterol', $event)" /> Colesterol / Triglic.</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyCancer" (ngModelChange)="setClinicalField('familyCancer', $event)" /> Cáncer</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyRenal" (ngModelChange)="setClinicalField('familyRenal', $event)" /> Enfermedades renales</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyThyroid" (ngModelChange)="setClinicalField('familyThyroid', $event)" /> Tiroides</label>
         </div>
       </section>
 
       <section class="clinical-card">
         <h3>2. ANTECEDENTES PATOLÓGICOS PERSONALES</h3>
-        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.diagnosisNone" /> No aplica</label>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisNone" (ngModelChange)="setClinicalField('diagnosisNone', $event)" /> No aplica</label>
         <div class="clinical-check-grid">
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisDiabetes" /> Diabetes (Tipo 1 / 2)</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisHypertension" /> Hipertensión Arterial</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisFattyLiver" /> Hígado Graso</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisSop" /> SOP (Ovario Poliq.)</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisGout" /> Ácido Úrico Alto / Gota</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.diagnosisHypothyroidism" /> Hipotiroidismo</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisDiabetes" (ngModelChange)="setClinicalField('diagnosisDiabetes', $event)" /> Diabetes (Tipo 1 / 2)</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypertension" (ngModelChange)="setClinicalField('diagnosisHypertension', $event)" /> Hipertensión Arterial</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisFattyLiver" (ngModelChange)="setClinicalField('diagnosisFattyLiver', $event)" /> Hígado Graso</label>
+          <label *ngIf="clinicalGender === 'female'"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisSop" (ngModelChange)="setClinicalField('diagnosisSop', $event)" /> SOP (Ovario Poliq.)</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisGout" (ngModelChange)="setClinicalField('diagnosisGout', $event)" /> Ácido Úrico Alto / Gota</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypothyroidism" (ngModelChange)="setClinicalField('diagnosisHypothyroidism', $event)" /> Hipotiroidismo</label>
         </div>
-        <div class="clinical-field"><label>Cirugías previas:</label><input [(ngModel)]="clinicalData.surgeries" placeholder="Escribe cirugías y año..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.surgeriesNone" /> No aplica</label></div>
-        <div class="clinical-field"><label>Hospitalizaciones:</label><input [(ngModel)]="clinicalData.hospitalizations" placeholder="Escribe motivo y fecha..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.hospitalizationsNone" /> No aplica</label></div>
+        <div class="clinical-field"><label>Cirugías previas:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.surgeriesNone" [ngModel]="clinicalData.surgeries" (ngModelChange)="setClinicalField('surgeries', $event)" placeholder="Escribe cirugías y año..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.surgeriesNone" (ngModelChange)="setClinicalField('surgeriesNone', $event)" /> No aplica</label></div>
+        <div class="clinical-field"><label>Hospitalizaciones:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.hospitalizationsNone" [ngModel]="clinicalData.hospitalizations" (ngModelChange)="setClinicalField('hospitalizations', $event)" placeholder="Escribe motivo y fecha..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.hospitalizationsNone" (ngModelChange)="setClinicalField('hospitalizationsNone', $event)" /> No aplica</label></div>
       </section>
 
       <section class="clinical-card">
         <h3>3. SALUD INTEGRAL Y BIENESTAR EMOCIONAL</h3>
         <p class="clinical-help">Selecciona cualquier condición actual o previa. Si ninguna corresponde, marca No aplica.</p>
-        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.wellbeingNone" /> No aplica</label>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingNone" (ngModelChange)="setClinicalField('wellbeingNone', $event)" /> No aplica</label>
         <div class="clinical-check-grid">
-          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingAnemia" /> Anemia</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingBulimia" /> Bulimia</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingDepression" /> Depresión</label>
-          <label><input type="checkbox" [(ngModel)]="clinicalData.wellbeingAnxiety" /> Ansiedad diagnosticada</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingAnemia" (ngModelChange)="setClinicalField('wellbeingAnemia', $event)" /> Anemia</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingBulimia" (ngModelChange)="setClinicalField('wellbeingBulimia', $event)" /> Bulimia</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingDepression" (ngModelChange)="setClinicalField('wellbeingDepression', $event)" /> Depresión</label>
+          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingAnxiety" (ngModelChange)="setClinicalField('wellbeingAnxiety', $event)" /> Ansiedad diagnosticada</label>
         </div>
-        <div class="clinical-field"><label>Otra condición o situación relevante:</label><input [(ngModel)]="clinicalData.wellbeingOther" placeholder="Escribe una condición o situación..." /></div>
-        <div class="clinical-field"><label>¿Recibes tratamiento o seguimiento?</label><select [(ngModel)]="clinicalData.wellbeingTreatment"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
-        <div class="clinical-field"><label>¿Cuentas con apoyo profesional?</label><select [(ngModel)]="clinicalData.wellbeingSupport"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
-        <div class="clinical-field"><label>Información adicional que quieras compartir:</label><input [(ngModel)]="clinicalData.wellbeingNotes" placeholder="Opcional" /></div>
+        <div class="clinical-field"><label>Otra condición o situación relevante:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.wellbeingNone" [ngModel]="clinicalData.wellbeingOther" (ngModelChange)="setClinicalField('wellbeingOther', $event)" placeholder="Escribe una condición o situación..." /></div>
+        <div class="clinical-field"><label>¿Recibes tratamiento o seguimiento?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingTreatment" (ngModelChange)="setClinicalField('wellbeingTreatment', $event)"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
+        <div class="clinical-field"><label>¿Cuentas con apoyo profesional?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingSupport" (ngModelChange)="setClinicalField('wellbeingSupport', $event)"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
+        <div class="clinical-field"><label>Información adicional que quieras compartir:</label><input [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingNotes" (ngModelChange)="setClinicalField('wellbeingNotes', $event)" placeholder="Opcional" /></div>
       </section>
 
-      <section class="clinical-card" *ngIf="gender === 'female'">
+      <section class="clinical-card" *ngIf="clinicalGender === 'female'">
         <h3>4. SALUD GINECO-OBSTÉTRICA</h3>
-        <div class="clinical-field"><label>¿Embarazada actualmente?</label><select [(ngModel)]="clinicalData.pregnant"><option>No</option><option>Sí</option></select></div>
-        <div class="clinical-field"><label>¿En periodo de lactancia?</label><select [(ngModel)]="clinicalData.lactating"><option>No</option><option>Sí</option></select></div>
-        <div class="clinical-field"><label>Ciclo menstrual:</label><select [(ngModel)]="clinicalData.menstrualCycle"><option>Regular</option><option>Irregular</option></select></div>
+        <div class="clinical-field"><label>¿Embarazada actualmente?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.pregnant" (ngModelChange)="setClinicalField('pregnant', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
+        <div class="clinical-field"><label>¿En periodo de lactancia?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.lactating" (ngModelChange)="setClinicalField('lactating', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
+        <div class="clinical-field"><label>Ciclo menstrual:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.menstrualCycle" (ngModelChange)="setClinicalField('menstrualCycle', $event)"><option value="" disabled>Selecciona una opción</option><option>Regular</option><option>Irregular</option><option>No aplica</option></select></div>
       </section>
 
       <section class="clinical-card">
-        <h3>{{ gender === 'female' ? 5 : 4 }}. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
-        <label class="clinical-check clinical-none"><input type="checkbox" [(ngModel)]="clinicalData.allergiesNone" /> No aplica</label>
+        <h3>{{ clinicalGender === 'female' ? 5 : 4 }}. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.allergiesNone" (ngModelChange)="setClinicalField('allergiesNone', $event)" /> No aplica</label>
         <div class="clinical-check-grid allergy-grid">
-          <label *ngFor="let allergy of allergyOptions"><input type="checkbox" [checked]="clinicalData.allergies.includes(allergy)" (change)="toggleClinicalAllergy(allergy)" /> {{ allergy }}</label>
+          <label *ngFor="let allergy of allergyOptions"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [checked]="clinicalData.allergies.includes(allergy)" (change)="toggleClinicalAllergy(allergy)" /> {{ allergy }}</label>
         </div>
-        <div class="clinical-field"><label>Otras alergias:</label><input [(ngModel)]="clinicalData.otherAllergies" placeholder="Escribe otras alergias..." /></div>
-        <div class="clinical-field"><label>Medicamentos actuales:</label><input [(ngModel)]="clinicalData.medications" placeholder="Fármaco, dosis y frecuencia" /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.medicationsNone" /> No aplica</label></div>
-        <div class="clinical-field"><label>Alergias a medicamentos:</label><input [(ngModel)]="clinicalData.medicationAllergies" placeholder="Ej. Penicilina..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.medicationAllergiesNone" /> No aplica</label></div>
-        <div class="clinical-field"><label>Suplementos / Proteínas:</label><input [(ngModel)]="clinicalData.supplements" placeholder="Ej. Omega 3, creatina..." /><label class="clinical-check clinical-optional"><input type="checkbox" [(ngModel)]="clinicalData.supplementsNone" /> No aplica</label></div>
-        <div class="clinical-field"><label>¿Has usado pastillas para bajar de peso?</label><select [(ngModel)]="clinicalData.weightLossTreatment"><option>No</option><option>Sí</option></select></div>
+        <div class="clinical-field"><label>Otras alergias:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.allergiesNone" [ngModel]="clinicalData.otherAllergies" (ngModelChange)="setClinicalField('otherAllergies', $event)" placeholder="Escribe otras alergias..." /></div>
+        <div class="clinical-field"><label>Medicamentos actuales:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.medicationsNone" [ngModel]="clinicalData.medications" (ngModelChange)="setClinicalField('medications', $event)" placeholder="Fármaco, dosis y frecuencia" /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.medicationsNone" (ngModelChange)="setClinicalField('medicationsNone', $event)" /> No aplica</label></div>
+        <div class="clinical-field"><label>Alergias a medicamentos:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.medicationAllergiesNone" [ngModel]="clinicalData.medicationAllergies" (ngModelChange)="setClinicalField('medicationAllergies', $event)" placeholder="Ej. Penicilina..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.medicationAllergiesNone" (ngModelChange)="setClinicalField('medicationAllergiesNone', $event)" /> No aplica</label></div>
+        <div class="clinical-field"><label>Suplementos / Proteínas:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.supplementsNone" [ngModel]="clinicalData.supplements" (ngModelChange)="setClinicalField('supplements', $event)" placeholder="Ej. Omega 3, creatina..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.supplementsNone" (ngModelChange)="setClinicalField('supplementsNone', $event)" /> No aplica</label></div>
+        <div class="clinical-field"><label>¿Has usado pastillas para bajar de peso?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.weightLossTreatment" (ngModelChange)="setClinicalField('weightLossTreatment', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
       </section>
 
       <section class="clinical-card">
-        <h3>{{ gender === 'female' ? 6 : 5 }}. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
-        <div class="clinical-field"><label>Horas de sueño:</label><select [(ngModel)]="clinicalData.sleepHours"><option>7-8 hrs</option><option>Menos de 6 hrs</option><option>Más de 8 hrs</option></select></div>
-        <div class="clinical-field"><label>Calidad del sueño:</label><select [(ngModel)]="clinicalData.sleepQuality"><option>Reparador</option><option>No reparador</option></select></div>
-        <div class="clinical-field"><label>Frecuencia evacuaciones / baño:</label><select [(ngModel)]="clinicalData.bowelFrequency"><option>1 a 2 veces al día</option><option>Menos de 1 vez al día</option></select></div>
-        <div class="clinical-field"><label>Consumo de alcohol:</label><select [(ngModel)]="clinicalData.alcohol"><option>Ocasional</option><option>Frecuente</option><option>No consumo</option></select></div>
-        <div class="clinical-field"><label>Consumo de tabaco:</label><select [(ngModel)]="clinicalData.tobacco"><option>No fumo</option><option>Fumo</option></select></div>
-        <div class="clinical-field" *ngIf="clinicalData.tobacco === 'Fumo'"><label>Cigarrillos al día:</label><input type="number" min="0" [(ngModel)]="clinicalData.cigarettesPerDay" /></div>
-        <div class="clinical-field"><label>Vapeo / Otras sustancias:</label><select [(ngModel)]="clinicalData.otherSubstances"><option>No</option><option>Sí</option></select></div>
+        <h3>{{ clinicalGender === 'female' ? 6 : 5 }}. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
+        <div class="clinical-field"><label>Horas de sueño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.sleepHours" (ngModelChange)="setClinicalField('sleepHours', $event)"><option value="" disabled>Selecciona una opción</option><option>7-8 hrs</option><option>Menos de 6 hrs</option><option>Más de 8 hrs</option></select></div>
+        <div class="clinical-field"><label>Calidad del sueño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.sleepQuality" (ngModelChange)="setClinicalField('sleepQuality', $event)"><option value="" disabled>Selecciona una opción</option><option>Reparador</option><option>No reparador</option></select></div>
+        <div class="clinical-field"><label>Frecuencia evacuaciones / baño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.bowelFrequency" (ngModelChange)="setClinicalField('bowelFrequency', $event)"><option value="" disabled>Selecciona una opción</option><option>1 a 2 veces al día</option><option>Menos de 1 vez al día</option></select></div>
+        <div class="clinical-field"><label>Consumo de alcohol:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.alcohol" (ngModelChange)="setClinicalField('alcohol', $event)"><option value="" disabled>Selecciona una opción</option><option>Ocasional</option><option>Frecuente</option><option>No consumo</option></select></div>
+        <div class="clinical-field"><label>Consumo de tabaco:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.tobacco" (ngModelChange)="setClinicalField('tobacco', $event)"><option value="" disabled>Selecciona una opción</option><option>No fumo</option><option>Fumo</option></select></div>
+        <div class="clinical-field" *ngIf="clinicalData.tobacco === 'Fumo'"><label>Cigarrillos al día:</label><input [disabled]="clinicalLoading || clinicalSaving" type="number" min="1" max="65535" step="1" [ngModel]="clinicalData.cigarettesPerDay" (ngModelChange)="setClinicalField('cigarettesPerDay', $event)" /></div>
+        <div class="clinical-field"><label>Vapeo / Otras sustancias:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.otherSubstances" (ngModelChange)="setClinicalField('otherSubstances', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
       </section>
 
       <section class="clinical-card">
-        <h3>{{ gender === 'female' ? 7 : 6 }}. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
-        <div class="clinical-field"><label>¿Quién cocina en casa?</label><select [(ngModel)]="clinicalData.cooksAtHome"><option>Yo mismo(a)</option><option>Otra persona</option></select></div>
-        <div class="clinical-field"><label>Lugar donde comes entre semana:</label><select [(ngModel)]="clinicalData.weekdayPlace"><option>En casa</option><option>En el trabajo</option></select></div>
-        <div class="clinical-field"><label>Apetito general:</label><select [(ngModel)]="clinicalData.appetite"><option>Normal</option><option>Bajo</option><option>Alto</option></select></div>
-        <div class="clinical-field"><label>Ansiedad / Atracones:</label><select [(ngModel)]="clinicalData.anxiety"><option>Sí</option><option>No</option></select></div>
-        <div class="clinical-field"><label>Agua natural al día:</label><select [(ngModel)]="clinicalData.waterLiters"><option [ngValue]="2">2 litros</option><option [ngValue]="1">1 litro</option><option [ngValue]="3">3 litros</option></select></div>
+        <h3>{{ clinicalGender === 'female' ? 7 : 6 }}. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
+        <div class="clinical-field"><label>¿Quién cocina en casa?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.cooksAtHome" (ngModelChange)="setClinicalField('cooksAtHome', $event)"><option value="" disabled>Selecciona una opción</option><option>Yo mismo(a)</option><option>Otra persona</option></select></div>
+        <div class="clinical-field"><label>Lugar donde comes entre semana:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.weekdayPlace" (ngModelChange)="setClinicalField('weekdayPlace', $event)"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En el trabajo</option></select></div>
+        <div class="clinical-field"><label>Apetito general:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.appetite" (ngModelChange)="setClinicalField('appetite', $event)"><option value="" disabled>Selecciona una opción</option><option>Normal</option><option>Bajo</option><option>Alto</option></select></div>
+        <div class="clinical-field"><label>Ansiedad / Atracones:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.anxiety" (ngModelChange)="setClinicalField('anxiety', $event)"><option value="" disabled>Selecciona una opción</option><option>Sí</option><option>No</option></select></div>
+        <div class="clinical-field"><label>Agua natural al día:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.waterLiters" (ngModelChange)="setClinicalField('waterLiters', $event)"><option [ngValue]="null" disabled>Selecciona una opción</option><option [ngValue]="2">2 litros</option><option [ngValue]="1">1 litro</option><option [ngValue]="3">3 litros</option></select></div>
       </section>
 
-      <ion-button class="profile-module-save-button" (click)="saveClinicalHistory()">Guardar y continuar</ion-button>
-      <ion-button class="profile-module-save-button" (click)="clearClinicalModule()">Borrar datos y volver a capturar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="clinicalLoading || clinicalSaving" (click)="saveClinicalHistory()">Guardar y continuar</ion-button>
     </div>
 
     <div *ngIf="view === 'general'" class="datos-generales-shell">
@@ -424,31 +451,16 @@
         </div>
 
         <div class="field-row">
-          <label>Ocupación / Actividad laboral:</label>
-          <select [(ngModel)]="activityLevel">
-            <option value="sedentary">Sedentario (trabajo de oficina)</option>
-            <option value="standing">De pie (vendedor / docente)</option>
-            <option value="active">Activa (trabajo físico)</option>
-          </select>
-        </div>
-      </section>
-
-      <section class="datos-card">
-        <h3>CONTACTO Y LOCALIZACIÓN</h3>
-
-        <div class="field-row">
-          <label>Teléfono de contacto:</label>
-          <input type="tel" [(ngModel)]="phone" placeholder="618 123 4567" />
-        </div>
-
-        <div class="field-row">
-          <label>Ciudad / Municipio:</label>
-          <input type="text" [(ngModel)]="municipality" placeholder="Durango, Dgo." />
+          <label>Actividad diaria:</label>
+          <ion-select [(ngModel)]="activityLevel" [selectedText]="activityLevelLabel" interface="action-sheet" cancelText="Cancelar" aria-label="Actividad diaria">
+            <ion-select-option value="sedentary">Sentado: oficina, estudio o teletrabajo</ion-select-option>
+            <ion-select-option value="standing">De pie: ventas, docencia o limpieza</ion-select-option>
+            <ion-select-option value="active">Trabajo físico: obra, campo o carga</ion-select-option>
+          </ion-select>
         </div>
       </section>
 
       <ion-button class="profile-module-save-button" (click)="saveAndContinueToHistory()">Guardar y continuar</ion-button>
-      <ion-button class="profile-module-save-button" (click)="clearGeneralModule()">Borrar datos y volver a capturar</ion-button>
 
     </div>
 

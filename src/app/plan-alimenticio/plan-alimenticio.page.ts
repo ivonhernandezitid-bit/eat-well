@@ -3,8 +3,10 @@ import { ActionSheetController, AlertController, Platform } from '@ionic/angular
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
 import { calculateMacroTargets, loadLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
+import { RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
+import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
 
-interface MealCardView {
+interface MealCardView extends RecipeMetadata {
   id: string;
   title: string;
   description: string;
@@ -42,9 +44,20 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   macroTargets: MacroTargets | null = null;
   
   isLoadingPersonalized = false;
+  personalizedError = '';
   preferencesCompleted = false;
+  selectedMealType: RecipeMealType = 'breakfast';
+  expandedMealType: RecipeMealType | null = null;
+  readonly mealTypes = Object.keys(recipeMealLabels) as RecipeMealType[];
+  dailyPlan: DailyMealPlan | null = null;
+  savingChoiceId: string | null = null;
+  private optionsContext = '';
+  private optionSets: Partial<Record<RecipeMealType, Recipe[]>> = {};
+  private optionRequest = 0;
+  private optionLoads = new Map<string, Promise<Recipe[]>>();
 
   viewMode: 'list' | 'grid' = 'list';
+  readonly recipeMealLabels = recipeMealLabels;
   checkedIngredients = new Set<string>();
 
   activeTimerStep = '';
@@ -90,6 +103,71 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   toggleViewMode(): void {
     this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+  }
+
+  async toggleMealType(type: RecipeMealType): Promise<void> {
+    if (this.expandedMealType === type) {
+      this.expandedMealType = null;
+      ++this.optionRequest;
+      this.isLoadingPersonalized = false;
+      return;
+    }
+    this.selectedMealType = type;
+    this.expandedMealType = type;
+    if (this.user && this.preferencesCompleted) await this.loadMealOptions(this.user);
+  }
+
+  chosenMealTitle(type: RecipeMealType): string {
+    return this.dailyPlan?.date === mealPlanDate() ? this.dailyPlan.choices[type]?.title ?? '' : '';
+  }
+
+  isMealChosen(recipe: MealCardView): boolean {
+    return this.dailyPlan?.date === mealPlanDate() && this.dailyPlan.choices[this.selectedMealType]?.id === recipe.id;
+  }
+
+  async chooseMeal(recipe: MealCardView): Promise<void> {
+    if (!this.user || this.savingChoiceId) return;
+    const userId = this.user.id;
+    const type = this.selectedMealType;
+    const date = mealPlanDate();
+    const remove = this.isMealChosen(recipe);
+    this.savingChoiceId = recipe.id;
+    try {
+      const plan = remove
+        ? await this.eatWellService.clearDailyMeal(type, date)
+        : await this.eatWellService.chooseDailyMeal(type, recipe.id, date);
+      if (this.activeUserId === userId && plan.date === mealPlanDate()) this.dailyPlan = plan;
+    } catch (error) {
+      if (this.activeUserId === userId) await this.showError(error instanceof Error ? error.message : 'No se pudo guardar tu eleccion.');
+    } finally {
+      if (this.activeUserId === userId) this.savingChoiceId = null;
+    }
+  }
+
+  private async loadMealOptions(user: UserProfile): Promise<void> {
+    const type = this.selectedMealType;
+    const version = ++this.optionRequest;
+    const context = this.optionsContext;
+    this.recipes = this.optionSets[type] ?? [];
+    this.personalizedError = '';
+    this.isLoadingPersonalized = this.recipes.length === 0;
+    if (this.recipes.length) return;
+    const key = `${user.id}:${context}:${type}`;
+    let request = this.optionLoads.get(key);
+    if (!request) {
+      request = this.eatWellService.getMealOptions(type);
+      this.optionLoads.set(key, request);
+    }
+    try {
+      const recipes = await request;
+      if (this.activeUserId === user.id && this.optionsContext === context) this.optionSets[type] = recipes;
+      if (version === this.optionRequest && this.activeUserId === user.id) this.recipes = recipes;
+    } catch (error) {
+      if (version === this.optionRequest && this.activeUserId === user.id) this.personalizedError = error instanceof Error ? error.message : 'No se pudieron generar tus opciones. Vuelve a entrar al plan para reintentar.';
+    } finally {
+      if (this.optionLoads.get(key) === request) this.optionLoads.delete(key);
+      if (version === this.optionRequest && this.activeUserId === user.id) this.isLoadingPersonalized = false;
+    }
   }
 
   toggleIngredient(ingredient: string): void {
@@ -165,6 +243,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   get scanMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
     const list: MealCardView[] = this.scanRecipes.map(recipe => ({
+      ...this.mealMetadata(recipe),
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -189,6 +268,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   get aiMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
     const list: MealCardView[] = this.recipes.map(recipe => ({
+      ...this.mealMetadata(recipe),
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -213,6 +293,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   get favoriteMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
     const list: MealCardView[] = this.favoriteRecipes.map(recipe => ({
+      ...this.mealMetadata(recipe),
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -239,6 +320,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     const list: MealCardView[] = this.generalRecipes
       .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
       .map(recipe => ({
+        ...this.mealMetadata(recipe),
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
@@ -379,6 +461,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       }
 
       const favorite = await this.eatWellService.addFavoriteRecipe({
+        ...this.mealMetadata(recipe),
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
@@ -416,6 +499,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         savedRecipe.id === details.id ? details : savedRecipe,
       );
       this.selectedRecipe = {
+        ...this.mealMetadata(details),
         id: details.id,
         title: details.title,
         description: details.description,
@@ -439,11 +523,23 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.stopTimer();
   }
 
+  private mealMetadata(recipe: RecipeMetadata & { title: string; description: string }): RecipeMetadata {
+    return { mealTypes: recipeMealTypes(recipe), servings: recipe.servings, preparationMinutes: recipe.preparationMinutes, validationNotes: recipe.validationNotes, ingredientData: recipe.ingredientData, nutrition: recipe.nutrition };
+  }
+
   private findFavoriteId(title: string): string | null {
     return this.favoriteRecipes.find(recipe => recipe.title === title)?.favoriteId ?? null;
   }
 
   private resetMealState(): void {
+    ++this.optionRequest;
+    this.optionSets = {};
+    this.optionsContext = '';
+    this.dailyPlan = null;
+    this.savingChoiceId = null;
+    this.selectedMealType = 'breakfast';
+    this.expandedMealType = null;
+    this.personalizedError = '';
     this.recipes = [];
     this.generalRecipes = [];
     this.scanRecipes = [];
@@ -482,7 +578,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.macroTargets = lifestyleSettings ? calculateMacroTargets(user, lifestyleSettings) : null;
 
     try {
-      const [prefs, general, favorites, scanHistory] = await Promise.all([
+      const [prefs, general, favorites, scanHistory, dailyPlan] = await Promise.all([
         this.eatWellService.getFoodPreferences().catch(() => null),
         this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
@@ -490,6 +586,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
           console.error('Error loading scan history', error);
           return [];
         }),
+        this.eatWellService.getDailyMealPlan(),
       ]);
 
       if (this.activeUserId !== user.id) {
@@ -500,19 +597,15 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
       this.scanHistory = scanHistory;
+      this.dailyPlan = dailyPlan.date === mealPlanDate() ? dailyPlan : null;
+      const context = JSON.stringify([user, prefs]);
+      if (context !== this.optionsContext) { this.optionsContext = context; this.optionSets = {}; }
 
-      if (this.preferencesCompleted) {
-        this.isLoadingPersonalized = true;
-        try {
-          this.recipes = await this.eatWellService.getPersonalizedRecipes(user);
-        } catch (err) {
-          console.error('Error fetching personalized recipes', err);
-          this.recipes = [];
-        } finally {
-          this.isLoadingPersonalized = false;
-        }
+      if (this.preferencesCompleted && this.expandedMealType) {
+        await this.loadMealOptions(user);
       } else {
         this.recipes = [];
+        this.personalizedError = '';
       }
     } catch (error) {
       if (this.activeUserId === user.id) {

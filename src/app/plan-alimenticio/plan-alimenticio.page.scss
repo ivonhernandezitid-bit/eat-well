@@ -270,6 +270,64 @@ ion-content {
   gap: 14px;
 }
 
+.meal-day-row {
+  border-bottom: 1px solid #dfe9e2;
+}
+
+.meal-day-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 56px;
+  padding: 14px 0;
+  border: 0;
+  background: transparent;
+  color: var(--eatwell-green-700, #245d3b);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.meal-day-heading:focus-visible {
+  outline: 2px solid #2e7d5f;
+  outline-offset: 2px;
+}
+
+.meal-day-copy {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.meal-day-copy strong { font-size: 0.95rem; }
+.meal-day-copy small { color: var(--eatwell-muted, #5d6d63); font-size: 0.75rem; }
+.meal-day-heading ion-icon { width: 20px; height: 20px; flex-shrink: 0; }
+.meal-day-row > [role='region']:not([hidden]) { padding-bottom: 14px; }
+
+.meal-choice-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px;
+  border: 0;
+  border-top: 1px solid #e4eee6;
+  background: #f4faf5;
+  color: #245d3b;
+  font: inherit;
+  font-size: 0.8rem;
+  white-space: normal;
+}
+
+.meal-choice-button.chosen { background: #e3f2e8; }
+.meal-choice-button ion-icon, .meal-choice-button ion-spinner { width: 18px; height: 18px; flex-shrink: 0; }
+.ai-recipe-card.grid-card .meal-open.grid-open { height: auto; }
+
 .meal-card {
   position: relative;
   width: 100%;
@@ -322,6 +380,25 @@ ion-content {
 
 .meal-icon-box ion-icon {
   font-size: 28px;
+}
+
+.meal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0;
+}
+
+.meal-tags span {
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #e7f3ea;
+  color: #245d3b;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .meal-copy h2 {

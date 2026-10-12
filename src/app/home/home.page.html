@@ -44,28 +44,28 @@
       <div class="calorie-summary">
         <div class="calorie-ring" role="progressbar" aria-label="Calorías consumidas" aria-valuemin="0" [attr.aria-valuemax]="macroTargets.calories" [attr.aria-valuenow]="caloriesConsumed" [style.--ring-progress.%]="calorieProgress">
           <div class="calorie-ring-center">
-            <strong>{{ caloriesConsumed | number }}</strong>
+            <strong [style.font-size]="nutritionIncomplete('calories') ? '0.9rem' : null">{{ nutritionIncomplete('calories') ? 'Pendiente' : (caloriesConsumed | number) }}</strong>
             <span>de {{ macroTargets.calories | number }} kcal</span>
           </div>
         </div>
         <div class="calorie-copy">
-          <strong>{{ calorieProgress }}%</strong>
+          <strong [style.font-size]="nutritionIncomplete('calories') ? '1rem' : null">{{ nutritionIncomplete('calories') ? 'Pendiente' : calorieProgress + '%' }}</strong>
           <span>de tu meta diaria</span>
-          <small>{{ caloriesRemaining | number }} kcal restantes</small>
+          <small>{{ nutritionIncomplete('calories') ? 'Consumo pendiente de calcular' : (caloriesRemaining | number) + ' kcal restantes' }}</small>
         </div>
       </div>
 
       <div class="macro-grid">
         <div class="macro-item protein">
-          <div><span>Proteína</span><strong>{{ proteinConsumed }} / {{ macroTargets.protein }} g</strong></div>
+          <div><span>Proteína</span><strong>{{ nutritionIncomplete('protein') ? 'Pendiente' : (proteinConsumed | number:'1.0-1') }} / {{ macroTargets.protein }} g</strong></div>
           <div class="macro-track"><span [style.width.%]="proteinProgress"></span></div>
         </div>
         <div class="macro-item carbohydrate">
-          <div><span>Carbohidratos</span><strong>{{ carbohydratesConsumed }} / {{ macroTargets.carbohydrates }} g</strong></div>
+          <div><span>Carbohidratos</span><strong>{{ nutritionIncomplete('carbohydrates') ? 'Pendiente' : (carbohydratesConsumed | number:'1.0-1') }} / {{ macroTargets.carbohydrates }} g</strong></div>
           <div class="macro-track"><span [style.width.%]="carbohydrateProgress"></span></div>
         </div>
         <div class="macro-item fat">
-          <div><span>Grasas</span><strong>{{ fatConsumed }} / {{ macroTargets.fat }} g</strong></div>
+          <div><span>Grasas</span><strong>{{ nutritionIncomplete('fat') ? 'Pendiente' : (fatConsumed | number:'1.0-1') }} / {{ macroTargets.fat }} g</strong></div>
           <div class="macro-track"><span [style.width.%]="fatProgress"></span></div>
         </div>
       </div>
@@ -74,7 +74,7 @@
     <section class="meal-card" aria-label="Siguiente comida del plan">
       <div class="section-heading">
         <div>
-          <span class="eyebrow">{{ mealTimeLabel }} ({{ mealScheduledTime }} hrs)</span>
+          <span class="eyebrow">{{ mealTimeLabel }}<ng-container *ngIf="mealScheduledTime"> ({{ mealScheduledTime }} hrs)</ng-container></span>
           <h2>Próxima comida del plan</h2>
         </div>
         <div class="meal-heading-icon"><ion-icon name="restaurant-outline"></ion-icon></div>
@@ -86,20 +86,20 @@
             <h3>{{ meal.title }}</h3>
             <p>{{ meal.description }}</p>
           </div>
-          <div class="meal-calories"><strong>{{ meal.calories }}</strong><span>kcal</span></div>
+          <div class="meal-calories" [attr.title]="meal.nutrition?.warnings?.join(' ') || 'Estimación BAM por porción'"><strong [style.font-size]="meal.calories == null ? '0.85rem' : null">{{ meal.calories == null ? 'Pendiente' : (meal.calories | number:'1.0-1') }}</strong><span>kcal / porción</span></div>
         </div>
         <div class="meal-macros">
-          <span>{{ meal.proteinGrams }} g proteína</span>
-          <span>{{ meal.carbsGrams }} g carbohidratos</span>
-          <span>{{ meal.fatGrams }} g grasa</span>
+          <span>{{ meal.proteinGrams == null ? 'Pendiente' : (meal.proteinGrams | number:'1.0-1') + ' g' }} proteína</span>
+          <span>{{ meal.carbsGrams == null ? 'Pendiente' : (meal.carbsGrams | number:'1.0-1') + ' g' }} carbohidratos</span>
+          <span>{{ meal.fatGrams == null ? 'Pendiente' : (meal.fatGrams | number:'1.0-1') + ' g' }} grasa</span>
         </div>
-        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal)">
+        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal)" [disabled]="mealIsTomorrow">
           <ion-icon name="checkmark-circle-outline"></ion-icon>
           Marcar como consumida
         </button>
       </ng-container>
       <ng-template #noMeal>
-        <p class="empty-meal-copy">No hay una recomendación disponible todavía.</p>
+        <p class="empty-meal-copy">{{ nextMealEmptyMessage }}</p>
         <a class="meal-confirm-button meal-link-button" routerLink="/tabs/plan-alimenticio">Abrir plan alimenticio</a>
       </ng-template>
     </section>
