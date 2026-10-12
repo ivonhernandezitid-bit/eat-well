@@ -7,6 +7,8 @@ require_once __DIR__ . '/dietary-recall.php';
 require_once __DIR__ . '/meal-schedule.php';
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/meal-plan.php';
+require_once __DIR__ . '/food-preferences.php';
+require_once __DIR__ . '/lifestyle-goals.php';
 
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
@@ -246,13 +248,14 @@ try {
             updateProfile($pdo, $input);
             break;
         case 'preferences.get':
-            getFoodPreferences($pdo, (int)($_GET['userId'] ?? 0));
-            break;
         case 'preferences.save':
-            saveFoodPreferences($pdo, $input);
-            break;
         case 'preferences.delete':
-            deleteFoodPreferences($pdo, $input);
+            handleFoodPreferences($pdo, $action, $input);
+            break;
+        case 'lifestyle.get':
+        case 'lifestyle.save':
+        case 'lifestyle.delete':
+            handleLifestyleGoals($pdo, $action, $input);
             break;
         case 'recipes.recommendations':
             getRecipeRecommendations(
@@ -528,7 +531,7 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
 {
     $user = getUserById($pdo, $userId);
     $preferences = getFoodPreferencesRecord($pdo, $userId);
-    $mappedPreferences = mapFoodPreferences($preferences);
+    $mappedPreferences = withLifestylePreferences($pdo, $user, mapFoodPreferences($preferences));
     $preferenceHash = recipePreferenceHash($user, $mappedPreferences);
 
     // Check cache — only use it if we have at least 5 recipes for this exact hash
@@ -710,7 +713,7 @@ function analyzeFood(PDO $pdo, array $input, string $apiKey, string $model): voi
     }
 
     $user = getUserById($pdo, $userId);
-    $preferences = mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId));
+    $preferences = withLifestylePreferences($pdo, $user, mapFoodPreferences(getFoodPreferencesRecord($pdo, $userId)));
     $imageBase64 = trim((string)($input['imageBase64'] ?? ''));
     [$imageBytes, $mimeType] = decodeFoodImage($imageBase64);
     $geminiResult = requestGeminiFoodAnalysis(

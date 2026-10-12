@@ -26,7 +26,7 @@ function requireSessionUser(PDO $pdo): array
 {
     $header = apiAuthorizationHeader();
     if (!preg_match('/^Bearer ([a-zA-Z0-9,-]{22,128})$/D', $header, $matches)) {
-        sendError('Vuelve a iniciar sesion para acceder al historial clinico.', 401);
+        sendError('Vuelve a iniciar sesion para continuar.', 401);
     }
     startApiSession($matches[1]);
     $userId = (int)($_SESSION['user_id'] ?? 0);

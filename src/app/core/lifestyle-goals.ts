@@ -13,6 +13,29 @@ export interface LifestyleSettings {
   stressLevel: 'low' | 'moderate' | 'high';
 }
 
+export interface LifestyleGoalsResponse {
+  settings: LifestyleSettings | null;
+  completed: boolean;
+  user?: UserProfile;
+}
+
+export function defaultLifestyleSettings(user: Pick<UserProfile, 'goal' | 'weightKg' | 'activityLevel'>): LifestyleSettings {
+  return { goal: user.goal, targetWeightKg: user.weightKg, activityBand: user.activityLevel === 'low' ? 'sedentary' : user.activityLevel === 'high' ? 'intense' : 'moderate', exerciseTypes: [], sessionDuration: 45, trainingTime: 'afternoon', cookingTime: 'medium', stressLevel: 'moderate' };
+}
+
+export function lifestyleSettingsError(settings: LifestyleSettings, requireExercise = false, currentWeightKg?: number): string | null {
+  if (!settings || !['lose_weight','maintain','gain_muscle','improve_health'].includes(settings.goal)) return 'Selecciona una meta válida.';
+  if (!Number.isFinite(Number(settings.targetWeightKg)) || Number(settings.targetWeightKg) < 25 || Number(settings.targetWeightKg) > 350) return 'Indica un peso objetivo entre 25 y 350 kg.';
+  if (!['sedentary','light','moderate','intense'].includes(settings.activityBand) || !['morning','afternoon','evening','variable'].includes(settings.trainingTime) || !['short','medium','flexible'].includes(settings.cookingTime) || !['low','moderate','high'].includes(settings.stressLevel)) return 'Revisa tus opciones de actividad y hábitos.';
+  if (![30,45,60,90].includes(Number(settings.sessionDuration))) return 'Selecciona una duración de sesión válida.';
+  if (!Array.isArray(settings.exerciseTypes) || settings.exerciseTypes.length > 6 || settings.exerciseTypes.some(type => !['walking','strength','cycling','sports','home','none'].includes(type))) return 'Revisa los tipos de ejercicio.';
+  if (settings.exerciseTypes.includes('none') && settings.exerciseTypes.some(type => type !== 'none')) return 'Ninguno por ahora no puede combinarse con otros ejercicios.';
+  if (requireExercise && !settings.exerciseTypes.length) return 'Selecciona tu ejercicio habitual o Ninguno por ahora.';
+  if (requireExercise && settings.exerciseTypes.includes('none') && settings.activityBand !== 'sedentary') return 'Si no realizas ejercicio, selecciona Sin ejercicio planificado; si realizas actividad, indica su tipo.';
+  if (currentWeightKg && settings.goal === 'lose_weight' && Number(settings.targetWeightKg) >= currentWeightKg) return 'Para bajar de peso, el peso meta debe ser menor que tu peso actual.';
+  return null;
+}
+
 export interface MacroTargets {
   calories: number;
   protein: number;
@@ -27,7 +50,8 @@ export function lifestyleStorageKey(userId: string): string {
 export function loadLifestyleSettings(userId: string): LifestyleSettings | null {
   try {
     const stored = localStorage.getItem(lifestyleStorageKey(userId));
-    return stored ? JSON.parse(stored) as LifestyleSettings : null;
+    const settings = stored ? JSON.parse(stored) as LifestyleSettings : null;
+    return settings && !lifestyleSettingsError(settings) ? settings : null;
   } catch {
     return null;
   }

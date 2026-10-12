@@ -16,7 +16,12 @@
       <ion-spinner name="crescent"></ion-spinner>
     </div>
 
-    <ng-container *ngIf="!isLoading">
+    <div *ngIf="!isLoading && loadError" role="alert">
+      <p>{{ loadError }}</p>
+      <ion-button fill="clear" (click)="retryLoad()"><ion-icon slot="start" name="refresh-outline"></ion-icon>Reintentar</ion-button>
+    </div>
+
+    <ng-container *ngIf="!isLoading && !loadError">
       <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
         <h1>Tu alimentación</h1>
         <ion-segment [scrollable]="true" [value]="preferences.dietType" (ionChange)="setDietType($any($event.detail.value))">
@@ -204,10 +209,7 @@
 
       <ion-button class="profile-module-save-button" [disabled]="isSaving" (click)="save()">
         <ion-spinner *ngIf="isSaving; else saveLabel" name="crescent"></ion-spinner>
-        <ng-template #saveLabel>Guardar y continuar</ng-template>
-      </ion-button>
-      <ion-button *ngIf="!currentSection || currentSection === 'general'" class="profile-module-save-button" [disabled]="isSaving" (click)="clearPreferences()">
-        Borrar datos y volver a capturar
+        <ng-template #saveLabel>{{ saveButtonLabel }}</ng-template>
       </ion-button>
     </ng-container>
   </main>

@@ -6,7 +6,7 @@
   <div class="perfil-config-wrapper">
     <div *ngIf="view === 'settings'" class="perfil-config-shell">
       <div class="profile-summary">
-        <button type="button" class="avatar-card" (click)="openPhotoPicker()" aria-label="Cambiar foto de perfil">
+        <button type="button" class="avatar-card" [disabled]="photoSaving || photoLoading" (click)="openPhotoPicker()" aria-label="Cambiar foto de perfil">
           <div class="avatar-frame">
             <img *ngIf="profileImage; else defaultAvatar" [src]="profileImage" alt="Foto de perfil" />
             <ng-template #defaultAvatar>
@@ -22,13 +22,13 @@
           class="hidden-file-input"
           type="file"
           accept="image/*"
-          capture="environment"
           (change)="onPhotoSelected($event)"
         />
+        <input #profileCameraInput class="hidden-file-input" type="file" accept="image/*" capture="user" (change)="onPhotoSelected($event)" />
 
         <div class="user-meta">
           <h2>{{ fullName || 'Usuario' }}</h2>
-          <p>{{ email }}</p>
+          <p *ngIf="username" class="profile-username">&#64;{{ username }}</p>
         </div>
       </div>
 
@@ -49,7 +49,7 @@
         </div>
       </section>
 
-      <div class="progress-card">
+      <div class="progress-card" *ngIf="profileCompletion < 100">
         <div class="progress-header profile-progress-heading">
           <strong>Progreso del Perfil: {{ profileCompletion }}%</strong>
           <button type="button" class="profile-progress-info" [title]="profileModulesTooltip" aria-label="Ver módulos completos y pendientes" [attr.aria-expanded]="showProfileModuleDetails" (click)="toggleProfileModuleDetails()">
@@ -183,6 +183,12 @@
         <p>Personaliza tus objetivos para adaptar las recomendaciones de tu plan.</p>
       </div>
 
+      <div *ngIf="lifestyleLoading" class="loading-state"><ion-spinner name="crescent"></ion-spinner></div>
+      <div *ngIf="lifestyleLoadError" role="alert">
+        <p>{{ lifestyleLoadError }}</p>
+        <ion-button fill="clear" (click)="reloadLifestyle()"><ion-icon slot="start" name="refresh-outline"></ion-icon>Reintentar</ion-button>
+      </div>
+      <fieldset [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" style="border: 0; padding: 0; margin: 0; min-width: 0;">
       <section class="lifestyle-card">
         <h3>META PRINCIPAL DE SALUD</h3>
         <div class="goal-options" role="radiogroup" aria-label="Meta principal de salud">
@@ -233,7 +239,7 @@
           </div>
         </div>
 
-        <div class="lifestyle-field-grid">
+        <div class="lifestyle-field-grid" *ngIf="!isExerciseSelected('none')">
           <div class="clinical-field">
             <label for="session-duration">Duración por sesión</label>
             <select id="session-duration" [(ngModel)]="lifestyleSettings.sessionDuration">
@@ -275,8 +281,8 @@
         </div>
       </section>
 
-      <ion-button class="profile-module-save-button" (click)="saveLifestyleGoals()">Guardar y continuar</ion-button>
-      <ion-button class="profile-module-save-button" (click)="clearLifestyleModule()">Borrar datos y volver a capturar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" (click)="saveLifestyleGoals()"><ion-spinner *ngIf="lifestyleSaving; else lifestyleSaveLabel" name="crescent"></ion-spinner><ng-template #lifestyleSaveLabel>Guardar</ng-template></ion-button>
+      </fieldset>
     </div>
 
     <div *ngIf="view === 'privacy'" class="privacy-shell">
@@ -412,6 +418,11 @@
           <input type="text" [(ngModel)]="formName" placeholder="Gabriel Alonso" />
         </div>
 
+        <div class="field-row">
+          <label for="profile-email">Correo electrónico:</label>
+          <input id="profile-email" type="email" [value]="email" readonly />
+        </div>
+
         <div class="field-split">
           <div class="field-row inline">
             <label>Fecha de nacimiento:</label>
@@ -497,19 +508,20 @@
     </ng-template>
   </ion-modal>
 
-  <ion-modal [isOpen]="isCroppingModalOpen" (didDismiss)="cancelCropping()" class="crop-modal">
+  <ion-modal [isOpen]="isCroppingModalOpen" [canDismiss]="!photoSaving" (didDismiss)="cancelCropping()" class="crop-modal">
     <ng-template>
       <ion-header class="ion-no-border">
         <ion-toolbar class="crop-toolbar">
           <ion-buttons slot="start">
-            <ion-button color="medium" (click)="cancelCropping()">
+            <ion-button color="medium" [disabled]="photoSaving" (click)="cancelCropping()">
               Cancelar
             </ion-button>
           </ion-buttons>
           <ion-title>Ajustar foto</ion-title>
           <ion-buttons slot="end">
-            <ion-button color="success" (click)="cropAndSave()" class="btn-done">
-              Listo
+            <ion-button color="success" [disabled]="photoSaving" (click)="cropAndSave()" class="btn-done">
+              <ion-spinner *ngIf="photoSaving; else photoSaveLabel" name="crescent"></ion-spinner>
+              <ng-template #photoSaveLabel>Guardar foto</ng-template>
             </ion-button>
           </ion-buttons>
         </ion-toolbar>
@@ -549,13 +561,15 @@
               [max]="3" 
               [step]="0.05" 
               [(ngModel)]="scale"
+              (ngModelChange)="clampCropPosition()"
+              [disabled]="photoSaving"
               class="zoom-slider"
             ></ion-range>
             <ion-icon name="image-outline" class="zoom-icon-large"></ion-icon>
           </div>
 
           <div class="control-row action-control">
-            <button type="button" class="btn-rotate" (click)="rotateImage()">
+            <button type="button" class="btn-rotate" [disabled]="photoSaving" (click)="rotateImage()">
               <ion-icon name="refresh-outline"></ion-icon>
               Rotar 90°
             </button>

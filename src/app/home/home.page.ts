@@ -4,7 +4,7 @@ import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { PluginListenerHandle } from '@capacitor/core';
 import { Subscription } from 'rxjs';
 import { EatWellService, Recipe, UserProfile } from '../core';
-import { calculateMacroTargets, loadLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
+import { calculateMacroTargets, defaultLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
 import { MealSchedule } from '../core/meal-schedule';
 import { RecipeMealType } from '../core/recipe-meals';
 import { nextPlannedMeal } from '../core/next-meal';
@@ -49,6 +49,7 @@ export class HomePage implements OnInit, OnDestroy {
   scheduleError = '';
   private scheduleRequest = 0;
   private recipesRequest = 0;
+  private lifestyleTargetRequest = 0;
   private mealClock = new Date();
   private mealClockTimer?: ReturnType<typeof setInterval>;
   private readonly onResume = () => {
@@ -299,18 +300,15 @@ export class HomePage implements OnInit, OnDestroy {
     }
   }
 
-  private updateMacroTargets(user: UserProfile): void {
-    const settings = loadLifestyleSettings(user.id) ?? {
-      goal: user.goal,
-      targetWeightKg: user.weightKg,
-      activityBand: 'moderate' as const,
-      exerciseTypes: [],
-      sessionDuration: 45,
-      trainingTime: 'afternoon' as const,
-      cookingTime: 'medium' as const,
-      stressLevel: 'moderate' as const,
-    };
-    this.macroTargets = calculateMacroTargets(user, settings);
+  private async updateMacroTargets(user: UserProfile): Promise<void> {
+    const version = ++this.lifestyleTargetRequest;
+    this.macroTargets = calculateMacroTargets(user, defaultLifestyleSettings(user));
+    try {
+      const response = await this.eatWellService.getLifestyleGoals();
+      if (version !== this.lifestyleTargetRequest || this.user?.id !== user.id) return;
+      const profile = response.user ?? user;
+      this.macroTargets = calculateMacroTargets(profile, response.settings ?? defaultLifestyleSettings(profile));
+    } catch { /* Keep the existing profile-based estimate when the API is unavailable. */ }
   }
 
   private async loadRecipes(user: UserProfile): Promise<void> {

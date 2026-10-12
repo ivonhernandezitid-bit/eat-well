@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/recipe-generation.php';
+require_once __DIR__ . '/lifestyle-goals.php';
 
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
@@ -83,7 +84,7 @@ function handleMealPlan(PDO $pdo, string $action, array $input, string $apiKey, 
     $user = requireSessionUser($pdo);
     if ((string)($input['userId'] ?? $_GET['userId'] ?? $user['id']) !== (string)$user['id']) sendError('No puedes acceder al plan de otra cuenta.', 403);
     if ($_SERVER['REQUEST_METHOD'] !== ($action === 'plan.choose' ? 'POST' : 'GET')) sendError('Metodo no permitido.', 405);
-    $preferences = mapFoodPreferences(getFoodPreferencesRecord($pdo, (int)$user['id']));
+    $preferences = withLifestylePreferences($pdo, $user, mapFoodPreferences(getFoodPreferencesRecord($pdo, (int)$user['id'])));
     try {
         $type = $input['mealType'] ?? $_GET['mealType'] ?? null;
         if ($action !== 'plan.get' && !in_array($type, RECIPE_MEAL_TYPES, true)) throw new InvalidArgumentException('Selecciona un tipo de comida valido.');

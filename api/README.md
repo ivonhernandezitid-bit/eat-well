@@ -81,7 +81,7 @@ registro o login en la cabecera `Authorization: Bearer <authToken>`.
 La cuenta propietaria se obtiene de la sesion PHP; no se permite solicitar el
 historial de otra cuenta. Al actualizar, cerrar sesion e iniciar sesion de nuevo.
 
-Copiar `index.php`, `auth-session.php`, `clinical-history.php`, `dietary-recall.php`, `meal-schedule.php`, `recipe-generation.php`, `recipe-nutrition.php` y `meal-plan.php` en la carpeta
+Copiar `index.php`, `auth-session.php`, `clinical-history.php`, `dietary-recall.php`, `meal-schedule.php`, `recipe-generation.php`, `recipe-nutrition.php`, `meal-plan.php`, `food-preferences.php` y `lifestyle-goals.php` en la carpeta
 de la API de XAMPP, conservando `config.local.php`. El registro de sesiones PHP
 debe poder escribir en su carpeta de sesiones. No se necesitan nuevas tablas si
 ya existe `clinical_histories`. Usar HTTPS para un despliegue publico.
@@ -117,6 +117,19 @@ Utiliza una base temporal y no necesita llamadas a Google.
 La base incluye tablas para almacenar el catalogo BAM. Para cargar sus datos en
 otra instalacion, consulta la [guia del catalogo](data/README.md). La carga es
 independiente de las recetas y no conecta funciones ni modifica las pantallas.
+
+## Estilo de vida y metas
+
+`lifestyle.get`, `lifestyle.save` y `lifestyle.delete` requieren una sesion
+verificada. Guardan los campos del modulo en `lifestyle_goals`, separados por
+usuario. El objetivo y nivel de actividad de `users` se actualizan en la misma
+transaccion. No hace falta importar otro SQL si ya existe `lifestyle_goals`.
+
+El perfil, inicio y plan consultan los datos guardados en la base. Los datos
+anteriores del almacenamiento local solo sirven para recuperar el formulario
+cuando no hay un registro completado; abrir el modulo y guardar los conserva
+en la base. La prueba `api/tests/lifestyle-goals.test.php` utiliza pacientes
+ficticios en una base temporal, sin llamadas a Google.
 
 ## Conexion movil
 

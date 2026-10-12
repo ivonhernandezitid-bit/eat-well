@@ -2,9 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController, IonicModule, IonContent } from '@ionic/angular';
+import { ActionSheetController, AlertController, IonicModule, IonContent, Platform } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
-import { ActivityBand, LifestyleSettings, loadLifestyleSettings, lifestyleStorageKey } from '../core/lifestyle-goals';
+import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
 import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
@@ -23,6 +23,10 @@ type R24hTimeField = 'wakeTime' | 'breakfastTime' | 'snackTime' | 'lunchTime' | 
 })
 export class DatosPerfilPage implements OnInit {
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
+  @ViewChild('profileCameraInput') profileCameraInput?: ElementRef<HTMLInputElement>;
+  photoSaving = false;
+  photoLoading = false;
+  private photoOwnerId: string | null = null;
   @ViewChild(IonContent) private content?: IonContent;
 
   fullName = '';
@@ -62,6 +66,12 @@ export class DatosPerfilPage implements OnInit {
     cookingTime: 'medium',
     stressLevel: 'moderate',
   };
+  lifestyleLoading = false;
+  lifestyleSaving = false;
+  lifestyleSaved = false;
+  lifestyleLoadError = '';
+  private lifestyleOwnerId: string | null = null;
+  private lifestyleLoadVersion = 0;
 
   readonly lifestyleGoals: { value: FitnessGoal; label: string; icon: string }[] = [
     { value: 'lose_weight', label: 'Perder grasa corporal', icon: 'trending-down-outline' },
@@ -158,8 +168,9 @@ export class DatosPerfilPage implements OnInit {
   ];
 
   get settingsItems() {
-    const items = this.baseSettingsItems.filter(item => item.id !== 'record' || (!this.r24hSaved && !this.r24hLoading));
-    return this.r24hSaved ? [...items, {id:'schedule',icon:'time-outline',title:'Horarios de alimentación',subtitle:'Desayuno, colaciones, comida y cena',route:'/tabs/datos-perfil'}] : items;
+    const items = this.baseSettingsItems.filter(item => item.id !== 'privacy' && (item.id !== 'record' || (!this.r24hSaved && !this.r24hLoading)));
+    if (this.r24hSaved) items.push({id:'schedule',icon:'time-outline',title:'Horarios de alimentación',subtitle:'Desayuno, colaciones, comida y cena',route:'/tabs/datos-perfil'});
+    return [...items, ...this.baseSettingsItems.filter(item => item.id === 'privacy')];
   }
 
   isCroppingModalOpen = false;
@@ -182,6 +193,8 @@ export class DatosPerfilPage implements OnInit {
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
   private readonly alertController = inject(AlertController);
+  private readonly actionSheetController = inject(ActionSheetController);
+  private readonly platform = inject(Platform);
 
   openProfileModule(view: Exclude<DatosPerfilPage['view'], 'settings'>): void {
     if(view==='r24h' && this.r24hSaved) view='schedule';
@@ -191,7 +204,7 @@ export class DatosPerfilPage implements OnInit {
     } else if (view === 'lifestyle') {
       const activeUser = this.eatWellService.getActiveUser();
       if (activeUser) {
-        this.loadLifestyleForm(activeUser.id, activeUser.goal);
+        void this.loadLifestyleForm(activeUser.id);
       }
     }
 
@@ -272,6 +285,9 @@ export class DatosPerfilPage implements OnInit {
       this.r24hOwnerId = null;
       this.closeTimePicker();
       ++this.scheduleLoadVersion;
+      ++this.lifestyleLoadVersion;
+      this.lifestyleOwnerId = null;
+      this.lifestyleSaved = false;
       this.mealSchedule=null;
       void this.router.navigateByUrl('/login');
       return;
@@ -288,7 +304,7 @@ export class DatosPerfilPage implements OnInit {
     this.profileImage = activeUser.profileImage ?? null;
     this.foodPreferencesCompleted = false;
     void this.loadFoodPreferencesCompletion(activeUser.id);
-    this.loadLifestyleForm(activeUser.id, activeUser.goal);
+    void this.loadLifestyleForm(activeUser.id);
     void this.loadClinicalHistory(activeUser.id);
     this.r24hMaxDate = calendarDate();
     void this.loadR24h(activeUser.id);
@@ -307,7 +323,7 @@ export class DatosPerfilPage implements OnInit {
       },
       { name: 'Historial clínico', completed: this.isClinicalHistoryComplete },
       { name: 'Recordatorio de 24 horas', completed: this.isR24hComplete },
-      { name: 'Estilo de vida y metas', completed: !!activeUser && !!loadLifestyleSettings(activeUser.id) },
+      { name: 'Estilo de vida y metas', completed: !!activeUser && this.lifestyleOwnerId === activeUser.id && this.lifestyleSaved },
       { name: 'Preferencias alimentarias', completed: this.foodPreferencesCompleted },
     ];
   }
@@ -516,6 +532,7 @@ export class DatosPerfilPage implements OnInit {
     const selected = this.lifestyleSettings.exerciseTypes;
     if (value === 'none') {
       this.lifestyleSettings.exerciseTypes = selected.includes('none') ? [] : ['none'];
+      if (this.lifestyleSettings.exerciseTypes.includes('none')) this.lifestyleSettings.activityBand = 'sedentary';
       return;
     }
     this.lifestyleSettings.exerciseTypes = selected.includes(value)
@@ -527,65 +544,52 @@ export class DatosPerfilPage implements OnInit {
     return this.lifestyleSettings.exerciseTypes.includes(value);
   }
 
-  private loadLifestyleForm(userId: string, goal: FitnessGoal): void {
-    const saved = loadLifestyleSettings(userId);
-    this.lifestyleSettings = saved ?? {
-      goal,
-      targetWeightKg: this.weightKg,
-      activityBand: 'moderate',
-      exerciseTypes: [],
-      sessionDuration: 45,
-      trainingTime: 'afternoon',
-      cookingTime: 'medium',
-      stressLevel: 'moderate',
-    };
-    this.lifestyleSettings.goal = goal;
+  private async loadLifestyleForm(userId: string): Promise<void> {
+    const activeUser = this.eatWellService.getActiveUser();
+    if (!activeUser || activeUser.id !== userId) return;
+    const version = ++this.lifestyleLoadVersion;
+    this.lifestyleOwnerId = null;
+    this.lifestyleLoading = true;
+    this.lifestyleSaved = false;
+    this.lifestyleLoadError = '';
+    this.lifestyleSettings = defaultLifestyleSettings(activeUser);
+    try {
+      const response = await this.eatWellService.getLifestyleGoals();
+      if (version !== this.lifestyleLoadVersion || this.eatWellService.getActiveUser()?.id !== userId) return;
+      const currentUser = this.eatWellService.getActiveUser()!;
+      this.lifestyleSettings = response.settings ?? loadLifestyleSettings(userId) ?? defaultLifestyleSettings(currentUser);
+      this.lifestyleSettings.goal = currentUser.goal;
+      this.lifestyleSaved = response.completed;
+      this.lifestyleOwnerId = userId;
+    } catch (error) {
+      if (version === this.lifestyleLoadVersion && this.eatWellService.getActiveUser()?.id === userId) this.lifestyleLoadError = error instanceof Error ? error.message : 'No se pudieron cargar tus metas.';
+    } finally { if (version === this.lifestyleLoadVersion) this.lifestyleLoading = false; }
+  }
+
+  async reloadLifestyle(): Promise<void> {
+    const user = this.eatWellService.getActiveUser();
+    if (user) await this.loadLifestyleForm(user.id);
   }
 
   async saveLifestyleGoals(): Promise<void> {
+    if (this.lifestyleLoading || this.lifestyleSaving || this.lifestyleLoadError) return;
     const activeUser = this.eatWellService.getActiveUser();
-    const targetWeight = Number(this.lifestyleSettings.targetWeightKg);
-    if (!activeUser || !Number.isFinite(targetWeight) || targetWeight < 25 || targetWeight > 350) {
-      await this.showAlert('Revisa el peso objetivo', 'Ingresa un peso objetivo entre 25 y 350 kg.');
+    if (!activeUser || this.lifestyleOwnerId !== activeUser.id) return;
+    const error = lifestyleSettingsError(this.lifestyleSettings, true, activeUser.weightKg);
+    if (error) {
+      await this.showAlert('Revisa tus metas', error);
       return;
     }
-
-    const activityMap: Record<ActivityBand, 'low' | 'moderate' | 'high'> = {
-      sedentary: 'low',
-      light: 'low',
-      moderate: 'moderate',
-      intense: 'high',
-    };
-
+    this.lifestyleSaving = true;
     try {
-      await this.eatWellService.updateProfile({
-        goal: this.lifestyleSettings.goal,
-        activityLevel: activityMap[this.lifestyleSettings.activityBand],
-      });
-      this.lifestyleSettings.targetWeightKg = targetWeight;
-      localStorage.setItem(lifestyleStorageKey(activeUser.id), JSON.stringify(this.lifestyleSettings));
-      await this.showAlert('Objetivos guardados', 'El plan alimenticio actualizará sus recomendaciones y distribución estimada de macronutrientes.');
-      await this.continueToNextProfileModule('food');
+      const response = await this.eatWellService.saveLifestyleGoals({ ...this.lifestyleSettings, targetWeightKg: Number(this.lifestyleSettings.targetWeightKg) });
+      if (this.eatWellService.getActiveUser()?.id !== activeUser.id) return;
+      this.lifestyleSettings = response.settings!;
+      this.lifestyleSaved = response.completed;
+      this.returnToProfile();
     } catch (error) {
-      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
-    }
-  }
-
-  async clearLifestyleModule(): Promise<void> {
-    const activeUser = this.eatWellService.getActiveUser();
-    if (!activeUser || !await this.confirmModuleReset('estilo de vida y metas')) {
-      return;
-    }
-
-    try {
-      await this.eatWellService.updateProfile({ goal: 'improve_health', activityLevel: 'moderate' });
-      localStorage.removeItem(lifestyleStorageKey(activeUser.id));
-      this.loadLifestyleForm(activeUser.id, 'improve_health');
-      this.view = 'settings';
-      await this.showAlert('Datos eliminados', 'Las metas se restablecieron y puedes volver a configurarlas.');
-    } catch (error) {
-      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron borrar las metas.');
-    }
+      if (this.eatWellService.getActiveUser()?.id === activeUser.id) await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
+    } finally { this.lifestyleSaving = false; }
   }
 
   private async confirmModuleReset(moduleName: string): Promise<boolean> {
@@ -819,15 +823,31 @@ export class DatosPerfilPage implements OnInit {
     }
   }
 
-  openPhotoPicker(): void {
-    this.photoInput?.nativeElement.click();
+  async openPhotoPicker(): Promise<void> {
+    if (this.photoSaving || this.photoLoading) return;
+    const isMobile = this.platform.is('capacitor') || this.platform.is('cordova') || this.platform.is('mobile') || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (!isMobile) {
+      this.photoInput?.nativeElement.click();
+      return;
+    }
+    const sheet = await this.actionSheetController.create({
+      header: 'Foto de perfil',
+      buttons: [
+        { text: 'Tomar foto', icon: 'camera-outline', handler: () => { this.profileCameraInput?.nativeElement.click(); } },
+        { text: 'Seleccionar de la galería', icon: 'image-outline', handler: () => { this.photoInput?.nativeElement.click(); } },
+        { text: 'Cancelar', icon: 'close-outline', role: 'cancel' },
+      ],
+    });
+    await sheet.present();
   }
 
   async onPhotoSelected(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
+    input.value = '';
+    const userId = this.eatWellService.getActiveUser()?.id;
 
-    if (!file) {
+    if (!file || !userId || this.photoSaving || this.photoLoading) {
       return;
     }
 
@@ -836,12 +856,21 @@ export class DatosPerfilPage implements OnInit {
       return;
     }
 
-    const dataUrl = await this.readFileAsDataUrl(file);
-    input.value = '';
-
-    const img = new Image();
-    img.src = dataUrl;
-    img.onload = () => {
+    if (file.size > 15 * 1024 * 1024) {
+      await this.showAlert('Imagen demasiado grande', 'Selecciona una foto de hasta 15 MB.');
+      return;
+    }
+    this.photoLoading = true;
+    try {
+      const dataUrl = await this.readFileAsDataUrl(file);
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('No se pudo cargar la imagen. Prueba con una foto JPG o PNG.'));
+        img.src = dataUrl;
+      });
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.photoOwnerId = userId;
       this.rawImage = img;
       const aspectRatio = img.width / img.height;
       if (aspectRatio > 1) {
@@ -857,23 +886,37 @@ export class DatosPerfilPage implements OnInit {
       this.scale = 1.0;
       this.rotation = 0;
       this.isCroppingModalOpen = true;
-    };
-    img.onerror = async () => {
-      await this.showAlert('Error', 'No se pudo cargar la imagen.');
-    };
+    } catch (error) {
+      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudo leer la imagen.');
+    } finally { this.photoLoading = false; }
   }
 
   rotateImage(): void {
+    if (this.photoSaving) return;
     this.rotation = (this.rotation + 90) % 360;
+    this.clampCropPosition();
+  }
+
+  clampCropPosition(): void {
+    const rotated = this.rotation % 180 !== 0;
+    const width = (rotated ? this.dispHeight : this.dispWidth) * this.scale;
+    const height = (rotated ? this.dispWidth : this.dispHeight) * this.scale;
+    const maxX = Math.max(0, (width - this.cropSize) / 2);
+    const maxY = Math.max(0, (height - this.cropSize) / 2);
+    this.translateX = Math.max(-maxX, Math.min(maxX, this.translateX));
+    this.translateY = Math.max(-maxY, Math.min(maxY, this.translateY));
   }
 
   cancelCropping(): void {
+    if (this.photoSaving) return;
     this.isCroppingModalOpen = false;
     this.selectedPhotoUrl = null;
     this.rawImage = null;
+    this.photoOwnerId = null;
   }
 
   onPointerDown(event: PointerEvent): void {
+    if (this.photoSaving) return;
     const container = event.currentTarget as HTMLElement;
     container.setPointerCapture(event.pointerId);
     this.isDragging = true;
@@ -883,13 +926,14 @@ export class DatosPerfilPage implements OnInit {
   }
 
   onPointerMove(event: PointerEvent): void {
-    if (!this.isDragging || event.pointerId !== this.pointerId) {
+    if (this.photoSaving || !this.isDragging || event.pointerId !== this.pointerId) {
       return;
     }
     const dx = event.clientX - this.lastPointerX;
     const dy = event.clientY - this.lastPointerY;
     this.translateX += dx;
     this.translateY += dy;
+    this.clampCropPosition();
     this.lastPointerX = event.clientX;
     this.lastPointerY = event.clientY;
   }
@@ -908,12 +952,19 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async cropAndSave(): Promise<void> {
+    if (this.photoSaving) return;
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!userId || this.photoOwnerId !== userId) {
+      this.cancelCropping();
+      return;
+    }
     if (!this.rawImage) {
       this.isCroppingModalOpen = false;
       return;
     }
 
     const outputSize = 400;
+    this.clampCropPosition();
     const ratio = outputSize / this.cropSize;
 
     const canvas = document.createElement('canvas');
@@ -941,17 +992,18 @@ export class DatosPerfilPage implements OnInit {
     ctx.restore();
 
     const nextImage = canvas.toDataURL('image/jpeg', 0.9);
-    this.profileImage = nextImage;
-
+    this.photoSaving = true;
     try {
       await this.eatWellService.updateProfile({ profileImage: nextImage });
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.profileImage = nextImage;
+      this.isCroppingModalOpen = false;
+      this.selectedPhotoUrl = null;
+      this.rawImage = null;
+      this.photoOwnerId = null;
     } catch (error) {
-      console.error('No se pudo actualizar la foto del perfil', error);
-    }
-
-    this.isCroppingModalOpen = false;
-    this.selectedPhotoUrl = null;
-    this.rawImage = null;
+      await this.showAlert('No se guardó la foto', error instanceof Error ? error.message : 'Inténtalo nuevamente.');
+    } finally { this.photoSaving = false; }
   }
 
   setWeightUnit(unit: WeightUnit): void {

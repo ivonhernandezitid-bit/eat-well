@@ -7,6 +7,7 @@ import { DietaryRecallData, DietaryRecallResponse } from './dietary-recall';
 import { MealSchedule, MealScheduleResponse } from './meal-schedule';
 import { DailyMealPlan, mealPlanDate } from './daily-meal-plan';
 import { RecipeMealType } from './recipe-meals';
+import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
 import {
   BodyZone,
   Exercise,
@@ -62,6 +63,7 @@ interface FoodRecipeDetailResponse {
 
 interface FoodPreferencesResponse {
   preferences: FoodPreferences;
+  user?: UserProfile;
 }
 
 interface FavoriteRecipesResponse {
@@ -118,7 +120,7 @@ export class EatWellService {
       ...activeUser,
       ...profileChanges,
     });
-    this.saveActiveUser(response.user);
+    if (this.getActiveUser()?.id === activeUser.id) this.saveActiveUser(response.user);
     return response.user;
   }
 
@@ -273,7 +275,35 @@ export class EatWellService {
     const response = await this.get<FoodPreferencesResponse>('preferences.get', {
       userId: activeUser.id,
     });
+    if (response.user && this.getActiveUser()?.id === activeUser.id) this.saveActiveUser(response.user);
     return response.preferences;
+  }
+
+  async getLifestyleGoals(): Promise<LifestyleGoalsResponse> {
+    const user = this.getRequiredActiveUser();
+    const response = await this.get<LifestyleGoalsResponse>('lifestyle.get', { userId: user.id });
+    if (this.getActiveUser()?.id === user.id && response.user) this.saveActiveUser(response.user);
+    return response;
+  }
+
+  async saveLifestyleGoals(settings: LifestyleSettings): Promise<LifestyleGoalsResponse> {
+    const user = this.getRequiredActiveUser();
+    const response = await this.post<LifestyleGoalsResponse>('lifestyle.save', { userId: user.id, settings });
+    if (this.getActiveUser()?.id === user.id) {
+      if (response.user) this.saveActiveUser(response.user);
+      if (response.settings) localStorage.setItem(lifestyleStorageKey(user.id), JSON.stringify(response.settings));
+    }
+    return response;
+  }
+
+  async deleteLifestyleGoals(): Promise<LifestyleGoalsResponse> {
+    const user = this.getRequiredActiveUser();
+    const response = await this.post<LifestyleGoalsResponse>('lifestyle.delete', { userId: user.id });
+    if (this.getActiveUser()?.id === user.id) {
+      if (response.user) this.saveActiveUser(response.user);
+      localStorage.removeItem(lifestyleStorageKey(user.id));
+    }
+    return response;
   }
 
   async getCustomTips(): Promise<{ text: string; icon: string }[]> {
@@ -292,12 +322,14 @@ export class EatWellService {
     return response.recipes;
   }
 
-  async saveFoodPreferences(preferences: FoodPreferences): Promise<FoodPreferences> {
+  async saveFoodPreferences(preferences: FoodPreferences, profileChanges?: Pick<UserProfile, 'goal' | 'activityLevel'>): Promise<FoodPreferences> {
     const activeUser = this.getRequiredActiveUser();
     const response = await this.post<FoodPreferencesResponse>('preferences.save', {
       userId: activeUser.id,
       ...preferences,
+      ...profileChanges,
     });
+    if (response.user && this.getActiveUser()?.id === activeUser.id) this.saveActiveUser(response.user);
     return response.preferences;
   }
 

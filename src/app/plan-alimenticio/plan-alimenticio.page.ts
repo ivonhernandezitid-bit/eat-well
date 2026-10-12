@@ -2,7 +2,7 @@ import { Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@an
 import { ActionSheetController, AlertController, Platform } from '@ionic/angular';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
-import { calculateMacroTargets, loadLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
+import { calculateMacroTargets, MacroTargets } from '../core/lifestyle-goals';
 import { RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
 
@@ -574,11 +574,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private async fetchMealsForUser(user: UserProfile): Promise<void> {
-    const lifestyleSettings = loadLifestyleSettings(user.id);
-    this.macroTargets = lifestyleSettings ? calculateMacroTargets(user, lifestyleSettings) : null;
+    this.macroTargets = null;
 
     try {
-      const [prefs, general, favorites, scanHistory, dailyPlan] = await Promise.all([
+      const [prefs, general, favorites, scanHistory, dailyPlan, lifestyle] = await Promise.all([
         this.eatWellService.getFoodPreferences().catch(() => null),
         this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
@@ -587,6 +586,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
           return [];
         }),
         this.eatWellService.getDailyMealPlan(),
+        this.eatWellService.getLifestyleGoals().catch(() => null),
       ]);
 
       if (this.activeUserId !== user.id) {
@@ -594,11 +594,12 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       }
 
       this.preferencesCompleted = prefs?.completed ?? false;
+      this.macroTargets = lifestyle?.settings ? calculateMacroTargets(lifestyle.user ?? user, lifestyle.settings) : null;
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
       this.scanHistory = scanHistory;
       this.dailyPlan = dailyPlan.date === mealPlanDate() ? dailyPlan : null;
-      const context = JSON.stringify([user, prefs]);
+      const context = JSON.stringify([user, prefs, lifestyle?.settings]);
       if (context !== this.optionsContext) { this.optionsContext = context; this.optionSets = {}; }
 
       if (this.preferencesCompleted && this.expandedMealType) {

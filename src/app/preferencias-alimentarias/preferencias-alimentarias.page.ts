@@ -3,6 +3,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular';
 import { ActivityLevel, DietType, EatWellService, FitnessGoal, FoodPreferences } from '../core';
 
+function emptyFoodPreferences(): FoodPreferences {
+  return { dietType: 'omnivore', preferredFruits: [], preferredVegetables: [], preferredProteins: [], preferredCarbohydrates: [], preferredLegumes: [], preferredDairy: [], preferredFats: [], allergies: [], dislikedFoods: [], cookingTimeMinutes: 30, completed: false };
+}
+
 @Component({
   selector: 'app-preferencias-alimentarias',
   templateUrl: './preferencias-alimentarias.page.html',
@@ -52,20 +56,10 @@ export class PreferenciasAlimentariasPage implements OnInit {
     'Brócoli', 'Pescado'
   ];
 
-  preferences: FoodPreferences = {
-    dietType: 'omnivore',
-    preferredFruits: [],
-    preferredVegetables: [],
-    preferredProteins: [],
-    preferredCarbohydrates: [],
-    preferredLegumes: [],
-    preferredDairy: [],
-    preferredFats: [],
-    allergies: [],
-    dislikedFoods: [],
-    cookingTimeMinutes: 30,
-    completed: false,
-  };
+  preferences: FoodPreferences = emptyFoodPreferences();
+  loadError = '';
+  private loadedUserId: string | null = null;
+  private loadRequest = 0;
   dislikedFoodsInput = '';
   otherFruitsInput = '';
   otherVegetablesInput = '';
@@ -124,11 +118,10 @@ export class PreferenciasAlimentariasPage implements OnInit {
     }
   }
 
-  async ngOnInit(): Promise<void> {
+  ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {
       this.currentSection = params.get('section');
     });
-    await this.loadPreferencesData();
   }
 
   async ionViewWillEnter(): Promise<void> {
@@ -178,14 +171,25 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   private async loadPreferencesData(): Promise<void> {
+    const version = ++this.loadRequest;
+    const userId = this.eatWellService.getActiveUser()?.id;
+    this.isLoading = true;
+    this.loadError = '';
+    this.loadedUserId = null;
+    this.preferences = emptyFoodPreferences();
+    this.otherFruitsInput = this.otherVegetablesInput = this.otherAllergiesInput = this.dislikedFoodsInput = '';
     try {
+      if (!userId) throw new Error('Vuelve a iniciar sesión para cargar tus preferencias.');
+      const saved = await this.eatWellService.getFoodPreferences();
+      if (version !== this.loadRequest) return;
+      if (this.eatWellService.getActiveUser()?.id !== userId) throw new Error('La cuenta cambió. Vuelve a abrir tus preferencias.');
       const activeUser = this.eatWellService.getActiveUser();
       this.fitnessGoal = activeUser?.goal ?? 'improve_health';
       this.activityLevel = activeUser?.activityLevel ?? 'moderate';
       
       this.preferences = {
-        ...this.preferences,
-        ...await this.eatWellService.getFoodPreferences(),
+        ...emptyFoodPreferences(),
+        ...saved,
       };
       this.setDietType(this.preferences.dietType);
       
@@ -205,11 +209,16 @@ export class PreferenciasAlimentariasPage implements OnInit {
       const customDisliked = this.preferences.dislikedFoods.filter(d => !this.commonDislikedFoods.includes(d));
       this.dislikedFoodsInput = customDisliked.join(', ');
       this.preferences.dislikedFoods = this.preferences.dislikedFoods.filter(d => this.commonDislikedFoods.includes(d));
+      this.loadedUserId = userId;
     } catch (error) {
-      await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar tus preferencias.');
+      if (version === this.loadRequest) this.loadError = error instanceof Error ? error.message : 'No se pudieron cargar tus preferencias.';
     } finally {
-      this.isLoading = false;
+      if (version === this.loadRequest) this.isLoading = false;
     }
+  }
+
+  async retryLoad(): Promise<void> {
+    await this.loadPreferencesData();
   }
 
   setDietType(dietType: DietType): void {
@@ -225,9 +234,9 @@ export class PreferenciasAlimentariasPage implements OnInit {
       .filter(food => this.dairyForDiet.includes(food));
 
     const dietMessages: Record<DietType, string> = {
-      omnivore: 'Preferencia actualizada a Omnívora. Menú adaptado con éxito.',
-      vegetarian: 'Preferencia vegetariana guardada. Se ajustaron las recetas para ocultar carnes y pescados.',
-      vegan: 'Preferencia vegana guardada. Se filtraron las recetas para mostrar únicamente opciones 100% basadas en plantas.',
+      omnivore: 'Alimentación omnívora seleccionada. Cambios pendientes de guardar.',
+      vegetarian: 'Alimentación vegetariana seleccionada. Cambios pendientes de guardar.',
+      vegan: 'Alimentación vegana seleccionada. Cambios pendientes de guardar.',
     };
 
     void this.showDietChangeToast(dietMessages[dietType]);
@@ -293,13 +302,24 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   async save(): Promise<void> {
-    if (this.isSaving) {
+    if (this.isSaving || this.isLoading || this.loadError) {
+      return;
+    }
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!userId || this.loadedUserId !== userId) {
+      await this.showError('Vuelve a cargar tus preferencias antes de guardar.');
       return;
     }
 
+    for (const input of [this.otherFruitsInput, this.otherVegetablesInput, this.otherAllergiesInput, this.dislikedFoodsInput]) {
+      if (input.split(',').map(item => item.trim()).filter(Boolean).some(item => !this.isValidFoodName(item))) {
+        await this.showError('Revisa los nombres escritos: deben tener entre 2 y 30 caracteres y estar separados por comas. No se guardaron cambios.');
+        return;
+      }
+    }
     this.isSaving = true;
 
-    // Merge static selected checkbox options with custom input values, capitalizing first letter, filtering nonsense, and validating commas
+    // Keep selected options and custom values in the same saved lists.
     const selectedFruits = this.preferences.preferredFruits.filter(f => this.fruits.includes(f));
     const customFruits = this.otherFruitsInput.split(',')
       .map(item => this.capitalize(item.trim()))
@@ -325,26 +345,25 @@ export class PreferenciasAlimentariasPage implements OnInit {
     const finalDisliked = Array.from(new Set([...selectedDisliked, ...customDisliked]));
 
     try {
-      [this.preferences] = await Promise.all([
-        this.eatWellService.saveFoodPreferences({
+      const saved = await this.eatWellService.saveFoodPreferences({
           ...this.preferences,
           preferredFruits: finalFruits,
           preferredVegetables: finalVegetables,
-          preferredProteins: this.preferences.preferredProteins.filter(food => this.proteinsForDiet.includes(food)),
-          preferredCarbohydrates: this.preferences.preferredCarbohydrates.filter(food => this.carbohydrates.includes(food)),
-          preferredLegumes: this.preferences.preferredLegumes.filter(food => this.legumes.includes(food)),
-          preferredDairy: this.preferences.preferredDairy.filter(food => this.dairyForDiet.includes(food)),
-          preferredFats: this.preferences.preferredFats.filter(food => this.fats.includes(food)),
+          preferredProteins: this.preferences.preferredProteins,
+          preferredCarbohydrates: this.preferences.preferredCarbohydrates,
+          preferredLegumes: this.preferences.preferredLegumes,
+          preferredDairy: this.preferences.preferredDairy,
+          preferredFats: this.preferences.preferredFats,
           allergies: finalAllergies,
           dislikedFoods: finalDisliked,
           completed: true,
-        }),
-        this.eatWellService.updateProfile({
+        }, {
           goal: this.fitnessGoal,
           activityLevel: this.activityLevel,
-        }),
-      ]);
-      await this.router.navigateByUrl('/tabs/home');
+        });
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.preferences = saved;
+      await this.returnToProfile();
     } catch (error) {
       await this.showError(error instanceof Error ? error.message : 'No se pudieron guardar tus preferencias.');
     } finally {
@@ -353,7 +372,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   async clearPreferences(): Promise<void> {
-    if (this.isSaving) {
+    if (this.isSaving || this.isLoading || this.loadError || this.loadedUserId !== this.eatWellService.getActiveUser()?.id) {
       return;
     }
 
