@@ -12,22 +12,26 @@ function clinicalHistoryFields(): array
         'familyCancer' => ['family_cancer', 'bool'],
         'familyRenal' => ['family_kidney_disease', 'bool'],
         'familyThyroid' => ['family_thyroid_disease', 'bool'],
-        'diagnosisNone' => ['diagnoses_none', 'bool'],
+        'diagnosisMetabolismNone' => ['diagnosis_metabolism_none', 'bool'],
+        'diagnosisThyroidNone' => ['diagnosis_thyroid_none', 'bool'],
+        'diagnosisOtherNone' => ['diagnosis_other_none', 'bool'],
+        'diagnosisDigestiveNone' => ['diagnosis_digestive_none', 'bool'],
         'diagnosisDiabetes' => ['diagnosis_diabetes', 'bool'],
         'diagnosisHypertension' => ['diagnosis_hypertension', 'bool'],
         'diagnosisFattyLiver' => ['diagnosis_fatty_liver', 'bool'],
         'diagnosisSop' => ['diagnosis_pcos', 'bool'],
         'diagnosisGout' => ['diagnosis_gout', 'bool'],
         'diagnosisHypothyroidism' => ['diagnosis_hypothyroidism', 'bool'],
-        'wellbeingNone' => ['wellbeing_none', 'bool'],
-        'wellbeingAnemia' => ['wellbeing_anemia', 'bool'],
-        'wellbeingBulimia' => ['wellbeing_bulimia', 'bool'],
-        'wellbeingDepression' => ['wellbeing_depression', 'bool'],
-        'wellbeingAnxiety' => ['wellbeing_anxiety', 'bool'],
-        'wellbeingOther' => ['wellbeing_other', 'text'],
-        'wellbeingTreatment' => ['wellbeing_treatment', ['No aplica' => 'not_applicable', 'No' => 'no', 'Sí, actualmente' => 'current', 'Anteriormente' => 'previous']],
-        'wellbeingSupport' => ['professional_support', ['No aplica' => 'not_applicable', 'No' => 'no', 'Sí, actualmente' => 'current', 'Anteriormente' => 'previous']],
-        'wellbeingNotes' => ['wellbeing_notes', 'text'],
+        'diagnosisHyperthyroidism' => ['diagnosis_hyperthyroidism', 'bool'],
+        'diagnosisDyslipidemia' => ['diagnosis_dyslipidemia', 'bool'],
+        'diagnosisInsulinResistance' => ['diagnosis_insulin_resistance', 'bool'],
+        'diagnosisChronicKidneyDisease' => ['diagnosis_chronic_kidney_disease', 'bool'],
+        'diagnosisKidneyStones' => ['diagnosis_kidney_stones', 'bool'],
+        'diagnosisCeliac' => ['diagnosis_celiac', 'bool'],
+        'diagnosisIrritableBowel' => ['diagnosis_irritable_bowel', 'bool'],
+        'diagnosisGastritis' => ['diagnosis_gastritis', 'bool'],
+        'diagnosisUlcerativeColitis' => ['diagnosis_ulcerative_colitis', 'bool'],
+        'otherDiagnoses' => ['other_diagnoses', 'text'],
         'surgeriesNone' => ['surgeries_none', 'bool'],
         'surgeries' => ['surgeries', 'text'],
         'hospitalizationsNone' => ['hospitalizations_none', 'bool'],
@@ -54,8 +58,6 @@ function clinicalHistoryFields(): array
         'otherSubstances' => ['other_substance_use', ['No' => 0, 'Sí' => 1]],
         'cooksAtHome' => ['cooking_responsibility', ['Yo mismo(a)' => 'patient', 'Otra persona' => 'other_person']],
         'weekdayPlace' => ['usual_eating_place', ['En casa' => 'home', 'En el trabajo' => 'work']],
-        'appetite' => ['appetite', ['Normal' => 'normal', 'Bajo' => 'low', 'Alto' => 'high']],
-        'anxiety' => ['eating_anxiety', ['No' => 0, 'Sí' => 1]],
         'waterLiters' => ['daily_water_liters', 'number'],
     ];
 }
@@ -71,20 +73,26 @@ function validateClinicalHistory(array $input, array $user): array
         'familyCancer' => 'Antecedentes heredofamiliares: Cáncer',
         'familyRenal' => 'Antecedentes heredofamiliares: Enfermedades renales',
         'familyThyroid' => 'Antecedentes heredofamiliares: Tiroides',
-        'diagnosisNone' => 'Antecedentes patológicos personales: No aplica',
+        'diagnosisMetabolismNone' => 'Metabolismo y hormonas: No aplica',
+        'diagnosisThyroidNone' => 'Patología tiroidea: No aplica',
+        'diagnosisOtherNone' => 'Otros antecedentes: No aplica',
+        'diagnosisDigestiveNone' => 'Salud digestiva: No aplica',
         'diagnosisDiabetes' => 'Antecedentes personales: Diabetes',
         'diagnosisHypertension' => 'Antecedentes personales: Hipertensión arterial',
         'diagnosisFattyLiver' => 'Antecedentes personales: Hígado graso',
         'diagnosisSop' => 'Antecedentes personales: SOP',
         'diagnosisGout' => 'Antecedentes personales: Ácido úrico alto / Gota',
         'diagnosisHypothyroidism' => 'Antecedentes personales: Hipotiroidismo',
-        'wellbeingNone' => 'Salud integral y bienestar emocional: No aplica',
-        'wellbeingAnemia' => 'Bienestar emocional: Anemia',
-        'wellbeingBulimia' => 'Bienestar emocional: Bulimia',
-        'wellbeingDepression' => 'Bienestar emocional: Depresión',
-        'wellbeingAnxiety' => 'Bienestar emocional: Ansiedad diagnosticada',
-        'wellbeingOther' => 'Otra condición o situación relevante',
-        'wellbeingNotes' => 'Información adicional de bienestar',
+        'diagnosisHyperthyroidism' => 'Antecedentes personales: Hipertiroidismo',
+        'diagnosisDyslipidemia' => 'Antecedentes personales: Dislipidemias',
+        'diagnosisInsulinResistance' => 'Antecedentes personales: Resistencia a la insulina',
+        'diagnosisChronicKidneyDisease' => 'Antecedentes personales: Enfermedad renal crónica',
+        'diagnosisKidneyStones' => 'Antecedentes personales: Litiasis renal',
+        'diagnosisCeliac' => 'Antecedentes personales: Enfermedad celíaca',
+        'diagnosisIrritableBowel' => 'Antecedentes personales: Intestino irritable',
+        'diagnosisGastritis' => 'Antecedentes personales: Gastritis',
+        'diagnosisUlcerativeColitis' => 'Antecedentes personales: Colitis ulcerosa (CUCI)',
+        'otherDiagnoses' => 'Otros diagnósticos',
         'surgeriesNone' => 'Cirugías previas: No aplica',
         'surgeries' => 'Cirugías previas',
         'hospitalizationsNone' => 'Hospitalizaciones: No aplica',
@@ -100,8 +108,6 @@ function validateClinicalHistory(array $input, array $user): array
         'supplements' => 'Suplementos / proteínas',
         'cigarettesPerDay' => 'Cigarrillos por día',
         'waterLiters' => 'Agua natural al día',
-        'wellbeingTreatment' => 'Tratamiento o seguimiento',
-        'wellbeingSupport' => 'Apoyo profesional',
         'pregnant' => 'Embarazo actual',
         'lactating' => 'Periodo de lactancia',
         'menstrualCycle' => 'Ciclo menstrual',
@@ -114,8 +120,6 @@ function validateClinicalHistory(array $input, array $user): array
         'otherSubstances' => 'Consumo de otras sustancias',
         'cooksAtHome' => 'Quién cocina en casa',
         'weekdayPlace' => 'Lugar donde comes entre semana',
-        'appetite' => 'Apetito general',
-        'anxiety' => 'Ansiedad / atracones',
     ];
     if ($user['gender'] !== 'female') $input['diagnosisSop'] = false;
     if (($input['tobacco'] ?? '') === 'No fumo') {
@@ -124,6 +128,7 @@ function validateClinicalHistory(array $input, array $user): array
         }
         $input['cigarettesPerDay'] = 0;
     }
+    $input['otherDiagnoses'] ??= '';
     $values = [];
     foreach (clinicalHistoryFields() as $field => [$column, $type]) {
         $value = $input[$field] ?? null;
@@ -162,8 +167,15 @@ function validateClinicalHistory(array $input, array $user): array
     }
     $groups = [
         'familyNone' => ['Antecedentes heredofamiliares', ['familyDiabetes','familyHypertension','familyObesity','familyCholesterol','familyCancer','familyRenal','familyThyroid']],
-        'diagnosisNone' => ['Antecedentes patológicos personales', ['diagnosisDiabetes','diagnosisHypertension','diagnosisFattyLiver','diagnosisSop','diagnosisGout','diagnosisHypothyroidism']],
-        'wellbeingNone' => ['Salud integral y bienestar emocional', ['wellbeingAnemia','wellbeingBulimia','wellbeingDepression','wellbeingAnxiety','wellbeingOther']],
+        'diagnosisMetabolismNone' => ['Metabolismo y hormonas', ['diagnosisDiabetes','diagnosisInsulinResistance','diagnosisSop']],
+        'diagnosisThyroidNone' => ['Patología tiroidea', ['diagnosisHypothyroidism','diagnosisHyperthyroidism']],
+        'diagnosisOtherNone' => ['Otros antecedentes', [
+            'diagnosisHypertension','diagnosisDyslipidemia','diagnosisFattyLiver','diagnosisGout',
+            'diagnosisChronicKidneyDisease','diagnosisKidneyStones','otherDiagnoses',
+        ]],
+        'diagnosisDigestiveNone' => ['Salud digestiva', [
+            'diagnosisCeliac','diagnosisIrritableBowel','diagnosisGastritis','diagnosisUlcerativeColitis',
+        ]],
         'allergiesNone' => ['Alergias e intolerancias alimentarias', ['allergies','otherAllergies']],
         'surgeriesNone' => ['Cirugías previas', ['surgeries']],
         'hospitalizationsNone' => ['Hospitalizaciones', ['hospitalizations']],
@@ -215,11 +227,28 @@ function readClinicalHistory(PDO $pdo, int $userId): array
         else $value = $value ?? '';
         $history[$field] = $value;
     }
+    $diagnosisGroups = [
+        'diagnosisMetabolismNone' => ['diagnosis_metabolism_none', ['diagnosisDiabetes', 'diagnosisInsulinResistance', 'diagnosisSop']],
+        'diagnosisThyroidNone' => ['diagnosis_thyroid_none', ['diagnosisHypothyroidism', 'diagnosisHyperthyroidism']],
+        'diagnosisOtherNone' => ['diagnosis_other_none', ['diagnosisHypertension', 'diagnosisDyslipidemia', 'diagnosisFattyLiver', 'diagnosisGout', 'diagnosisChronicKidneyDisease', 'diagnosisKidneyStones', 'otherDiagnoses']],
+        'diagnosisDigestiveNone' => ['diagnosis_digestive_none', ['diagnosisCeliac', 'diagnosisIrritableBowel', 'diagnosisGastritis', 'diagnosisUlcerativeColitis']],
+    ];
+    // Older records had one global answer; infer a group answer only when the new column is still empty.
+    foreach ($diagnosisGroups as $none => [$column, $fields]) {
+        if ($record[$column] !== null) continue;
+        $answered = false;
+        foreach ($fields as $field) {
+            $value = $history[$field];
+            $answered = $answered || (is_string($value) ? trim($value) !== '' : (bool)$value);
+        }
+        $history[$none] = !$answered;
+    }
     return ['history' => $history, 'completed' => $record['completed_at'] !== null];
 }
 
 function handleClinicalHistory(PDO $pdo, string $action, array $input): void
 {
+    ensureClinicalHistoryColumns($pdo);
     $user = requireSessionUser($pdo);
     $userId = (int)$user['id'];
     $requestedId = $input['userId'] ?? $_GET['userId'] ?? $userId;
@@ -246,4 +275,34 @@ function handleClinicalHistory(PDO $pdo, string $action, array $input): void
         . ' ON DUPLICATE KEY UPDATE ' . implode(', ', $updates) . ', completed_at = NOW()');
     $statement->execute([$userId, ...array_values($values)]);
     sendJson(readClinicalHistory($pdo, $userId));
+}
+
+function ensureClinicalHistoryColumns(PDO $pdo): void
+{
+    static $initialized = false;
+    if ($initialized) return;
+
+    $columns = [
+        'diagnosis_metabolism_none' => 'BOOLEAN NULL',
+        'diagnosis_thyroid_none' => 'BOOLEAN NULL',
+        'diagnosis_other_none' => 'BOOLEAN NULL',
+        'diagnosis_digestive_none' => 'BOOLEAN NULL',
+        'diagnosis_hyperthyroidism' => 'BOOLEAN NULL',
+        'diagnosis_dyslipidemia' => 'BOOLEAN NULL',
+        'diagnosis_insulin_resistance' => 'BOOLEAN NULL',
+        'diagnosis_chronic_kidney_disease' => 'BOOLEAN NULL',
+        'diagnosis_kidney_stones' => 'BOOLEAN NULL',
+        'diagnosis_celiac' => 'BOOLEAN NULL',
+        'diagnosis_irritable_bowel' => 'BOOLEAN NULL',
+        'diagnosis_gastritis' => 'BOOLEAN NULL',
+        'diagnosis_ulcerative_colitis' => 'BOOLEAN NULL',
+        'other_diagnoses' => 'TEXT NULL',
+    ];
+    $existing = $pdo->query('SHOW COLUMNS FROM clinical_histories')->fetchAll(PDO::FETCH_COLUMN);
+    foreach ($columns as $column => $definition) {
+        if (!in_array($column, $existing, true)) {
+            $pdo->exec("ALTER TABLE clinical_histories ADD COLUMN `$column` $definition");
+        }
+    }
+    $initialized = true;
 }

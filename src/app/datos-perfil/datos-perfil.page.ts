@@ -49,6 +49,8 @@ export class DatosPerfilPage implements OnInit {
   mealSchedule: MealSchedule | null = null;
   scheduleLoading = false;
   scheduleSaving = false;
+  private scheduleOwnerId: string | null = null;
+  private scheduleCustomized = false;
   readonly scheduleMeals = scheduleMeals;
   private scheduleLoadVersion = 0;
 
@@ -112,7 +114,7 @@ export class DatosPerfilPage implements OnInit {
   private clinicalLoadError = '';
   private clinicalHistorySaved = false;
 
-  readonly allergyOptions = ['Lactosa', 'Gluten', 'Marisco', 'Nuez/Maní'];
+  readonly allergyOptions = ['Lactosa', 'Gluten', 'Mariscos', 'Frutos secos', 'Nuez/Maní', 'APLV (proteína de leche de vaca)'];
 
   formName = '';
   birthDate = '';
@@ -168,9 +170,17 @@ export class DatosPerfilPage implements OnInit {
   ];
 
   get settingsItems() {
-    const items = this.baseSettingsItems.filter(item => item.id !== 'privacy' && (item.id !== 'record' || (!this.r24hSaved && !this.r24hLoading)));
-    if (this.r24hSaved) items.push({id:'schedule',icon:'time-outline',title:'Horarios de alimentación',subtitle:'Desayuno, colaciones, comida y cena',route:'/tabs/datos-perfil'});
-    return [...items, ...this.baseSettingsItems.filter(item => item.id === 'privacy')];
+    const items: { id: string; icon: string; title: string; subtitle: string; route: string }[] = [];
+    for (const item of this.baseSettingsItems) {
+      if (item.id === 'privacy') continue;
+      if (item.id === 'record' && (this.r24hSaved || this.r24hLoading)) continue;
+      items.push(item);
+      if (item.id === 'food' && this.r24hSaved) {
+        items.push({ id: 'schedule', icon: 'time-outline', title: 'Horarios de alimentación', subtitle: 'Desayuno, colaciones, comida y cena', route: '/tabs/datos-perfil' });
+      }
+    }
+    items.push(...this.baseSettingsItems.filter(item => item.id === 'privacy'));
+    return items;
   }
 
   isCroppingModalOpen = false;
@@ -285,6 +295,9 @@ export class DatosPerfilPage implements OnInit {
       this.r24hOwnerId = null;
       this.closeTimePicker();
       ++this.scheduleLoadVersion;
+      this.scheduleOwnerId = null;
+      this.scheduleCustomized = false;
+      this.mealSchedule = null;
       ++this.lifestyleLoadVersion;
       this.lifestyleOwnerId = null;
       this.lifestyleSaved = false;
@@ -308,6 +321,7 @@ export class DatosPerfilPage implements OnInit {
     void this.loadClinicalHistory(activeUser.id);
     this.r24hMaxDate = calendarDate();
     void this.loadR24h(activeUser.id);
+    void this.loadMealSchedule();
 
     this.formName = this.fullName;
     this.birthDate = this.buildBirthDateFromAge(this.age);
@@ -325,6 +339,7 @@ export class DatosPerfilPage implements OnInit {
       { name: 'Recordatorio de 24 horas', completed: this.isR24hComplete },
       { name: 'Estilo de vida y metas', completed: !!activeUser && this.lifestyleOwnerId === activeUser.id && this.lifestyleSaved },
       { name: 'Preferencias alimentarias', completed: this.foodPreferencesCompleted },
+      { name: 'Horarios de alimentación', completed: this.scheduleOwnerId === activeUser?.id && this.scheduleCustomized },
     ];
   }
 
@@ -339,7 +354,7 @@ export class DatosPerfilPage implements OnInit {
   }
 
   get profileCompletion(): number {
-    return this.completedProfileModules * 20;
+    return Math.round(this.completedProfileModules / this.profileModules.length * 100);
   }
 
   toggleProfileModuleDetails(): void {
@@ -678,6 +693,8 @@ export class DatosPerfilPage implements OnInit {
       if(version===this.scheduleLoadVersion && this.eatWellService.getActiveUser()?.id===userId) {
         this.mealSchedule=response.schedule;
         this.r24hSaved=response.initialCompleted;
+        this.scheduleOwnerId=userId;
+        this.scheduleCustomized=response.customized;
       }
     } catch(error) {
       if(version===this.scheduleLoadVersion && this.eatWellService.getActiveUser()?.id===userId) await this.showAlert('No se pudieron cargar los horarios',error instanceof Error?error.message:'Inténtalo nuevamente.');
@@ -694,6 +711,8 @@ export class DatosPerfilPage implements OnInit {
       const response=await this.eatWellService.saveMealSchedule(this.mealSchedule);
       if(this.eatWellService.getActiveUser()?.id!==userId) return;
       this.mealSchedule=response.schedule;
+      this.scheduleOwnerId=userId ?? null;
+      this.scheduleCustomized=response.customized;
       await this.showAlert('Guardado','Tus horarios de alimentación se actualizaron.');
       if(this.isOnboarding) await this.continueToNextProfileModule('lifestyle'); else this.returnToProfile();
     } catch(error) { await this.showAlert('No se pudieron guardar',error instanceof Error?error.message:'Inténtalo nuevamente.'); }

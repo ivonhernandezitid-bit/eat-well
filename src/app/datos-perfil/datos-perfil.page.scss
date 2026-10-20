@@ -736,10 +736,29 @@
   line-height: 1.4;
 }
 
+.clinical-diagnosis-groups {
+  display: grid;
+  gap: 18px;
+}
+
+.clinical-diagnosis-group h4 {
+  margin: 0 0 9px;
+  color: var(--eatwell-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .clinical-check-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 8px;
+}
+
+@media (max-width: 540px) {
+  .clinical-check-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .clinical-check,
@@ -762,6 +781,7 @@
 }
 
 .clinical-none {
+  margin: 12px 0 0;
   padding: 10px 12px;
   border: 1px solid rgba(47, 125, 89, 0.14);
   border-radius: 12px;
@@ -772,8 +792,6 @@
 
 .clinical-field > .clinical-check {
   margin: 0;
-  padding: 0;
-  background: transparent;
   font-weight: 600;
 }
 
@@ -781,8 +799,10 @@
   display: flex;
   width: 100%;
   min-width: 0;
+  box-sizing: border-box;
   align-items: center;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .clinical-check input,
@@ -807,6 +827,7 @@
 
 .clinical-field {
   display: grid;
+  min-width: 0;
   gap: 6px;
   margin-top: 12px;
 }

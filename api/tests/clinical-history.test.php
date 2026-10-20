@@ -37,14 +37,39 @@ $history = [];
 foreach (clinicalHistoryFields() as $field => [$column, $type]) {
     $history[$field] = $type === 'bool' ? false : ($type === 'text' ? '' : ($type === 'list' ? [] : (is_array($type) ? array_key_first($type) : 0)));
 }
-foreach (['familyNone','diagnosisNone','wellbeingNone','allergiesNone','surgeriesNone','hospitalizationsNone','medicationsNone','medicationAllergiesNone','supplementsNone'] as $field) $history[$field] = true;
+foreach (['familyNone','diagnosisMetabolismNone','diagnosisThyroidNone','diagnosisOtherNone','diagnosisDigestiveNone','allergiesNone','surgeriesNone','hospitalizationsNone','medicationsNone','medicationAllergiesNone','supplementsNone'] as $field) $history[$field] = true;
 $history['familyNone'] = false;
 $history['familyDiabetes'] = true;
+$history['diagnosisMetabolismNone'] = false;
+$history['diagnosisThyroidNone'] = false;
+$history['diagnosisOtherNone'] = false;
+$history['diagnosisDigestiveNone'] = false;
+$history['diagnosisDiabetes'] = true;
+$history['diagnosisHypothyroidism'] = true;
+$history['diagnosisHyperthyroidism'] = true;
+$history['diagnosisDyslipidemia'] = true;
+$history['diagnosisInsulinResistance'] = true;
+$history['diagnosisChronicKidneyDisease'] = true;
+$history['diagnosisKidneyStones'] = true;
+$history['diagnosisCeliac'] = true;
+$history['diagnosisIrritableBowel'] = true;
+$history['diagnosisGastritis'] = true;
+$history['diagnosisUlcerativeColitis'] = true;
+$history['otherDiagnoses'] = 'Diagnóstico adicional de prueba';
 $history['allergiesNone'] = false;
-$history['allergies'] = ['Gluten', 'Nuez/Maní'];
-$history['wellbeingNotes'] = 'Nota de prueba con acentos: información.';
+$history['allergies'] = ['Gluten', 'Nuez/Maní', 'APLV (proteína de leche de vaca)'];
 $history['waterLiters'] = 2;
 validateClinicalHistory($history, ['gender' => 'female']);
+foreach (['wellbeingNone', 'wellbeingAnemia', 'wellbeingBulimia', 'wellbeingDepression', 'wellbeingAnxiety', 'wellbeingOther', 'wellbeingTreatment', 'wellbeingSupport', 'wellbeingNotes', 'appetite', 'anxiety'] as $removedField) {
+    if (array_key_exists($removedField, $history)) throw new RuntimeException('Removed clinical field is still collected: ' . $removedField);
+}
+$legacyEatingDisorderFields = ['diagnosisAnorexia', 'diagnosisBulimia', 'diagnosisBingeEating'];
+$apiFields = clinicalHistoryFields();
+foreach ($legacyEatingDisorderFields as $removedField) {
+    if (array_key_exists($removedField, $history) || isset($apiFields[$removedField])) {
+        throw new RuntimeException('Eating-disorder field is still collected: ' . $removedField);
+    }
+}
 $invalid = $history; $invalid['familyNone'] = true; expectInvalid($invalid, 'Antecedentes heredofamiliares');
 $invalid = $history; $invalid['waterLiters'] = -1; expectInvalid($invalid, 'Agua natural al día');
 $invalid = $history; $invalid['allergies'] = [['invalid']]; expectInvalid($invalid);
@@ -71,18 +96,21 @@ validateClinicalHistory($smoker, ['gender' => 'female']);
 $invalid = $history; $invalid['waterLiters'] = 4; expectInvalid($invalid);
 $invalid = $history; $invalid['familyDiabetes'] = 1; expectInvalid($invalid);
 $invalid = $history; $invalid['surgeries'] = 'Una cirugía'; expectInvalid($invalid);
-$invalid = $history; $invalid['wellbeingNotes'] = str_repeat('x', 10001); expectInvalid($invalid);
 $invalid = $history; unset($invalid['sleepQuality']); expectInvalid($invalid);
 $groups = [
     'familyNone' => ['familyDiabetes','familyHypertension','familyObesity','familyCholesterol','familyCancer','familyRenal','familyThyroid'],
-    'diagnosisNone' => ['diagnosisDiabetes','diagnosisHypertension','diagnosisFattyLiver','diagnosisSop','diagnosisGout','diagnosisHypothyroidism'],
-    'wellbeingNone' => ['wellbeingAnemia','wellbeingBulimia','wellbeingDepression','wellbeingAnxiety','wellbeingOther'],
+    'diagnosisMetabolismNone' => ['diagnosisDiabetes','diagnosisInsulinResistance','diagnosisSop'],
+    'diagnosisThyroidNone' => ['diagnosisHypothyroidism','diagnosisHyperthyroidism'],
+    'diagnosisOtherNone' => ['diagnosisHypertension','diagnosisDyslipidemia','diagnosisFattyLiver','diagnosisGout','diagnosisChronicKidneyDisease','diagnosisKidneyStones','otherDiagnoses'],
+    'diagnosisDigestiveNone' => ['diagnosisCeliac','diagnosisIrritableBowel','diagnosisGastritis','diagnosisUlcerativeColitis'],
     'allergiesNone' => ['allergies','otherAllergies'],
     'surgeriesNone' => ['surgeries'], 'hospitalizationsNone' => ['hospitalizations'],
     'medicationsNone' => ['medications'], 'medicationAllergiesNone' => ['medicationAllergies'], 'supplementsNone' => ['supplements'],
 ];
 $noneHistory = $history;
 $noneHistory['familyNone'] = true; $noneHistory['familyDiabetes'] = false;
+foreach (['diagnosisMetabolismNone','diagnosisThyroidNone','diagnosisOtherNone','diagnosisDigestiveNone'] as $field) $noneHistory[$field] = true;
+foreach (array_merge(...array_values(array_slice($groups, 1, 4, true))) as $field) $noneHistory[$field] = is_string($noneHistory[$field]) ? '' : false;
 $noneHistory['allergiesNone'] = true; $noneHistory['allergies'] = [];
 foreach ($groups as $none => $fields) {
     foreach ($fields as $field) {
@@ -134,14 +162,37 @@ try {
     capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['userId' => 91002, 'history' => $history]), 403);
     $saved = capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['userId' => 91001, 'history' => $history]));
     if (!$saved['completed'] || $saved['history']['allergies'] !== $history['allergies']) throw new RuntimeException('History did not round-trip');
+    foreach (['diagnosisMetabolismNone', 'diagnosisThyroidNone', 'diagnosisOtherNone', 'diagnosisDigestiveNone'] as $field) {
+        if ($saved['history'][$field] !== $history[$field]) throw new RuntimeException('Diagnosis group answer did not round-trip: ' . $field);
+    }
+    foreach ([
+        'diagnosisHyperthyroidism',
+        'diagnosisDyslipidemia',
+        'diagnosisInsulinResistance',
+        'diagnosisChronicKidneyDisease',
+        'diagnosisKidneyStones',
+        'diagnosisCeliac',
+        'diagnosisIrritableBowel',
+        'diagnosisGastritis',
+        'diagnosisUlcerativeColitis',
+    ] as $field) {
+        if (!$saved['history'][$field]) throw new RuntimeException('Diagnosis did not round-trip: ' . $field);
+    }
+    if ($saved['history']['otherDiagnoses'] !== $history['otherDiagnoses']) throw new RuntimeException('Other diagnoses did not round-trip');
+    $pdo->exec("UPDATE clinical_histories SET diagnoses_none=1, diagnosis_metabolism_none=NULL, diagnosis_thyroid_none=NULL, diagnosis_other_none=NULL, diagnosis_digestive_none=NULL, diagnosis_diabetes=0, diagnosis_hypertension=0, diagnosis_fatty_liver=0, diagnosis_pcos=0, diagnosis_gout=0, diagnosis_hypothyroidism=0, diagnosis_hyperthyroidism=0, diagnosis_dyslipidemia=0, diagnosis_insulin_resistance=0, diagnosis_chronic_kidney_disease=0, diagnosis_kidney_stones=0, diagnosis_celiac=0, diagnosis_irritable_bowel=0, diagnosis_gastritis=0, diagnosis_ulcerative_colitis=0, other_diagnoses='' WHERE user_id=91001");
+    $legacyHistory = readClinicalHistory($pdo, 91001)['history'];
+    foreach (['diagnosisMetabolismNone', 'diagnosisThyroidNone', 'diagnosisOtherNone', 'diagnosisDigestiveNone'] as $field) {
+        if (!$legacyHistory[$field]) throw new RuntimeException('Legacy diagnosis group was not migrated for display: ' . $field);
+    }
+    capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['history' => $history]));
     $invalid = $history; $invalid['allergiesNone'] = true;
     capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['history' => $invalid]), 422);
-    $history['wellbeingNotes'] = 'Edited test';
+    $history['sleepQuality'] = 'No reparador';
     capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['history' => $history]));
     if ((int)$pdo->query('SELECT COUNT(*) FROM clinical_histories')->fetchColumn() !== 1) throw new RuntimeException('Edit created duplicates');
     $_SERVER['REQUEST_METHOD'] = 'GET';
     $loaded = capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []));
-    if ($loaded['history']['wellbeingNotes'] !== 'Edited test') throw new RuntimeException('Edited history was not loaded');
+    if ($loaded['history']['sleepQuality'] !== 'No reparador') throw new RuntimeException('Edited history was not loaded');
     $pdo->exec("UPDATE users SET gender='male' WHERE id=91001");
     $masked = readClinicalHistory($pdo, 91001)['history'];
     if ($masked['pregnant'] !== '' || $masked['lactating'] !== '' || $masked['menstrualCycle'] !== '' || $masked['diagnosisSop'] !== false) throw new RuntimeException('Read exposed sex-specific fields');

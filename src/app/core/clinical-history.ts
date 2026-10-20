@@ -8,22 +8,26 @@ export function emptyClinicalHistory() {
     familyCancer: false,
     familyRenal: false,
     familyThyroid: false,
-    diagnosisNone: false,
+    diagnosisMetabolismNone: false,
+    diagnosisThyroidNone: false,
+    diagnosisOtherNone: false,
+    diagnosisDigestiveNone: false,
     diagnosisDiabetes: false,
     diagnosisHypertension: false,
     diagnosisFattyLiver: false,
     diagnosisSop: false,
     diagnosisGout: false,
     diagnosisHypothyroidism: false,
-    wellbeingNone: false,
-    wellbeingAnemia: false,
-    wellbeingBulimia: false,
-    wellbeingDepression: false,
-    wellbeingAnxiety: false,
-    wellbeingOther: '',
-    wellbeingTreatment: '',
-    wellbeingSupport: '',
-    wellbeingNotes: '',
+    diagnosisHyperthyroidism: false,
+    diagnosisDyslipidemia: false,
+    diagnosisInsulinResistance: false,
+    diagnosisChronicKidneyDisease: false,
+    diagnosisKidneyStones: false,
+    diagnosisCeliac: false,
+    diagnosisIrritableBowel: false,
+    diagnosisGastritis: false,
+    diagnosisUlcerativeColitis: false,
+    otherDiagnoses: '',
     surgeriesNone: false,
     surgeries: '',
     hospitalizationsNone: false,
@@ -50,8 +54,6 @@ export function emptyClinicalHistory() {
     otherSubstances: '',
     cooksAtHome: '',
     weekdayPlace: '',
-    appetite: '',
-    anxiety: '',
     waterLiters: null as number | null,
   };
 }
@@ -65,8 +67,30 @@ export interface ClinicalHistoryResponse {
 
 export const clinicalGroups = {
   familyNone: ['familyDiabetes', 'familyHypertension', 'familyObesity', 'familyCholesterol', 'familyCancer', 'familyRenal', 'familyThyroid'],
-  diagnosisNone: ['diagnosisDiabetes', 'diagnosisHypertension', 'diagnosisFattyLiver', 'diagnosisSop', 'diagnosisGout', 'diagnosisHypothyroidism'],
-  wellbeingNone: ['wellbeingAnemia', 'wellbeingBulimia', 'wellbeingDepression', 'wellbeingAnxiety', 'wellbeingOther'],
+  diagnosisMetabolismNone: [
+    'diagnosisDiabetes',
+    'diagnosisInsulinResistance',
+    'diagnosisSop',
+  ],
+  diagnosisThyroidNone: [
+    'diagnosisHypothyroidism',
+    'diagnosisHyperthyroidism',
+  ],
+  diagnosisOtherNone: [
+    'diagnosisHypertension',
+    'diagnosisDyslipidemia',
+    'diagnosisFattyLiver',
+    'diagnosisGout',
+    'diagnosisChronicKidneyDisease',
+    'diagnosisKidneyStones',
+    'otherDiagnoses',
+  ],
+  diagnosisDigestiveNone: [
+    'diagnosisCeliac',
+    'diagnosisIrritableBowel',
+    'diagnosisGastritis',
+    'diagnosisUlcerativeColitis',
+  ],
   allergiesNone: ['allergies', 'otherAllergies'],
   surgeriesNone: ['surgeries'],
   hospitalizationsNone: ['hospitalizations'],
@@ -76,8 +100,6 @@ export const clinicalGroups = {
 } as const;
 
 const selections = {
-  wellbeingTreatment: ['No aplica', 'No', 'Sí, actualmente', 'Anteriormente'],
-  wellbeingSupport: ['No aplica', 'No', 'Sí, actualmente', 'Anteriormente'],
   pregnant: ['No', 'Sí'],
   lactating: ['No', 'Sí'],
   menstrualCycle: ['Regular', 'Irregular', 'No aplica'],
@@ -90,8 +112,6 @@ const selections = {
   otherSubstances: ['No', 'Sí'],
   cooksAtHome: ['Yo mismo(a)', 'Otra persona'],
   weekdayPlace: ['En casa', 'En el trabajo'],
-  appetite: ['Normal', 'Bajo', 'Alto'],
-  anxiety: ['Sí', 'No'],
 };
 
 function hasAnswer(value: unknown): boolean {
@@ -122,8 +142,10 @@ export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): st
   const current = clinicalHistoryForSex(data, sex);
   const groupLabels: Record<keyof typeof clinicalGroups, string> = {
     familyNone: 'Antecedentes heredofamiliares',
-    diagnosisNone: 'Antecedentes patológicos personales',
-    wellbeingNone: 'Salud integral y bienestar emocional',
+    diagnosisMetabolismNone: 'Metabolismo y hormonas',
+    diagnosisThyroidNone: 'Patología tiroidea',
+    diagnosisOtherNone: 'Otros antecedentes',
+    diagnosisDigestiveNone: 'Salud digestiva',
     allergiesNone: 'Alergias e intolerancias alimentarias',
     surgeriesNone: 'Cirugías previas',
     hospitalizationsNone: 'Hospitalizaciones',
@@ -138,8 +160,6 @@ export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): st
     }
   }
   const selectionLabels: Record<string, string> = {
-    wellbeingTreatment: 'Tratamiento o seguimiento',
-    wellbeingSupport: 'Apoyo profesional',
     pregnant: 'Embarazo actual',
     lactating: 'Periodo de lactancia',
     menstrualCycle: 'Ciclo menstrual',
@@ -152,8 +172,6 @@ export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): st
     otherSubstances: 'Consumo de otras sustancias',
     cooksAtHome: 'Quién cocina en casa',
     weekdayPlace: 'Lugar donde comes entre semana',
-    appetite: 'Apetito general',
-    anxiety: 'Ansiedad / atracones',
   };
   for (const [field, options] of Object.entries(selections)) {
     if (sex !== 'female' && ['pregnant', 'lactating', 'menstrualCycle'].includes(field)) continue;
@@ -161,8 +179,7 @@ export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): st
     if (!options.includes(value)) return `Selecciona una respuesta en “${selectionLabels[field]}”.`;
   }
   const textLabels: Partial<Record<keyof ClinicalHistoryData, string>> = {
-    wellbeingOther: 'Otra condición o situación relevante',
-    wellbeingNotes: 'Información adicional de bienestar',
+    otherDiagnoses: 'Otros diagnósticos',
     surgeries: 'Cirugías previas',
     hospitalizations: 'Hospitalizaciones',
     otherAllergies: 'Otras alergias',

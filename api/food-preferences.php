@@ -17,8 +17,8 @@ function validateFoodPreferenceConflicts(array $data): void
     $animalMeats = ['pollo','pavo','res','cerdo','salmon','atun','sardinas','pescado','camaron','carne','jamon','higado','mariscos','moluscos'];
     $milkFoods = ['leche','yogur','queso','requeson','mantequilla','crema de leche'];
     $rules = [
-        'lacteos'=>$milkFoods, 'lactosa'=>$milkFoods, 'huevo'=>['huevo'],
-        'cacahuate'=>['cacahuate','cacahuates'], 'nueces de arbol'=>['nuez','nueces','almendra','almendras','avellana','avellanas','pistacho','pistachos'],
+        'lacteos'=>$milkFoods, 'lactosa'=>$milkFoods, 'huevo'=>['huevo','mayonesa'],
+        'cacahuate'=>['cacahuate','cacahuates'], 'nueces de arbol'=>['nuez','nueces','almendra','almendras','avellana','avellanas','pistacho','pistachos','pistache','pistaches','anacardo','anacardos','macadamia','macadamias'],
         'gluten'=>['trigo','harina','pan','pasta','centeno','cebada','seitan','avena'], 'trigo'=>['trigo','harina','pan','pasta','seitan'],
         'soya'=>['soya','soja','tofu','tempeh','edamame'], 'pescado'=>['pescado','salmon','atun','sardinas'],
         'mariscos'=>['mariscos','camaron','camarones','moluscos','almejas','mejillones','pulpo'], 'moluscos'=>['moluscos','almejas','mejillones','pulpo'],

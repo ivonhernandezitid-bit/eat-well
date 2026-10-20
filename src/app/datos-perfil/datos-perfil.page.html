@@ -59,7 +59,7 @@
         <div class="progress-track">
           <span [style.width.%]="profileCompletion"></span>
         </div>
-        <p>{{ completedProfileModules }} de 5 módulos completados</p>
+        <p>{{ completedProfileModules }} de {{ profileModules.length }} módulos completados</p>
         <div class="profile-module-status-list" *ngIf="showProfileModuleDetails">
           <div *ngFor="let module of profileModules" [class.complete]="module.completed">
             <ion-icon [name]="module.completed ? 'checkmark-circle' : 'ellipse-outline'"></ion-icon>
@@ -314,7 +314,6 @@
 
       <section class="clinical-card">
         <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>
-        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyNone" (ngModelChange)="setClinicalField('familyNone', $event)" /> No aplica</label>
         <div class="clinical-check-grid">
           <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyDiabetes" (ngModelChange)="setClinicalField('familyDiabetes', $event)" /> Diabetes Mellitus</label>
           <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyHypertension" (ngModelChange)="setClinicalField('familyHypertension', $event)" /> Hipertensión</label>
@@ -324,61 +323,82 @@
           <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyRenal" (ngModelChange)="setClinicalField('familyRenal', $event)" /> Enfermedades renales</label>
           <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyThyroid" (ngModelChange)="setClinicalField('familyThyroid', $event)" /> Tiroides</label>
         </div>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.familyNone" (ngModelChange)="setClinicalField('familyNone', $event)" /> No aplica</label>
       </section>
 
       <section class="clinical-card">
         <h3>2. ANTECEDENTES PATOLÓGICOS PERSONALES</h3>
-        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisNone" (ngModelChange)="setClinicalField('diagnosisNone', $event)" /> No aplica</label>
-        <div class="clinical-check-grid">
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisDiabetes" (ngModelChange)="setClinicalField('diagnosisDiabetes', $event)" /> Diabetes (Tipo 1 / 2)</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypertension" (ngModelChange)="setClinicalField('diagnosisHypertension', $event)" /> Hipertensión Arterial</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisFattyLiver" (ngModelChange)="setClinicalField('diagnosisFattyLiver', $event)" /> Hígado Graso</label>
-          <label *ngIf="clinicalGender === 'female'"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisSop" (ngModelChange)="setClinicalField('diagnosisSop', $event)" /> SOP (Ovario Poliq.)</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisGout" (ngModelChange)="setClinicalField('diagnosisGout', $event)" /> Ácido Úrico Alto / Gota</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypothyroidism" (ngModelChange)="setClinicalField('diagnosisHypothyroidism', $event)" /> Hipotiroidismo</label>
+        <div class="clinical-diagnosis-groups">
+          <div class="clinical-diagnosis-group">
+            <h4>Metabolismo y hormonas</h4>
+            <div class="clinical-check-grid">
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisDiabetes" (ngModelChange)="setClinicalField('diagnosisDiabetes', $event)" /> Diabetes (Tipo 1 / 2)</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisInsulinResistance" (ngModelChange)="setClinicalField('diagnosisInsulinResistance', $event)" /> Resistencia a la insulina</label>
+              <label *ngIf="clinicalGender === 'female'"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisSop" (ngModelChange)="setClinicalField('diagnosisSop', $event)" /> SOP (ovario poliquístico)</label>
+            </div>
+            <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisMetabolismNone" (ngModelChange)="setClinicalField('diagnosisMetabolismNone', $event)" /> No aplica a este grupo</label>
+          </div>
+          <div class="clinical-diagnosis-group">
+            <h4>Patología tiroidea</h4>
+            <div class="clinical-check-grid">
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypothyroidism" (ngModelChange)="setClinicalField('diagnosisHypothyroidism', $event)" /> Hipotiroidismo</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHyperthyroidism" (ngModelChange)="setClinicalField('diagnosisHyperthyroidism', $event)" /> Hipertiroidismo</label>
+            </div>
+            <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisThyroidNone" (ngModelChange)="setClinicalField('diagnosisThyroidNone', $event)" /> No aplica a este grupo</label>
+          </div>
+          <div class="clinical-diagnosis-group">
+            <h4>Otros antecedentes</h4>
+            <div class="clinical-check-grid">
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisHypertension" (ngModelChange)="setClinicalField('diagnosisHypertension', $event)" /> Hipertensión arterial</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisDyslipidemia" (ngModelChange)="setClinicalField('diagnosisDyslipidemia', $event)" /> Dislipidemias (colesterol / triglicéridos)</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisFattyLiver" (ngModelChange)="setClinicalField('diagnosisFattyLiver', $event)" /> Hígado graso</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisGout" (ngModelChange)="setClinicalField('diagnosisGout', $event)" /> Ácido úrico alto / gota</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisChronicKidneyDisease" (ngModelChange)="setClinicalField('diagnosisChronicKidneyDisease', $event)" /> Enfermedad renal crónica</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisKidneyStones" (ngModelChange)="setClinicalField('diagnosisKidneyStones', $event)" /> Litiasis renal (cálculos)</label>
+            </div>
+            <div class="clinical-field">
+              <label>Otros diagnósticos:</label>
+              <input [disabled]="clinicalLoading || clinicalSaving || clinicalData.diagnosisOtherNone" [ngModel]="clinicalData.otherDiagnoses" (ngModelChange)="setClinicalField('otherDiagnoses', $event)" placeholder="Escribe otros diagnósticos relevantes..." />
+            </div>
+            <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisOtherNone" (ngModelChange)="setClinicalField('diagnosisOtherNone', $event)" /> No aplica a este grupo</label>
+          </div>
+          <div class="clinical-diagnosis-group">
+            <h4>Salud digestiva</h4>
+            <div class="clinical-check-grid">
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisCeliac" (ngModelChange)="setClinicalField('diagnosisCeliac', $event)" /> Enfermedad celíaca</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisIrritableBowel" (ngModelChange)="setClinicalField('diagnosisIrritableBowel', $event)" /> Intestino irritable</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisGastritis" (ngModelChange)="setClinicalField('diagnosisGastritis', $event)" /> Gastritis</label>
+              <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisUlcerativeColitis" (ngModelChange)="setClinicalField('diagnosisUlcerativeColitis', $event)" /> Colitis ulcerosa (CUCI)</label>
+            </div>
+            <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.diagnosisDigestiveNone" (ngModelChange)="setClinicalField('diagnosisDigestiveNone', $event)" /> No aplica a este grupo</label>
+          </div>
         </div>
         <div class="clinical-field"><label>Cirugías previas:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.surgeriesNone" [ngModel]="clinicalData.surgeries" (ngModelChange)="setClinicalField('surgeries', $event)" placeholder="Escribe cirugías y año..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.surgeriesNone" (ngModelChange)="setClinicalField('surgeriesNone', $event)" /> No aplica</label></div>
         <div class="clinical-field"><label>Hospitalizaciones:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.hospitalizationsNone" [ngModel]="clinicalData.hospitalizations" (ngModelChange)="setClinicalField('hospitalizations', $event)" placeholder="Escribe motivo y fecha..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.hospitalizationsNone" (ngModelChange)="setClinicalField('hospitalizationsNone', $event)" /> No aplica</label></div>
       </section>
 
-      <section class="clinical-card">
-        <h3>3. SALUD INTEGRAL Y BIENESTAR EMOCIONAL</h3>
-        <p class="clinical-help">Selecciona cualquier condición actual o previa. Si ninguna corresponde, marca No aplica.</p>
-        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingNone" (ngModelChange)="setClinicalField('wellbeingNone', $event)" /> No aplica</label>
-        <div class="clinical-check-grid">
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingAnemia" (ngModelChange)="setClinicalField('wellbeingAnemia', $event)" /> Anemia</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingBulimia" (ngModelChange)="setClinicalField('wellbeingBulimia', $event)" /> Bulimia</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingDepression" (ngModelChange)="setClinicalField('wellbeingDepression', $event)" /> Depresión</label>
-          <label><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.wellbeingAnxiety" (ngModelChange)="setClinicalField('wellbeingAnxiety', $event)" /> Ansiedad diagnosticada</label>
-        </div>
-        <div class="clinical-field"><label>Otra condición o situación relevante:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.wellbeingNone" [ngModel]="clinicalData.wellbeingOther" (ngModelChange)="setClinicalField('wellbeingOther', $event)" placeholder="Escribe una condición o situación..." /></div>
-        <div class="clinical-field"><label>¿Recibes tratamiento o seguimiento?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingTreatment" (ngModelChange)="setClinicalField('wellbeingTreatment', $event)"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
-        <div class="clinical-field"><label>¿Cuentas con apoyo profesional?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingSupport" (ngModelChange)="setClinicalField('wellbeingSupport', $event)"><option value="" disabled>Selecciona una opción</option><option>No aplica</option><option>No</option><option>Sí, actualmente</option><option>Anteriormente</option></select></div>
-        <div class="clinical-field"><label>Información adicional que quieras compartir:</label><input [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.wellbeingNotes" (ngModelChange)="setClinicalField('wellbeingNotes', $event)" placeholder="Opcional" /></div>
-      </section>
-
       <section class="clinical-card" *ngIf="clinicalGender === 'female'">
-        <h3>4. SALUD GINECO-OBSTÉTRICA</h3>
+        <h3>3. SALUD GINECO-OBSTÉTRICA</h3>
         <div class="clinical-field"><label>¿Embarazada actualmente?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.pregnant" (ngModelChange)="setClinicalField('pregnant', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
         <div class="clinical-field"><label>¿En periodo de lactancia?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.lactating" (ngModelChange)="setClinicalField('lactating', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
         <div class="clinical-field"><label>Ciclo menstrual:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.menstrualCycle" (ngModelChange)="setClinicalField('menstrualCycle', $event)"><option value="" disabled>Selecciona una opción</option><option>Regular</option><option>Irregular</option><option>No aplica</option></select></div>
       </section>
 
       <section class="clinical-card">
-        <h3>{{ clinicalGender === 'female' ? 5 : 4 }}. ALERGIAS, INTOLERANCIAS Y MEDICAMENTOS</h3>
-        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.allergiesNone" (ngModelChange)="setClinicalField('allergiesNone', $event)" /> No aplica</label>
+        <h3>{{ clinicalGender === 'female' ? 4 : 3 }}. ALERGIAS, INTOLERANCIAS, MEDICAMENTOS Y SUPLEMENTOS</h3>
         <div class="clinical-check-grid allergy-grid">
           <label *ngFor="let allergy of allergyOptions"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [checked]="clinicalData.allergies.includes(allergy)" (change)="toggleClinicalAllergy(allergy)" /> {{ allergy }}</label>
         </div>
         <div class="clinical-field"><label>Otras alergias:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.allergiesNone" [ngModel]="clinicalData.otherAllergies" (ngModelChange)="setClinicalField('otherAllergies', $event)" placeholder="Escribe otras alergias..." /></div>
-        <div class="clinical-field"><label>Medicamentos actuales:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.medicationsNone" [ngModel]="clinicalData.medications" (ngModelChange)="setClinicalField('medications', $event)" placeholder="Fármaco, dosis y frecuencia" /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.medicationsNone" (ngModelChange)="setClinicalField('medicationsNone', $event)" /> No aplica</label></div>
+        <div class="clinical-field"><label>Medicamentos actuales:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.medicationsNone" [ngModel]="clinicalData.medications" (ngModelChange)="setClinicalField('medications', $event)" placeholder="Nombre, dosis y frecuencia" /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.medicationsNone" (ngModelChange)="setClinicalField('medicationsNone', $event)" /> No aplica</label></div>
         <div class="clinical-field"><label>Alergias a medicamentos:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.medicationAllergiesNone" [ngModel]="clinicalData.medicationAllergies" (ngModelChange)="setClinicalField('medicationAllergies', $event)" placeholder="Ej. Penicilina..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.medicationAllergiesNone" (ngModelChange)="setClinicalField('medicationAllergiesNone', $event)" /> No aplica</label></div>
         <div class="clinical-field"><label>Suplementos / Proteínas:</label><input [disabled]="clinicalLoading || clinicalSaving || clinicalData.supplementsNone" [ngModel]="clinicalData.supplements" (ngModelChange)="setClinicalField('supplements', $event)" placeholder="Ej. Omega 3, creatina..." /><label class="clinical-check clinical-optional"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.supplementsNone" (ngModelChange)="setClinicalField('supplementsNone', $event)" /> No aplica</label></div>
         <div class="clinical-field"><label>¿Has usado pastillas para bajar de peso?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.weightLossTreatment" (ngModelChange)="setClinicalField('weightLossTreatment', $event)"><option value="" disabled>Selecciona una opción</option><option>No</option><option>Sí</option></select></div>
+        <label class="clinical-check clinical-none"><input [disabled]="clinicalLoading || clinicalSaving" type="checkbox" [ngModel]="clinicalData.allergiesNone" (ngModelChange)="setClinicalField('allergiesNone', $event)" /> No aplica a alergias o intolerancias</label>
       </section>
 
       <section class="clinical-card">
-        <h3>{{ clinicalGender === 'female' ? 6 : 5 }}. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
+        <h3>{{ clinicalGender === 'female' ? 5 : 4 }}. ESTILO DE VIDA, SUEÑO Y TOXICOMANÍAS</h3>
         <div class="clinical-field"><label>Horas de sueño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.sleepHours" (ngModelChange)="setClinicalField('sleepHours', $event)"><option value="" disabled>Selecciona una opción</option><option>7-8 hrs</option><option>Menos de 6 hrs</option><option>Más de 8 hrs</option></select></div>
         <div class="clinical-field"><label>Calidad del sueño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.sleepQuality" (ngModelChange)="setClinicalField('sleepQuality', $event)"><option value="" disabled>Selecciona una opción</option><option>Reparador</option><option>No reparador</option></select></div>
         <div class="clinical-field"><label>Frecuencia evacuaciones / baño:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.bowelFrequency" (ngModelChange)="setClinicalField('bowelFrequency', $event)"><option value="" disabled>Selecciona una opción</option><option>1 a 2 veces al día</option><option>Menos de 1 vez al día</option></select></div>
@@ -389,11 +409,9 @@
       </section>
 
       <section class="clinical-card">
-        <h3>{{ clinicalGender === 'female' ? 7 : 6 }}. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
+        <h3>{{ clinicalGender === 'female' ? 6 : 5 }}. CONTEXTO ALIMENTARIO Y HÁBITOS</h3>
         <div class="clinical-field"><label>¿Quién cocina en casa?</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.cooksAtHome" (ngModelChange)="setClinicalField('cooksAtHome', $event)"><option value="" disabled>Selecciona una opción</option><option>Yo mismo(a)</option><option>Otra persona</option></select></div>
         <div class="clinical-field"><label>Lugar donde comes entre semana:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.weekdayPlace" (ngModelChange)="setClinicalField('weekdayPlace', $event)"><option value="" disabled>Selecciona una opción</option><option>En casa</option><option>En el trabajo</option></select></div>
-        <div class="clinical-field"><label>Apetito general:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.appetite" (ngModelChange)="setClinicalField('appetite', $event)"><option value="" disabled>Selecciona una opción</option><option>Normal</option><option>Bajo</option><option>Alto</option></select></div>
-        <div class="clinical-field"><label>Ansiedad / Atracones:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.anxiety" (ngModelChange)="setClinicalField('anxiety', $event)"><option value="" disabled>Selecciona una opción</option><option>Sí</option><option>No</option></select></div>
         <div class="clinical-field"><label>Agua natural al día:</label><select [disabled]="clinicalLoading || clinicalSaving" [ngModel]="clinicalData.waterLiters" (ngModelChange)="setClinicalField('waterLiters', $event)"><option [ngValue]="null" disabled>Selecciona una opción</option><option [ngValue]="2">2 litros</option><option [ngValue]="1">1 litro</option><option [ngValue]="3">3 litros</option></select></div>
       </section>
 

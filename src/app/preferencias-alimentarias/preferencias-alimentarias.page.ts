@@ -1,10 +1,37 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController, ToastController } from '@ionic/angular';
-import { ActivityLevel, DietType, EatWellService, FitnessGoal, FoodPreferences } from '../core';
+import { DietType, EatWellService, FoodPreferences } from '../core';
 
 function emptyFoodPreferences(): FoodPreferences {
   return { dietType: 'omnivore', preferredFruits: [], preferredVegetables: [], preferredProteins: [], preferredCarbohydrates: [], preferredLegumes: [], preferredDairy: [], preferredFats: [], allergies: [], dislikedFoods: [], cookingTimeMinutes: 30, completed: false };
+}
+
+type FoodPreferenceList = 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods';
+
+const allergyFoodTerms: Record<string, string[]> = {
+  lacteos: ['leche', 'yogur', 'queso', 'requeson', 'mantequilla', 'crema de leche'],
+  lactosa: ['leche', 'yogur', 'queso', 'requeson', 'mantequilla', 'crema de leche'],
+  huevo: ['huevo', 'mayonesa'],
+  cacahuate: ['cacahuate', 'crema de cacahuate'],
+  'nueces de arbol': ['nuez', 'almendra', 'avellana', 'pistacho', 'pistaches', 'anacardo', 'anacardos', 'macadamia'],
+  gluten: ['trigo', 'harina', 'pan', 'pasta', 'centeno', 'cebada', 'seitan', 'avena'],
+  trigo: ['trigo', 'harina', 'pan', 'pasta', 'seitan'],
+  soya: ['soya', 'soja', 'tofu', 'tempeh', 'edamame'],
+  pescado: ['pescado', 'salmon', 'atun', 'sardinas'],
+  mariscos: ['marisco', 'camaron', 'molusco', 'almeja', 'mejillon', 'pulpo'],
+  moluscos: ['molusco', 'almeja', 'mejillon', 'pulpo'],
+  sesamo: ['sesamo', 'ajonjoli', 'tahini'],
+  maiz: ['maiz', 'elote'],
+  legumbres: ['frijol', 'lenteja', 'garbanzo', 'haba', 'chicharo', 'soya', 'tofu', 'tempeh', 'edamame'],
+};
+
+function normalizeFoodName(value: string): string {
+  return value.trim().toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+}
+
+function foodContainsTerm(food: string, term: string): boolean {
+  return new RegExp(`(^|[^a-z0-9])${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z0-9]|$)`, 'i').test(food);
 }
 
 @Component({
@@ -36,15 +63,25 @@ export class PreferenciasAlimentariasPage implements OnInit {
     'Pan de centeno', 'Papa', 'Camote', 'Quinoa', 'Elote', 'Amaranto'
   ];
   readonly legumes = [
-    'Frijoles', 'Lentejas', 'Garbanzos', 'Habas', 'Chícharos', 'Soya', 'Tofu', 'Edamame'
+    'Frijoles', 'Lentejas', 'Garbanzos', 'Habas', 'Chícharos', 'Soya', 'Tofu', 'Edamame',
+    'Cacahuates', 'Crema de cacahuate'
   ];
   readonly dairy = [
     'Leche', 'Leche sin lactosa', 'Yogur natural', 'Yogur griego', 'Queso panela',
     'Queso cottage', 'Requesón', 'Bebida de soya', 'Bebida de avena', 'Bebida de almendra', 'Bebida de coco'
   ];
-  readonly fats = [
-    'Aceite de oliva', 'Aceite de canola', 'Almendras', 'Nueces', 'Cacahuates',
-    'Chía', 'Linaza', 'Pepitas', 'Crema de cacahuate'
+  readonly oilsAndFats = [
+    'Aceite de oliva', 'Aceite de canola', 'Aceite de girasol', 'Aceite de maíz',
+    'Aceite de soya', 'Aceite de aguacate', 'Aceite de ajonjolí', 'Aceite de cártamo',
+    'Aceite de coco', 'Mantequilla', 'Margarina', 'Manteca de cerdo', 'Mayonesa',
+  ];
+  readonly seeds = [
+    'Chía', 'Linaza', 'Pepitas de calabaza', 'Semillas de girasol', 'Ajonjolí',
+    'Semillas de amapola', 'Semillas de cáñamo',
+  ];
+  readonly nuts = [
+    'Almendras', 'Nueces', 'Nuez pecana', 'Avellanas', 'Pistaches',
+    'Anacardos', 'Macadamias', 'Nuez de Brasil',
   ];
   readonly allergyOptions = [
     'Lácteos', 'Huevo', 'Cacahuate', 'Nueces de árbol', 'Gluten', 'Soya', 'Pescado', 'Mariscos',
@@ -64,8 +101,6 @@ export class PreferenciasAlimentariasPage implements OnInit {
   otherFruitsInput = '';
   otherVegetablesInput = '';
   otherAllergiesInput = '';
-  fitnessGoal: FitnessGoal = 'improve_health';
-  activityLevel: ActivityLevel = 'moderate';
   isLoading = true;
   isSaving = false;
   currentSection: string | null = null;
@@ -75,6 +110,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
   private moduleTouchStartX = 0;
   private moduleTouchStartY = 0;
   private moduleSwipeEligible = false;
+  private customConflictPromptActive = false;
 
   get proteinsForDiet(): string[] {
     if (this.preferences.dietType === 'vegan') {
@@ -183,14 +219,20 @@ export class PreferenciasAlimentariasPage implements OnInit {
       const saved = await this.eatWellService.getFoodPreferences();
       if (version !== this.loadRequest) return;
       if (this.eatWellService.getActiveUser()?.id !== userId) throw new Error('La cuenta cambió. Vuelve a abrir tus preferencias.');
-      const activeUser = this.eatWellService.getActiveUser();
-      this.fitnessGoal = activeUser?.goal ?? 'improve_health';
-      this.activityLevel = activeUser?.activityLevel ?? 'moderate';
-      
       this.preferences = {
         ...emptyFoodPreferences(),
         ...saved,
       };
+      const legacyPeanutFoods = this.preferences.preferredFats.filter(food =>
+        ['cacahuates', 'crema de cacahuate'].includes(normalizeFoodName(food)),
+      );
+      this.preferences.preferredFats = this.preferences.preferredFats.filter(food =>
+        !['cacahuates', 'crema de cacahuate'].includes(normalizeFoodName(food)),
+      );
+      this.preferences.preferredLegumes = Array.from(new Set([
+        ...this.preferences.preferredLegumes,
+        ...legacyPeanutFoods,
+      ]));
       this.setDietType(this.preferences.dietType);
       
       // Extract custom items not present in static lists
@@ -290,15 +332,219 @@ export class PreferenciasAlimentariasPage implements OnInit {
     }
   }
 
-  togglePreference(listName: 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods', value: string): void {
+  async togglePreference(listName: FoodPreferenceList, value: string): Promise<void> {
     const values = this.preferences[listName];
+    if (values.includes(value)) {
+      this.preferences[listName] = values.filter(item => item !== value);
+      return;
+    }
+
+    if (listName === 'dislikedFoods') {
+      const conflicts = this.findPreferredNameConflicts(value);
+      for (const conflict of conflicts) {
+        if (!await this.confirmPreferredToDisliked(conflict.food)) return;
+        this.removePreferredFoods([conflict.food]);
+      }
+      this.preferences.dislikedFoods = [...this.preferences.dislikedFoods, value];
+      return;
+    }
+
+    if (listName === 'allergies') {
+      const conflicts = this.findAllergyConflicts([value], this.getPreferredFoods());
+      if (conflicts.length > 0) {
+        const confirmed = await this.confirmAllergyConflicts(value, conflicts);
+        if (!confirmed) return;
+        this.removePreferredFoods(conflicts.map(conflict => conflict.food));
+      }
+      this.preferences.allergies = [...this.preferences.allergies, value];
+      return;
+    }
+
+    if (listName.startsWith('preferred')) {
+      const conflicts = this.findAllergyConflicts(this.preferences.allergies, [{ listName, food: value }]);
+      if (conflicts.length > 0) {
+        await this.showError(`“${value}” está marcado como alergia o intolerancia. Retíralo primero de Alergias para agregarlo a tus preferencias.`);
+        return;
+      }
+    }
+
     this.preferences[listName] = values.includes(value)
       ? values.filter(item => item !== value)
       : [...values, value];
   }
 
-  isSelected(listName: 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods', value: string): boolean {
+  isSelected(listName: FoodPreferenceList, value: string): boolean {
     return this.preferences[listName].includes(value);
+  }
+
+  private getPreferredFoods(): Array<{ listName: FoodPreferenceList; food: string }> {
+    const listNames: FoodPreferenceList[] = [
+      'preferredFruits',
+      'preferredVegetables',
+      'preferredProteins',
+      'preferredCarbohydrates',
+      'preferredLegumes',
+      'preferredDairy',
+      'preferredFats',
+    ];
+    const foods: Array<{ listName: FoodPreferenceList; food: string }> = [];
+    for (const listName of listNames) {
+      for (const food of this.preferences[listName]) {
+        foods.push({ listName, food });
+      }
+    }
+    for (const food of this.otherFruitsInput.split(',').map(value => value.trim()).filter(Boolean)) {
+      foods.push({ listName: 'preferredFruits', food });
+    }
+    for (const food of this.otherVegetablesInput.split(',').map(value => value.trim()).filter(Boolean)) {
+      foods.push({ listName: 'preferredVegetables', food });
+    }
+    return foods;
+  }
+
+  private findAllergyConflicts(
+    allergies: string[],
+    preferredFoods: Array<{ listName: FoodPreferenceList; food: string }>,
+  ): Array<{ listName: FoodPreferenceList; food: string }> {
+    return preferredFoods.filter(({ food }) => allergies.some(allergy => this.foodMatchesAllergy(food, allergy)));
+  }
+
+  private findPreferredNameConflicts(value: string): Array<{ listName: FoodPreferenceList; food: string }> {
+    const normalizedValue = normalizeFoodName(value);
+    if (normalizedValue.length < 2) return [];
+    return this.getPreferredFoods().filter(({ food }) => {
+      const normalizedFood = normalizeFoodName(food);
+      return normalizedFood.length >= 2
+        && (normalizedFood.includes(normalizedValue) || normalizedValue.includes(normalizedFood));
+    });
+  }
+
+  private async confirmPreferredToDisliked(food: string): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header: 'Alimento preferido',
+      message: `Has seleccionado “${food}” como uno de tus alimentos preferidos. ¿Deseas quitarlo de tus gustos para agregarlo a la lista de alimentos que no te gustan?`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Quitar y agregar', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    return (await alert.onDidDismiss()).role === 'confirm';
+  }
+
+  async handleAllergyInput(event: Event): Promise<void> {
+    const detail = (event as CustomEvent<{ value?: string }>).detail;
+    if (typeof detail?.value === 'string') this.otherAllergiesInput = detail.value;
+    if (this.otherAllergiesInput.includes(',')) await this.processCustomConflictInput('allergies', false);
+  }
+
+  async handleDislikedInput(event: Event): Promise<void> {
+    const detail = (event as CustomEvent<{ value?: string }>).detail;
+    if (typeof detail?.value === 'string') this.dislikedFoodsInput = detail.value;
+    if (this.dislikedFoodsInput.includes(',')) await this.processCustomConflictInput('disliked', false);
+  }
+
+  async checkAllergyInputOnBlur(): Promise<void> {
+    await this.processCustomConflictInput('allergies', true);
+  }
+
+  async checkDislikedInputOnBlur(): Promise<void> {
+    await this.processCustomConflictInput('disliked', true);
+  }
+
+  private async processCustomConflictInput(
+    field: 'allergies' | 'disliked',
+    includeLastEntry: boolean,
+  ): Promise<void> {
+    if (this.customConflictPromptActive) return;
+    this.customConflictPromptActive = true;
+    try {
+      const entries = (field === 'allergies' ? this.otherAllergiesInput : this.dislikedFoodsInput).split(',');
+      const lastEntryIndex = entries.length - 1;
+      for (let index = 0; index < entries.length; index++) {
+        const entry = entries[index].trim();
+        if (!entry || (index === lastEntryIndex && !includeLastEntry)) continue;
+        const conflict = this.findPreferredNameConflicts(entry)[0];
+        if (!conflict) continue;
+
+        const confirmed = field === 'allergies'
+          ? await this.confirmCustomAllergyConflict(entry, conflict.food)
+          : await this.confirmPreferredToDisliked(conflict.food);
+        if (confirmed) {
+          this.removePreferredFoods([conflict.food]);
+        } else {
+          entries[index] = '';
+        }
+      }
+      const updatedInput = entries.map(entry => entry.trim()).filter(Boolean).join(', ');
+      if (field === 'allergies') this.otherAllergiesInput = updatedInput;
+      else this.dislikedFoodsInput = updatedInput;
+    } finally {
+      this.customConflictPromptActive = false;
+    }
+  }
+
+  private async confirmCustomAllergyConflict(enteredFood: string, preferredFood: string): Promise<boolean> {
+    const alert = await this.alertController.create({
+      header: 'Alimento preferido',
+      message: `Escribiste “${enteredFood}”, el cual coincide con “${preferredFood}” que marcaste anteriormente como un alimento que te gusta. ¿Deseas removerlo de tus alimentos preferidos para conservarlo únicamente como alergia?`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Remover y conservar', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    return (await alert.onDidDismiss()).role === 'confirm';
+  }
+
+  private foodMatchesAllergy(food: string, allergy: string): boolean {
+    const normalizedFood = normalizeFoodName(food);
+    const normalizedAllergy = normalizeFoodName(allergy);
+    if (!normalizedFood || !normalizedAllergy) return false;
+
+    const plantDrink = /^(bebida|leche) (de )?(soya|soja|avena|almendra|coco|arroz)$/.test(normalizedFood);
+    if (plantDrink && ['lacteos', 'lactosa'].includes(normalizedAllergy)) return false;
+    if (normalizedAllergy === 'lactosa' && foodContainsTerm(normalizedFood, 'sin lactosa')) return false;
+    if (normalizedAllergy === 'gluten' && foodContainsTerm(normalizedFood, 'sin gluten')) return false;
+
+    const terms = allergyFoodTerms[normalizedAllergy] ?? [normalizedAllergy];
+    return terms.some(term => foodContainsTerm(normalizedFood, normalizeFoodName(term)));
+  }
+
+  private async confirmAllergyConflicts(
+    allergy: string,
+    conflicts: Array<{ listName: FoodPreferenceList; food: string }>,
+  ): Promise<boolean> {
+    const foodNames = [...new Set(conflicts.map(conflict => conflict.food))];
+    const foodLabel = foodNames.length === 1 ? `“${foodNames[0]}”` : foodNames.map(food => `“${food}”`).join(', ');
+    const alert = await this.alertController.create({
+      header: 'Confirmar alergia o intolerancia',
+      message: `Has seleccionado ${foodLabel} en tus alimentos preferidos. ¿Deseas removerlo de tus preferencias para marcar ${foodNames.length === 1 ? 'este alimento' : 'estos alimentos'} como alergia (${allergy})?`,
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        { text: 'Remover y marcar', role: 'confirm' },
+      ],
+    });
+    await alert.present();
+    return (await alert.onDidDismiss()).role === 'confirm';
+  }
+
+  private removePreferredFoods(foodNames: string[]): void {
+    const removed = new Set(foodNames.map(normalizeFoodName));
+    const listNames: FoodPreferenceList[] = [
+      'preferredFruits',
+      'preferredVegetables',
+      'preferredProteins',
+      'preferredCarbohydrates',
+      'preferredLegumes',
+      'preferredDairy',
+      'preferredFats',
+    ];
+    for (const listName of listNames) {
+      this.preferences[listName] = this.preferences[listName].filter(food => !removed.has(normalizeFoodName(food)));
+    }
+    this.otherFruitsInput = this.otherFruitsInput.split(',').map(food => food.trim()).filter(food => !removed.has(normalizeFoodName(food))).join(', ');
+    this.otherVegetablesInput = this.otherVegetablesInput.split(',').map(food => food.trim()).filter(food => !removed.has(normalizeFoodName(food))).join(', ');
   }
 
   async save(): Promise<void> {
@@ -317,20 +563,18 @@ export class PreferenciasAlimentariasPage implements OnInit {
         return;
       }
     }
-    this.isSaving = true;
-
     // Keep selected options and custom values in the same saved lists.
     const selectedFruits = this.preferences.preferredFruits.filter(f => this.fruits.includes(f));
     const customFruits = this.otherFruitsInput.split(',')
       .map(item => this.capitalize(item.trim()))
       .filter(item => this.isValidFoodName(item));
-    const finalFruits = Array.from(new Set([...selectedFruits, ...customFruits]));
+    let finalFruits = Array.from(new Set([...selectedFruits, ...customFruits]));
 
     const selectedVegetables = this.preferences.preferredVegetables.filter(v => this.vegetables.includes(v));
     const customVegetables = this.otherVegetablesInput.split(',')
       .map(item => this.capitalize(item.trim()))
       .filter(item => this.isValidFoodName(item));
-    const finalVegetables = Array.from(new Set([...selectedVegetables, ...customVegetables]));
+    let finalVegetables = Array.from(new Set([...selectedVegetables, ...customVegetables]));
 
     const selectedAllergies = this.preferences.allergies.filter(a => this.allergyOptions.includes(a));
     const customAllergies = this.otherAllergiesInput.split(',')
@@ -343,7 +587,21 @@ export class PreferenciasAlimentariasPage implements OnInit {
       .map(item => this.capitalize(item.trim()))
       .filter(item => this.isValidFoodName(item));
     const finalDisliked = Array.from(new Set([...selectedDisliked, ...customDisliked]));
+    const allergyConflicts = this.findAllergyConflicts(finalAllergies, [
+      ...finalFruits.map(food => ({ listName: 'preferredFruits' as const, food })),
+      ...finalVegetables.map(food => ({ listName: 'preferredVegetables' as const, food })),
+      ...this.getPreferredFoods().filter(({ listName }) => !['preferredFruits', 'preferredVegetables'].includes(listName)),
+    ]);
+    if (allergyConflicts.length > 0) {
+      const confirmed = await this.confirmAllergyConflicts(finalAllergies.join(', '), allergyConflicts);
+      if (!confirmed) return;
+      const removedFoods = allergyConflicts.map(conflict => normalizeFoodName(conflict.food));
+      finalFruits = finalFruits.filter(food => !removedFoods.includes(normalizeFoodName(food)));
+      finalVegetables = finalVegetables.filter(food => !removedFoods.includes(normalizeFoodName(food)));
+      this.removePreferredFoods(allergyConflicts.map(conflict => conflict.food));
+    }
 
+    this.isSaving = true;
     try {
       const saved = await this.eatWellService.saveFoodPreferences({
           ...this.preferences,
@@ -357,9 +615,6 @@ export class PreferenciasAlimentariasPage implements OnInit {
           allergies: finalAllergies,
           dislikedFoods: finalDisliked,
           completed: true,
-        }, {
-          goal: this.fitnessGoal,
-          activityLevel: this.activityLevel,
         });
       if (this.eatWellService.getActiveUser()?.id !== userId) return;
       this.preferences = saved;

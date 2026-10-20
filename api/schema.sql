@@ -186,12 +186,29 @@ CREATE TABLE IF NOT EXISTS clinical_histories (
     family_kidney_disease BOOLEAN NULL,
     family_thyroid_disease BOOLEAN NULL,
     diagnoses_none BOOLEAN NULL,
+    diagnosis_metabolism_none BOOLEAN NULL,
+    diagnosis_thyroid_none BOOLEAN NULL,
+    diagnosis_other_none BOOLEAN NULL,
+    diagnosis_digestive_none BOOLEAN NULL,
     diagnosis_diabetes BOOLEAN NULL,
     diagnosis_hypertension BOOLEAN NULL,
     diagnosis_fatty_liver BOOLEAN NULL,
     diagnosis_pcos BOOLEAN NULL,
     diagnosis_gout BOOLEAN NULL,
     diagnosis_hypothyroidism BOOLEAN NULL,
+    diagnosis_hyperthyroidism BOOLEAN NULL,
+    diagnosis_dyslipidemia BOOLEAN NULL,
+    diagnosis_insulin_resistance BOOLEAN NULL,
+    diagnosis_chronic_kidney_disease BOOLEAN NULL,
+    diagnosis_kidney_stones BOOLEAN NULL,
+    diagnosis_celiac BOOLEAN NULL,
+    diagnosis_irritable_bowel BOOLEAN NULL,
+    diagnosis_gastritis BOOLEAN NULL,
+    diagnosis_ulcerative_colitis BOOLEAN NULL,
+    diagnosis_anorexia BOOLEAN NULL,
+    diagnosis_bulimia BOOLEAN NULL,
+    diagnosis_binge_eating BOOLEAN NULL,
+    other_diagnoses TEXT NULL,
     wellbeing_none BOOLEAN NULL,
     wellbeing_anemia BOOLEAN NULL,
     wellbeing_bulimia BOOLEAN NULL,
@@ -239,7 +256,7 @@ CREATE TABLE IF NOT EXISTS clinical_histories (
     CONSTRAINT chk_clinical_food_allergies_json
         CHECK (food_allergies_json IS NULL OR JSON_VALID(food_allergies_json)),
     CONSTRAINT chk_clinical_water CHECK (daily_water_liters IS NULL OR daily_water_liters >= 0),
-    CONSTRAINT chk_clinical_boolean_answers CHECK ((family_history_none IS NULL OR family_history_none IN (0, 1)) AND (family_diabetes IS NULL OR family_diabetes IN (0, 1)) AND (family_hypertension IS NULL OR family_hypertension IN (0, 1)) AND (family_obesity IS NULL OR family_obesity IN (0, 1)) AND (family_high_cholesterol IS NULL OR family_high_cholesterol IN (0, 1)) AND (family_cancer IS NULL OR family_cancer IN (0, 1)) AND (family_kidney_disease IS NULL OR family_kidney_disease IN (0, 1)) AND (family_thyroid_disease IS NULL OR family_thyroid_disease IN (0, 1)) AND (diagnoses_none IS NULL OR diagnoses_none IN (0, 1)) AND (diagnosis_diabetes IS NULL OR diagnosis_diabetes IN (0, 1)) AND (diagnosis_hypertension IS NULL OR diagnosis_hypertension IN (0, 1)) AND (diagnosis_fatty_liver IS NULL OR diagnosis_fatty_liver IN (0, 1)) AND (diagnosis_pcos IS NULL OR diagnosis_pcos IN (0, 1)) AND (diagnosis_gout IS NULL OR diagnosis_gout IN (0, 1)) AND (diagnosis_hypothyroidism IS NULL OR diagnosis_hypothyroidism IN (0, 1)) AND (wellbeing_none IS NULL OR wellbeing_none IN (0, 1)) AND (wellbeing_anemia IS NULL OR wellbeing_anemia IN (0, 1)) AND (wellbeing_bulimia IS NULL OR wellbeing_bulimia IN (0, 1)) AND (wellbeing_depression IS NULL OR wellbeing_depression IN (0, 1)) AND (wellbeing_anxiety IS NULL OR wellbeing_anxiety IN (0, 1)) AND (surgeries_none IS NULL OR surgeries_none IN (0, 1)) AND (hospitalizations_none IS NULL OR hospitalizations_none IN (0, 1)) AND (pregnant IS NULL OR pregnant IN (0, 1)) AND (lactating IS NULL OR lactating IN (0, 1)) AND (food_allergies_none IS NULL OR food_allergies_none IN (0, 1)) AND (medications_none IS NULL OR medications_none IN (0, 1)) AND (medication_allergies_none IS NULL OR medication_allergies_none IN (0, 1)) AND (supplements_none IS NULL OR supplements_none IN (0, 1)) AND (weight_loss_treatment IS NULL OR weight_loss_treatment IN (0, 1)) AND (tobacco_use IS NULL OR tobacco_use IN (0, 1)) AND (other_substance_use IS NULL OR other_substance_use IN (0, 1)) AND (eating_anxiety IS NULL OR eating_anxiety IN (0, 1)))
+    CONSTRAINT chk_clinical_boolean_answers CHECK ((family_history_none IS NULL OR family_history_none IN (0, 1)) AND (family_diabetes IS NULL OR family_diabetes IN (0, 1)) AND (family_hypertension IS NULL OR family_hypertension IN (0, 1)) AND (family_obesity IS NULL OR family_obesity IN (0, 1)) AND (family_high_cholesterol IS NULL OR family_high_cholesterol IN (0, 1)) AND (family_cancer IS NULL OR family_cancer IN (0, 1)) AND (family_kidney_disease IS NULL OR family_kidney_disease IN (0, 1)) AND (family_thyroid_disease IS NULL OR family_thyroid_disease IN (0, 1)) AND (diagnoses_none IS NULL OR diagnoses_none IN (0, 1)) AND (diagnosis_metabolism_none IS NULL OR diagnosis_metabolism_none IN (0, 1)) AND (diagnosis_thyroid_none IS NULL OR diagnosis_thyroid_none IN (0, 1)) AND (diagnosis_other_none IS NULL OR diagnosis_other_none IN (0, 1)) AND (diagnosis_digestive_none IS NULL OR diagnosis_digestive_none IN (0, 1)) AND (diagnosis_diabetes IS NULL OR diagnosis_diabetes IN (0, 1)) AND (diagnosis_hypertension IS NULL OR diagnosis_hypertension IN (0, 1)) AND (diagnosis_fatty_liver IS NULL OR diagnosis_fatty_liver IN (0, 1)) AND (diagnosis_pcos IS NULL OR diagnosis_pcos IN (0, 1)) AND (diagnosis_gout IS NULL OR diagnosis_gout IN (0, 1)) AND (diagnosis_hypothyroidism IS NULL OR diagnosis_hypothyroidism IN (0, 1)) AND (wellbeing_none IS NULL OR wellbeing_none IN (0, 1)) AND (wellbeing_anemia IS NULL OR wellbeing_anemia IN (0, 1)) AND (wellbeing_bulimia IS NULL OR wellbeing_bulimia IN (0, 1)) AND (wellbeing_depression IS NULL OR wellbeing_depression IN (0, 1)) AND (wellbeing_anxiety IS NULL OR wellbeing_anxiety IN (0, 1)) AND (surgeries_none IS NULL OR surgeries_none IN (0, 1)) AND (hospitalizations_none IS NULL OR hospitalizations_none IN (0, 1)) AND (pregnant IS NULL OR pregnant IN (0, 1)) AND (lactating IS NULL OR lactating IN (0, 1)) AND (food_allergies_none IS NULL OR food_allergies_none IN (0, 1)) AND (medications_none IS NULL OR medications_none IN (0, 1)) AND (medication_allergies_none IS NULL OR medication_allergies_none IN (0, 1)) AND (supplements_none IS NULL OR supplements_none IN (0, 1)) AND (weight_loss_treatment IS NULL OR weight_loss_treatment IN (0, 1)) AND (tobacco_use IS NULL OR tobacco_use IN (0, 1)) AND (other_substance_use IS NULL OR other_substance_use IN (0, 1)) AND (eating_anxiety IS NULL OR eating_anxiety IN (0, 1)))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS lifestyle_goals (
