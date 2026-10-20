@@ -40,7 +40,7 @@ try{
     $pdo->exec("USE `$test`");foreach($schemas as $schema)$pdo->exec($schema);
     $pdo->exec("INSERT INTO users(id,name,username,email,password_hash) VALUES(91001,'Test','initial_1','initial1@example.invalid','synthetic'),(91002,'Test','initial_2','initial2@example.invalid','synthetic')");
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';capture(fn()=>handleDietaryRecall($pdo,'recall.initial',[]),401);
-    $token=issueAuthToken(91001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$token;
+    $token=issueAuthToken($pdo,91001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$token;
     if(capture(fn()=>handleDietaryRecall($pdo,'recall.initial',[]))['completed'])throw new RuntimeException('Survey already completed');
     if(capture(fn()=>handleMealSchedule($pdo,'schedule.get',[]))['schedule']!==null)throw new RuntimeException('Suggestions without survey');
     $pdo->exec("CREATE TRIGGER fail_schedule BEFORE INSERT ON meal_schedules FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Synthetic failure'");
@@ -64,14 +64,13 @@ try{
     ensureMealSchedule($pdo,91001,initialRecallRecord($pdo,91001));
     if(readMealSchedule($pdo,91001)['schedule']['breakfastTime']!=='09:00')throw new RuntimeException('Suggestions overwrote custom hours');
     if(readDietaryRecall($pdo,91001,'2000-01-01')['recall']['breakfastTime']!=='08:00')throw new RuntimeException('Baseline was overwritten');
-    $other=issueAuthToken(91002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$other;
+    $other=issueAuthToken($pdo,91002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$other;
     capture(fn()=>handleMealSchedule($pdo,'schedule.save',['schedule'=>$custom]),409);
     if(readMealSchedule($pdo,91002)['schedule']!==null)throw new RuntimeException('Cross-user schedule');
     $pdo->exec("INSERT INTO dietary_recalls(user_id,recall_date,wake_time,wake_activity,sleep_time,completed_at) VALUES(91002,'2000-01-01','07:00','Legacy test','23:00',NOW())");
     $legacy=readMealSchedule($pdo,91002);validateMealSchedule($legacy['schedule']);
     if(!$legacy['initialCompleted'])throw new RuntimeException('Existing completed survey was ignored');
 }finally{
-    foreach([$token??null,$other??null] as $t)if($t){startApiSession($t);$_SESSION=[];session_destroy();}
     $pdo->exec('USE eatwell_db');$pdo->exec("DROP DATABASE `$test`");
 }
 echo "Initial recall and schedule tests passed: five meals, one-time completion, immutable baseline, editable hours, isolation and rollback.\n";

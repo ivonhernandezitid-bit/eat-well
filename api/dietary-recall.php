@@ -25,36 +25,63 @@ function validateRecallDate(mixed $value): string
 function validateDietaryRecall(array $input): array
 {
     $timeFields = ['wakeTime','sleepTime','activityTime','breakfastTime','snackTime','lunchTime','afternoonSnackTime','dinnerTime'];
+    $timeLabels = [
+        'wakeTime' => 'Hora de despertar',
+        'sleepTime' => 'Hora de dormir',
+        'activityTime' => 'Hora de actividad física',
+        'breakfastTime' => 'Hora del desayuno',
+        'snackTime' => 'Hora de la colación matutina',
+        'lunchTime' => 'Hora de la comida',
+        'afternoonSnackTime' => 'Hora de la colación vespertina',
+        'dinnerTime' => 'Hora de la cena',
+    ];
     $textFields = ['wakeActivity'=>10000,'activityType'=>150,'activityDuration'=>120];
     foreach (recallMealFields() as [$type, $time, $place, $details, $skipped]) {
         $textFields[$place] = 150;
         $textFields[$details] = 10000;
-        if (!isset($input[$skipped]) || !is_bool($input[$skipped])) throw new InvalidArgumentException('Revisa las comidas omitidas.');
+        if (!isset($input[$skipped]) || !is_bool($input[$skipped])) throw new InvalidArgumentException('Indica si omitiste cada comida.');
     }
-    if (!isset($input['noActivity']) || !is_bool($input['noActivity'])) throw new InvalidArgumentException('Indica si realizaste actividad fisica.');
+    if (!isset($input['noActivity']) || !is_bool($input['noActivity'])) throw new InvalidArgumentException('Actividad física: indica si realizaste actividad o movimiento.');
     $values = ['noActivity' => $input['noActivity']];
     foreach ($timeFields as $field) {
         $value = $input[$field] ?? null;
-        if (!is_string($value) || ($value !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D', $value))) throw new InvalidArgumentException('Revisa los horarios del recordatorio.');
+        if (!is_string($value) || ($value !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D', $value))) {
+            throw new InvalidArgumentException(($timeLabels[$field] ?? $field) . ': selecciona una hora válida.');
+        }
         $values[$field] = $value;
     }
     foreach ($textFields as $field => $max) {
         $value = $input[$field] ?? null;
-        if (!is_string($value) || ($max === 10000 ? strlen($value) : mb_strlen($value, 'UTF-8')) > $max) throw new InvalidArgumentException('Revisa los textos del recordatorio.');
+        if (!is_string($value) || ($max === 10000 ? strlen($value) : mb_strlen($value, 'UTF-8')) > $max) {
+            $label = ['wakeActivity' => 'Actividad al despertar', 'activityType' => 'Tipo de actividad', 'activityDuration' => 'Duración de actividad'][$field] ?? $field;
+            throw new InvalidArgumentException("El campo “$label” debe contener texto y no superar $max caracteres.");
+        }
         $values[$field] = trim($value);
     }
-    if ($values['wakeTime'] === '' || $values['sleepTime'] === '' || $values['wakeActivity'] === '') throw new InvalidArgumentException('Completa las horas de despertar y dormir y la actividad al despertar.');
+    if ($values['wakeTime'] === '') throw new InvalidArgumentException('Hora de despertar: selecciona una hora.');
+    if ($values['wakeActivity'] === '') throw new InvalidArgumentException('Actividad al despertar: describe qué hiciste al levantarte.');
+    if ($values['sleepTime'] === '') throw new InvalidArgumentException('Hora de dormir: selecciona una hora.');
+    $mealLabels = ['breakfast' => 'Desayuno', 'snack' => 'Colación', 'lunch' => 'Comida', 'dinner' => 'Cena'];
     foreach (recallMealFields() as [$type, $time, $place, $details, $skipped]) {
+        $label = $time === 'afternoonSnackTime' ? 'Colación vespertina' : ($time === 'snackTime' ? 'Colación matutina' : $mealLabels[$type]);
         $values[$skipped] = $input[$skipped];
         if ($values[$skipped]) {
-            if ($values[$time] !== '' || $values[$place] !== '' || $values[$details] !== '') throw new InvalidArgumentException('Una comida omitida no puede tener horario ni alimentos.');
+            if ($values[$time] !== '' || $values[$place] !== '' || $values[$details] !== '') throw new InvalidArgumentException("$label: está marcada como omitida; limpia su hora, lugar y alimentos.");
         } else {
             $places = ['En casa','En la oficina','En otro lugar', $type === 'lunch' ? 'Fonda / Restaurante' : 'En restaurante'];
-            if ($values[$time] === '' || $values[$details] === '' || !in_array($values[$place], $places, true)) throw new InvalidArgumentException('Completa las comidas o indica cuales no realizaste.');
+            if ($values[$time] === '') throw new InvalidArgumentException("$label: selecciona una hora o marca que no realizaste esta comida.");
+            if (!in_array($values[$place], $places, true)) throw new InvalidArgumentException("$label: selecciona dónde comiste o marca que no realizaste esta comida.");
+            if ($values[$details] === '') throw new InvalidArgumentException("$label: describe los alimentos y bebidas o marca que no realizaste esta comida.");
         }
     }
     $activity = [$values['activityTime'], $values['activityType'], $values['activityDuration']];
-    if ($values['noActivity'] ? count(array_filter($activity, fn($value) => $value !== '')) > 0 : in_array('', $activity, true)) throw new InvalidArgumentException('Completa la actividad fisica o indica que no realizaste actividad, sin combinar ambas respuestas.');
+    if ($values['noActivity']) {
+        if (count(array_filter($activity, fn($value) => $value !== '')) > 0) throw new InvalidArgumentException('Actividad física: está marcada como no realizada; limpia hora, tipo y duración.');
+    } else {
+        if ($values['activityTime'] === '') throw new InvalidArgumentException('Actividad física: selecciona una hora o marca que no realizaste actividad.');
+        if ($values['activityType'] === '') throw new InvalidArgumentException('Tipo de actividad o movimiento: describe la actividad o marca que no realizaste actividad.');
+        if ($values['activityDuration'] === '') throw new InvalidArgumentException('Duración de la actividad: indica cuánto tiempo o marca que no realizaste actividad.');
+    }
     return $values;
 }
 

@@ -50,29 +50,40 @@ export function dietaryRecallError(data: DietaryRecallData, date: string, today 
   const dateError = recallDateError(date, today);
   if (dateError) return dateError;
   const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-  if (!validTime(data.wakeTime) || !validTime(data.sleepTime) || !data.wakeActivity.trim()) {
-    return 'Completa la hora y actividad al despertar, y la hora de dormir.';
-  }
-  for (const meal of recallMeals) {
+  if (!validTime(data.wakeTime)) return 'Hora de despertar: selecciona una hora válida.';
+  if (!data.wakeActivity.trim()) return 'Actividad al despertar: describe qué hiciste al levantarte.';
+  if (!validTime(data.sleepTime)) return 'Hora de dormir: selecciona una hora válida.';
+  const mealLabels = ['Desayuno', 'Colación matutina', 'Comida', 'Colación vespertina', 'Cena'];
+  for (const [index, meal] of recallMeals.entries()) {
+    const mealLabel = mealLabels[index];
     const time = data[meal.time], place = data[meal.place], details = data[meal.details].trim();
     if (data[meal.skipped]) {
-      if (time || place || details) return 'Una comida marcada como omitida no puede tener horario ni alimentos.';
+      if (time || place || details) return `${mealLabel}: está marcada como omitida; limpia su hora, lugar y alimentos, o desmarca “No realicé esta comida”.`;
     } else {
       const places = ['En casa', 'En la oficina', 'En otro lugar', meal.type === 'lunch' ? 'Fonda / Restaurante' : 'En restaurante'];
-      if (!validTime(time) || !places.includes(place) || !details) return 'Completa las comidas o indica cuáles no realizaste.';
+      if (!validTime(time)) return `${mealLabel}: selecciona una hora válida o marca que no realizaste esta comida.`;
+      if (!places.includes(place)) return `${mealLabel}: selecciona dónde comiste o marca que no realizaste esta comida.`;
+      if (!details) return `${mealLabel}: describe los alimentos y bebidas o marca que no realizaste esta comida.`;
     }
   }
   const activity = [data.activityTime, data.activityType.trim(), data.activityDuration.trim()];
   if (data.noActivity) {
-    if (activity.some(Boolean)) return 'No puedes indicar actividad si marcaste que no realizaste actividad física.';
-  } else if (!validTime(data.activityTime) || !data.activityType.trim() || !data.activityDuration.trim()) {
-    return 'Completa la actividad física o indica que no realizaste actividad.';
+    if (activity.some(Boolean)) return 'Actividad física: está marcada como no realizada; limpia hora, tipo y duración, o desmarca la opción.';
+  } else {
+    if (!validTime(data.activityTime)) return 'Actividad física: selecciona una hora válida o marca que no realizaste actividad.';
+    if (!data.activityType.trim()) return 'Tipo de actividad o movimiento: describe la actividad o marca que no realizaste actividad.';
+    if (!data.activityDuration.trim()) return 'Duración de la actividad: indica cuánto tiempo o marca que no realizaste actividad.';
   }
+  const textLabels: Record<string, string> = {
+    wakeActivity: 'Actividad al despertar',
+    activityType: 'Tipo de actividad',
+    activityDuration: 'Duración de actividad',
+  };
   for (const [field, value] of Object.entries(data)) {
     if (typeof value !== 'string') continue;
     const max = field === 'activityType' ? 150 : field === 'activityDuration' ? 120 : 10000;
     const length = max < 10000 ? Array.from(value).length : new TextEncoder().encode(value).length;
-    if (length > max) return 'Hay un texto demasiado largo en el recordatorio.';
+    if (length > max) return `El campo “${textLabels[field] ?? field}” supera el máximo permitido de ${max} caracteres.`;
   }
   return null;
 }

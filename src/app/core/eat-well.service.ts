@@ -1,4 +1,4 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { BehaviorSubject, firstValueFrom, Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -392,18 +392,39 @@ export class EatWellService {
 
   private async get<T>(action: string, params: Record<string, string | number>): Promise<T> {
     try {
-      return await firstValueFrom(this.http.get<T>(this.buildUrl(action, params), { headers: this.authHeaders() }));
+      const response = await firstValueFrom(
+        this.http.get<T>(this.buildUrl(action, params), { headers: this.authHeaders(), observe: 'response' }),
+      );
+      this.saveMigratedAuthToken(response.headers);
+      if (response.body === null) throw new Error('La respuesta del servidor está vacía.');
+      return response.body;
     } catch (error) {
+      this.saveMigratedAuthTokenFromError(error);
       throw new Error(this.getApiErrorMessage(error));
     }
   }
 
   private async post<T>(action: string, body: unknown): Promise<T> {
     try {
-      return await firstValueFrom(this.http.post<T>(this.buildUrl(action), body, { headers: this.authHeaders() }));
+      const response = await firstValueFrom(
+        this.http.post<T>(this.buildUrl(action), body, { headers: this.authHeaders(), observe: 'response' }),
+      );
+      this.saveMigratedAuthToken(response.headers);
+      if (response.body === null) throw new Error('La respuesta del servidor está vacía.');
+      return response.body;
     } catch (error) {
+      this.saveMigratedAuthTokenFromError(error);
       throw new Error(this.getApiErrorMessage(error));
     }
+  }
+
+  private saveMigratedAuthToken(headers: HttpHeaders): void {
+    const token = headers.get('X-Auth-Token');
+    if (token) this.saveAuthToken(token);
+  }
+
+  private saveMigratedAuthTokenFromError(error: unknown): void {
+    if (error instanceof HttpErrorResponse) this.saveMigratedAuthToken(error.headers);
   }
 
   private buildUrl(action: string, params: Record<string, string | number> = {}): string {
@@ -502,10 +523,27 @@ export class EatWellService {
   }
 
   private getApiErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse && error.error?.error) {
-      return error.error.error;
+    if (error instanceof HttpErrorResponse) {
+      const apiMessage = error.error && typeof error.error === 'object' && 'error' in error.error
+        ? error.error.error
+        : null;
+      if (typeof apiMessage === 'string' && apiMessage.trim()) return apiMessage;
+      const responseText = typeof error.error === 'string' ? error.error.trim() : '';
+      if (responseText && !responseText.startsWith('<')) {
+        return responseText;
+      }
+      if (error.status === 0) return 'No se pudo conectar con la API. Revisa que XAMPP, Apache y MySQL estén activos.';
+      if (responseText.startsWith('<')) {
+        return `La API respondió con HTML en lugar de JSON (HTTP ${error.status}). Revisa los avisos y errores de PHP en Apache.`;
+      }
+      if (error.status === 401) return 'La sesión venció o no es válida. Cierra sesión e inicia sesión nuevamente.';
+      if (error.status === 403) return 'La cuenta no tiene permiso para realizar esta acción.';
+      if (error.status === 404) return 'No se encontró la cuenta o el recurso solicitado.';
+      if (error.status === 409) return 'La información entra en conflicto con un registro existente.';
+      if (error.status === 422) return 'Uno o más datos no son válidos. Revisa los campos indicados y vuelve a intentarlo.';
+      if (error.status >= 500) return `La API encontró un error interno (HTTP ${error.status}). Revisa el registro de errores de PHP.`;
     }
 
-    return 'No se pudo conectar con la API. Revisa que XAMPP, Apache y MySQL esten activos.';
+    return 'Ocurrió un error inesperado. Inténtalo nuevamente.';
   }
 }

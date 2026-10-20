@@ -44,7 +44,7 @@ try{
     $pdo->exec("INSERT INTO food_preferences(user_id,completed_at) VALUES(92001,NOW()),(92002,NOW())");
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';$today=(new DateTimeImmutable('today',new DateTimeZone('America/Mexico_City')))->format('Y-m-d');
     capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'),401);
-    $tokens[]=issueAuthToken(92001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
+    $tokens[]=issueAuthToken($pdo,92001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
     capture(fn()=>handleMealPlan($pdo,'plan.options',['mealType'=>'invalid'],'fake','fake'),422);
     $_GET=['mealType'=>'breakfast'];capture(fn()=>handleMealPlan($pdo,'plan.options',['userId'=>92002],'fake','fake'),403);$_GET=[];
     $user=getUserById($pdo,92001);$preferences=mapFoodPreferences(getFoodPreferencesRecord($pdo,92001));
@@ -58,7 +58,7 @@ try{
     check($saved['choices']->breakfast['id']===$breakfast[3]['id'],'Replacement not saved.');
     check((int)$pdo->query('SELECT COUNT(*) FROM daily_meal_choices')->fetchColumn()===1,'Duplicate daily choice.');
     $tomorrow=(new DateTimeImmutable($today))->modify('+1 day')->format('Y-m-d');check(count((array)readDailyMealChoices($pdo,$user,$preferences,$tomorrow)['choices'])===0,'Selection leaked to another date.');
-    $tokens[]=issueAuthToken(92002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
+    $tokens[]=issueAuthToken($pdo,92002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
     capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$breakfast[0]['id']],'fake','fake'),422);
     check(count((array)readDailyMealChoices($pdo,getUserById($pdo,92002),$preferences,$today)['choices'])===0,'Selection leaked to another account.');
     capture(fn()=>handleMealPlan($pdo,'plan.choose',['userId'=>92001,'date'=>$today,'mealType'=>'breakfast','recipeId'=>null],'fake','fake'),403);
@@ -75,7 +75,6 @@ try{
     $bad=array_fill(0,7,['title'=>'Duplicate','description'=>'Test','ingredients'=>['1 g de Test'],'ingredientData'=>[['foodId'=>0,'name'=>'Test','quantity'=>1,'unit'=>'g']],'instructions'=>['Serve'],'servings'=>1,'preparationMinutes'=>1,'mealTypes'=>['breakfast']]);
     try{validateGeneratedRecipeList($bad,7,'breakfast');throw new LogicException('Duplicate options accepted.');}catch(RuntimeException $error){check(!$error instanceof LogicException,'Duplicate options accepted.');}
 }finally{
-    foreach($tokens as $token){session_id($token);session_start(['use_cookies'=>0,'cache_limiter'=>'']);$_SESSION=[];session_destroy();}
     $pdo->exec("DROP DATABASE `$database`");
 }
 echo "Meal plan passed: seven options, category cache, selections, replacement, account/date isolation, current preferences and verified session. No AI calls.\n";

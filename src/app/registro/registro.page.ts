@@ -28,17 +28,42 @@ export class RegistroPage {
   }
 
   async register(): Promise<void> {
-    if (!this.email.trim() || !this.password.trim() || !this.fullName.trim()) {
-      await this.showAlert('Datos incompletos', 'Ingresa tu nombre, correo y contraseña.');
+    const name = this.fullName.trim();
+    const email = this.email.trim();
+    const username = this.username.trim();
+    if (!name) {
+      await this.showAlert('Falta el nombre', 'Escribe tu nombre completo para crear la cuenta.');
+      return;
+    }
+    if (!email) {
+      await this.showAlert('Falta el correo', 'Escribe el correo electrónico que usarás para iniciar sesión.');
+      return;
+    }
+    if (!this.password) {
+      await this.showAlert('Falta la contraseña', 'Escribe una contraseña para crear la cuenta.');
       return;
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(this.email.trim())) {
+    if (!emailRegex.test(email)) {
       await this.showAlert('Correo inválido', 'Por favor, ingresa un correo electrónico con formato correcto (ejemplo@dominio.com).');
       return;
     }
 
+    if (name.length > 100) {
+      await this.showAlert('Nombre demasiado largo', 'El nombre completo no puede superar 100 caracteres.');
+      return;
+    }
+    if (email.length > 120) {
+      await this.showAlert('Correo demasiado largo', 'El correo no puede superar 120 caracteres.');
+      return;
+    }
+    if ((username || email.split('@')[0]).length > 50) {
+      await this.showAlert('Usuario demasiado largo', 'El nombre de usuario no puede superar 50 caracteres.');
+      return;
+    }
+
+    this.validatePasswordStrength();
     if (!this.hasMinLength || !this.hasLetterAndNumber) {
       await this.showAlert('Contraseña débil', 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.');
       return;
@@ -46,10 +71,10 @@ export class RegistroPage {
 
     try {
       await this.eatWellService.registerUser({
-        name: this.fullName,
-        email: this.email,
+        name,
+        email,
         password: this.password,
-        username: this.username,
+        username,
       });
       await this.router.navigateByUrl('/datos-perfil?onboarding=1');
     } catch (error) {

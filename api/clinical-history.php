@@ -62,10 +62,65 @@ function clinicalHistoryFields(): array
 
 function validateClinicalHistory(array $input, array $user): array
 {
+    $fieldLabels = [
+        'familyNone' => 'Antecedentes heredofamiliares: No aplica',
+        'familyDiabetes' => 'Antecedentes heredofamiliares: Diabetes Mellitus',
+        'familyHypertension' => 'Antecedentes heredofamiliares: Hipertensión',
+        'familyObesity' => 'Antecedentes heredofamiliares: Obesidad / Sobrepeso',
+        'familyCholesterol' => 'Antecedentes heredofamiliares: Colesterol / Triglicéridos',
+        'familyCancer' => 'Antecedentes heredofamiliares: Cáncer',
+        'familyRenal' => 'Antecedentes heredofamiliares: Enfermedades renales',
+        'familyThyroid' => 'Antecedentes heredofamiliares: Tiroides',
+        'diagnosisNone' => 'Antecedentes patológicos personales: No aplica',
+        'diagnosisDiabetes' => 'Antecedentes personales: Diabetes',
+        'diagnosisHypertension' => 'Antecedentes personales: Hipertensión arterial',
+        'diagnosisFattyLiver' => 'Antecedentes personales: Hígado graso',
+        'diagnosisSop' => 'Antecedentes personales: SOP',
+        'diagnosisGout' => 'Antecedentes personales: Ácido úrico alto / Gota',
+        'diagnosisHypothyroidism' => 'Antecedentes personales: Hipotiroidismo',
+        'wellbeingNone' => 'Salud integral y bienestar emocional: No aplica',
+        'wellbeingAnemia' => 'Bienestar emocional: Anemia',
+        'wellbeingBulimia' => 'Bienestar emocional: Bulimia',
+        'wellbeingDepression' => 'Bienestar emocional: Depresión',
+        'wellbeingAnxiety' => 'Bienestar emocional: Ansiedad diagnosticada',
+        'wellbeingOther' => 'Otra condición o situación relevante',
+        'wellbeingNotes' => 'Información adicional de bienestar',
+        'surgeriesNone' => 'Cirugías previas: No aplica',
+        'surgeries' => 'Cirugías previas',
+        'hospitalizationsNone' => 'Hospitalizaciones: No aplica',
+        'hospitalizations' => 'Hospitalizaciones',
+        'allergiesNone' => 'Alergias e intolerancias alimentarias: No aplica',
+        'allergies' => 'Alergias alimentarias',
+        'otherAllergies' => 'Otras alergias',
+        'medicationsNone' => 'Medicamentos actuales: No aplica',
+        'medications' => 'Medicamentos actuales',
+        'medicationAllergiesNone' => 'Alergias a medicamentos: No aplica',
+        'medicationAllergies' => 'Alergias a medicamentos',
+        'supplementsNone' => 'Suplementos / proteínas: No aplica',
+        'supplements' => 'Suplementos / proteínas',
+        'cigarettesPerDay' => 'Cigarrillos por día',
+        'waterLiters' => 'Agua natural al día',
+        'wellbeingTreatment' => 'Tratamiento o seguimiento',
+        'wellbeingSupport' => 'Apoyo profesional',
+        'pregnant' => 'Embarazo actual',
+        'lactating' => 'Periodo de lactancia',
+        'menstrualCycle' => 'Ciclo menstrual',
+        'weightLossTreatment' => 'Uso de pastillas para bajar de peso',
+        'sleepHours' => 'Horas de sueño',
+        'sleepQuality' => 'Calidad del sueño',
+        'bowelFrequency' => 'Frecuencia de evacuaciones',
+        'alcohol' => 'Consumo de alcohol',
+        'tobacco' => 'Consumo de tabaco',
+        'otherSubstances' => 'Consumo de otras sustancias',
+        'cooksAtHome' => 'Quién cocina en casa',
+        'weekdayPlace' => 'Lugar donde comes entre semana',
+        'appetite' => 'Apetito general',
+        'anxiety' => 'Ansiedad / atracones',
+    ];
     if ($user['gender'] !== 'female') $input['diagnosisSop'] = false;
     if (($input['tobacco'] ?? '') === 'No fumo') {
         if (isset($input['cigarettesPerDay']) && $input['cigarettesPerDay'] !== 0 && $input['cigarettesPerDay'] !== 0.0) {
-            throw new InvalidArgumentException('No puedes indicar cigarrillos si seleccionaste No fumo.');
+            throw new InvalidArgumentException('Cigarrillos por día: seleccionaste “No fumo”; cambia la respuesta o deja la cantidad en cero.');
         }
         $input['cigarettesPerDay'] = 0;
     }
@@ -81,48 +136,54 @@ function validateClinicalHistory(array $input, array $user): array
             continue;
         }
         if ($type === 'bool') {
-            if (!is_bool($value)) throw new InvalidArgumentException('Revisa las respuestas del historial.');
+            if (!is_bool($value)) throw new InvalidArgumentException('El campo “' . ($fieldLabels[$field] ?? $field) . '” no contiene una respuesta válida. Vuelve a seleccionar la opción.');
             $value = (int)$value;
         } elseif (is_array($type)) {
-            if (!is_string($value) || !array_key_exists($value, $type)) throw new InvalidArgumentException('Selecciona una respuesta en todos los campos del historial.');
+            if (!is_string($value) || !array_key_exists($value, $type)) throw new InvalidArgumentException('Selecciona una respuesta en “' . ($fieldLabels[$field] ?? $field) . '”.');
             $value = $type[$value];
         } elseif ($type === 'text') {
-            if (!is_string($value) || strlen($value) > 10000) throw new InvalidArgumentException('Revisa los textos del historial.');
+            if (!is_string($value) || strlen($value) > 10000) throw new InvalidArgumentException('El campo “' . ($fieldLabels[$field] ?? $field) . '” debe contener texto y no superar 10,000 bytes.');
             $value = trim($value);
         } elseif ($type === 'list') {
-            if (!is_array($value) || !array_is_list($value) || count($value) > 50) throw new InvalidArgumentException('Revisa la lista de alergias.');
+            if (!is_array($value) || !array_is_list($value) || count($value) > 50) throw new InvalidArgumentException('Alergias alimentarias: selecciona hasta 50 opciones válidas.');
             foreach ($value as $allergy) {
-                if (!is_string($allergy) || trim($allergy) === '' || strlen($allergy) > 200) throw new InvalidArgumentException('Revisa la lista de alergias.');
+                if (!is_string($allergy) || trim($allergy) === '' || strlen($allergy) > 200) throw new InvalidArgumentException('Alergias alimentarias: cada opción debe tener texto y no superar 200 bytes.');
             }
             $value = json_encode(array_values(array_unique(array_map('trim', $value))), JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         } else {
             if ((!is_int($value) && !is_float($value)) || !is_finite((float)$value) || $value < 0
                 || ($type === 'integer' && ($value != (int)$value || $value > 65535))
-                || ($type === 'number' && $value > 999.99)) throw new InvalidArgumentException('Revisa las cantidades de agua y cigarrillos.');
+                || ($type === 'number' && $value > 999.99)) {
+                $label = $field === 'cigarettesPerDay' ? 'Cigarrillos por día' : 'Agua natural al día';
+                throw new InvalidArgumentException("$label: revisa la cantidad ingresada.");
+            }
         }
         $values[$column] = $value;
     }
     $groups = [
-        'familyNone' => ['familyDiabetes','familyHypertension','familyObesity','familyCholesterol','familyCancer','familyRenal','familyThyroid'],
-        'diagnosisNone' => ['diagnosisDiabetes','diagnosisHypertension','diagnosisFattyLiver','diagnosisSop','diagnosisGout','diagnosisHypothyroidism'],
-        'wellbeingNone' => ['wellbeingAnemia','wellbeingBulimia','wellbeingDepression','wellbeingAnxiety','wellbeingOther'],
-        'allergiesNone' => ['allergies','otherAllergies'],
-        'surgeriesNone' => ['surgeries'], 'hospitalizationsNone' => ['hospitalizations'],
-        'medicationsNone' => ['medications'], 'medicationAllergiesNone' => ['medicationAllergies'], 'supplementsNone' => ['supplements'],
+        'familyNone' => ['Antecedentes heredofamiliares', ['familyDiabetes','familyHypertension','familyObesity','familyCholesterol','familyCancer','familyRenal','familyThyroid']],
+        'diagnosisNone' => ['Antecedentes patológicos personales', ['diagnosisDiabetes','diagnosisHypertension','diagnosisFattyLiver','diagnosisSop','diagnosisGout','diagnosisHypothyroidism']],
+        'wellbeingNone' => ['Salud integral y bienestar emocional', ['wellbeingAnemia','wellbeingBulimia','wellbeingDepression','wellbeingAnxiety','wellbeingOther']],
+        'allergiesNone' => ['Alergias e intolerancias alimentarias', ['allergies','otherAllergies']],
+        'surgeriesNone' => ['Cirugías previas', ['surgeries']],
+        'hospitalizationsNone' => ['Hospitalizaciones', ['hospitalizations']],
+        'medicationsNone' => ['Medicamentos actuales', ['medications']],
+        'medicationAllergiesNone' => ['Alergias a medicamentos', ['medicationAllergies']],
+        'supplementsNone' => ['Suplementos / proteínas', ['supplements']],
     ];
-    foreach ($groups as $none => $fields) {
+    foreach ($groups as $none => [$label, $fields]) {
         $answered = false;
         foreach ($fields as $field) {
             $value = $input[$field];
             $answered = $answered || (is_string($value) ? trim($value) !== '' : (bool)$value);
         }
-        if ((bool)$input[$none] === $answered) throw new InvalidArgumentException('Selecciona una respuesta o No aplica, pero no ambos, en cada grupo del historial.');
+        if ((bool)$input[$none] === $answered) throw new InvalidArgumentException("$label: contesta al menos una opción o marca “No aplica”, pero no ambas.");
     }
     if ($values['tobacco_use'] === 1 && $values['cigarettes_per_day'] < 1) {
-        throw new InvalidArgumentException('Indica una cantidad entera y positiva de cigarrillos al dia.');
+        throw new InvalidArgumentException('Cigarrillos por día: indica un número entero entre 1 y 65,535.');
     }
     if (!in_array((float)$values['daily_water_liters'], [1.0, 2.0, 3.0], true)) {
-        throw new InvalidArgumentException('Selecciona una cantidad de agua de las opciones disponibles.');
+        throw new InvalidArgumentException('Agua natural al día: selecciona 1, 2 o 3 litros.');
     }
     return $values;
 }

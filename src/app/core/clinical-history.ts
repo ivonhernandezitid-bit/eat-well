@@ -120,29 +120,69 @@ export function changeClinicalField<K extends keyof ClinicalHistoryData>(data: C
 
 export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): string | null {
   const current = clinicalHistoryForSex(data, sex);
-  for (const [none, fields] of Object.entries(clinicalGroups)) {
+  const groupLabels: Record<keyof typeof clinicalGroups, string> = {
+    familyNone: 'Antecedentes heredofamiliares',
+    diagnosisNone: 'Antecedentes patológicos personales',
+    wellbeingNone: 'Salud integral y bienestar emocional',
+    allergiesNone: 'Alergias e intolerancias alimentarias',
+    surgeriesNone: 'Cirugías previas',
+    hospitalizationsNone: 'Hospitalizaciones',
+    medicationsNone: 'Medicamentos actuales',
+    medicationAllergiesNone: 'Alergias a medicamentos',
+    supplementsNone: 'Suplementos / proteínas',
+  };
+  for (const [none, fields] of Object.entries(clinicalGroups) as [keyof typeof clinicalGroups, readonly (keyof ClinicalHistoryData)[]][]) {
     const answered = fields.some(field => hasAnswer(current[field]));
     if (current[none as keyof typeof clinicalGroups] === answered) {
-      return 'Contesta cada grupo o marca No aplica, sin combinar ambas respuestas.';
+      return `${groupLabels[none]}: contesta al menos una opción o marca “No aplica”, pero no ambas.`;
     }
   }
+  const selectionLabels: Record<string, string> = {
+    wellbeingTreatment: 'Tratamiento o seguimiento',
+    wellbeingSupport: 'Apoyo profesional',
+    pregnant: 'Embarazo actual',
+    lactating: 'Periodo de lactancia',
+    menstrualCycle: 'Ciclo menstrual',
+    weightLossTreatment: 'Uso de pastillas para bajar de peso',
+    sleepHours: 'Horas de sueño',
+    sleepQuality: 'Calidad del sueño',
+    bowelFrequency: 'Frecuencia de evacuaciones',
+    alcohol: 'Consumo de alcohol',
+    tobacco: 'Consumo de tabaco',
+    otherSubstances: 'Consumo de otras sustancias',
+    cooksAtHome: 'Quién cocina en casa',
+    weekdayPlace: 'Lugar donde comes entre semana',
+    appetite: 'Apetito general',
+    anxiety: 'Ansiedad / atracones',
+  };
   for (const [field, options] of Object.entries(selections)) {
     if (sex !== 'female' && ['pregnant', 'lactating', 'menstrualCycle'].includes(field)) continue;
     const value = current[field as keyof typeof selections];
-    if (!options.includes(value)) return 'Selecciona una respuesta en todos los menús del historial.';
+    if (!options.includes(value)) return `Selecciona una respuesta en “${selectionLabels[field]}”.`;
   }
-  for (const value of Object.values(current)) {
-    if (typeof value === 'string' && new TextEncoder().encode(value).length > 10000) return 'Hay un texto demasiado largo en el historial.';
+  const textLabels: Partial<Record<keyof ClinicalHistoryData, string>> = {
+    wellbeingOther: 'Otra condición o situación relevante',
+    wellbeingNotes: 'Información adicional de bienestar',
+    surgeries: 'Cirugías previas',
+    hospitalizations: 'Hospitalizaciones',
+    otherAllergies: 'Otras alergias',
+    medications: 'Medicamentos actuales',
+    medicationAllergies: 'Alergias a medicamentos',
+    supplements: 'Suplementos / proteínas',
+  };
+  for (const [field, label] of Object.entries(textLabels) as [keyof ClinicalHistoryData, string][]) {
+    const value = current[field];
+    if (typeof value === 'string' && new TextEncoder().encode(value).length > 10000) return `El campo “${label}” supera el máximo de 10,000 bytes. Acórtalo para continuar.`;
   }
   if (current.allergies.length > 50 || current.allergies.some(value => typeof value !== 'string' || !value.trim() || new TextEncoder().encode(value).length > 200)) {
-    return 'Revisa las alergias seleccionadas.';
+    return 'Alergias alimentarias: puedes seleccionar hasta 50; cada alergia debe tener texto y no superar 200 bytes.';
   }
   if (current.tobacco === 'Fumo' && (current.cigarettesPerDay === null || !Number.isInteger(current.cigarettesPerDay) || current.cigarettesPerDay < 1 || current.cigarettesPerDay > 65535)) {
-    return 'Indica una cantidad entera y positiva de cigarrillos al día.';
+    return 'Cigarrillos por día: indica un número entero entre 1 y 65,535.';
   }
   if (current.tobacco === 'No fumo' && current.cigarettesPerDay !== 0 && current.cigarettesPerDay !== null) {
-    return 'No puedes indicar cigarrillos si seleccionaste No fumo.';
+    return 'Cigarrillos por día: seleccionaste “No fumo”; cambia la respuesta o deja la cantidad en cero.';
   }
-  if (current.waterLiters === null || ![1, 2, 3].includes(current.waterLiters)) return 'Selecciona una cantidad de agua de las opciones disponibles.';
+  if (current.waterLiters === null || ![1, 2, 3].includes(current.waterLiters)) return 'Agua natural al día: selecciona 1, 2 o 3 litros.';
   return null;
 }

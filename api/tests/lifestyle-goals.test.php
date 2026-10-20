@@ -36,7 +36,7 @@ try{
     $pdo->exec("USE `$database`");foreach($schemas as $schema)$pdo->exec($schema);
     $pdo->exec("INSERT INTO users(id,name,username,email,password_hash) VALUES(94001,'Synthetic','goals_1','goals1@example.invalid','fake'),(94002,'Synthetic','goals_2','goals2@example.invalid','fake')");
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.get',[]),401);
-    $tokens[]=issueAuthToken(94001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
+    $tokens[]=issueAuthToken($pdo,94001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
     check(!capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.get',[]))['completed'],'Empty goals marked complete.');
     $_SERVER['REQUEST_METHOD']='POST';capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.save',['userId'=>94002,'settings'=>$settings]),403);
     foreach([['exerciseTypes'=>[]],['exerciseTypes'=>['none'],'activityBand'=>'intense'],['goal'=>'lose_weight','targetWeightKg'=>80]] as $bad) capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.save',['settings'=>[...$settings,...$bad]]),422);
@@ -45,7 +45,7 @@ try{
     check($saved['completed']&&$saved['user']['goal']==='gain_muscle'&&$saved['user']['activityLevel']==='high','Profile not synchronized.');
     capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.save',['settings'=>$settings]));check((int)$pdo->query('SELECT COUNT(*) FROM lifestyle_goals')->fetchColumn()===1,'Duplicate goal row.');
     $_SERVER['REQUEST_METHOD']='GET';check(capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.get',[]))['settings']['targetWeightKg']===75.5,'Database reload failed.');
-    $tokens[]=issueAuthToken(94002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
+    $tokens[]=issueAuthToken($pdo,94002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
     check(!capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.get',[]))['completed'],'Goals crossed accounts.');
     $_SERVER['REQUEST_METHOD']='POST';capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.delete',['userId'=>94001]),403);
     $_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
@@ -70,7 +70,6 @@ try{
     check(readLifestyleGoals($pdo,94001)['settings']['cookingTime']==='short','Preferences cooking time did not synchronize lifestyle.');
     $deleted=capture(fn()=>handleLifestyleGoals($pdo,'lifestyle.delete',[]));check(!$deleted['completed']&&$deleted['settings']===null&&$deleted['user']['goal']==='improve_health','Reset not persisted.');
 }finally{
-    foreach($tokens as $token){session_id($token);session_start(['use_cookies'=>0,'cache_limiter'=>'']);$_SESSION=[];session_destroy();}
     $pdo->exec("DROP DATABASE `$database`");
 }
 echo "Lifestyle goals passed: all fields, reload, account/session isolation, transactional save/reset, preference synchronization and recipe context. No AI calls.\n";

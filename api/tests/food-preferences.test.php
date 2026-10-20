@@ -31,7 +31,7 @@ try{
     $pdo->exec("USE `$database`");foreach($schemas as $schema)$pdo->exec($schema);
     $pdo->exec("INSERT INTO users(id,name,username,email,password_hash) VALUES(93001,'Synthetic','prefs_1','prefs1@example.invalid','fake'),(93002,'Synthetic','prefs_2','prefs2@example.invalid','fake')");
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';capture(fn()=>handleFoodPreferences($pdo,'preferences.get',[]),401);
-    $tokens[]=issueAuthToken(93001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
+    $tokens[]=issueAuthToken($pdo,93001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
     $initial=capture(fn()=>handleFoodPreferences($pdo,'preferences.get',[]));check(!$initial['preferences']['completed'],'Empty preferences marked complete.');
     $input=[...$initial['preferences'],'preferredFruits'=>['Manzana','Pitaya'],'preferredVegetables'=>['Brócoli'],'preferredProteins'=>['Tofu'],'preferredCarbohydrates'=>['Arroz'],'preferredLegumes'=>['Lentejas'],'preferredDairy'=>['Bebida de soya'],'preferredFats'=>['Aceite de oliva'],'allergies'=>['Cacahuate','Otra alergia'],'dislikedFoods'=>['Cebolla','Alimento personalizado'],'cookingTimeMinutes'=>45,'goal'=>'maintain','activityLevel'=>'high'];
     $_SERVER['REQUEST_METHOD']='POST';capture(fn()=>handleFoodPreferences($pdo,'preferences.save',[...$input,'userId'=>93002]),403);
@@ -43,7 +43,7 @@ try{
     check((int)$pdo->query('SELECT COUNT(*) FROM food_preferences')->fetchColumn()===1,'Repeated save duplicated preferences.');
     check(mapFoodPreferences(getFoodPreferencesRecord($pdo,93001))['allergies']===$input['allergies'],'Partial save erased allergies.');
     $_SERVER['REQUEST_METHOD']='GET';capture(fn()=>handleFoodPreferences($pdo,'preferences.get',['userId'=>93002]),403);
-    $tokens[]=issueAuthToken(93002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
+    $tokens[]=issueAuthToken($pdo,93002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
     check(!capture(fn()=>handleFoodPreferences($pdo,'preferences.get',[]))['preferences']['completed'],'Preferences crossed accounts.');
     $_SERVER['REQUEST_METHOD']='POST';capture(fn()=>handleFoodPreferences($pdo,'preferences.delete',['userId'=>93001]),403);
     $_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
@@ -73,7 +73,6 @@ try{
     check(mapFoodPreferences(getFoodPreferencesRecord($pdo,93001))===$before,'Rejected conflict changed preferences.');
     $deleted=capture(fn()=>handleFoodPreferences($pdo,'preferences.delete',[]));check(!$deleted['preferences']['completed']&&$deleted['preferences']['allergies']===[],'Deletion not reflected.');
 }finally{
-    foreach($tokens as $token){session_id($token);session_start(['use_cookies'=>0,'cache_limiter'=>'']);$_SESSION=[];session_destroy();}
     $pdo->exec("DROP DATABASE `$database`");
 }
 echo "Food preferences passed: persistent lists, custom foods, profile transaction, reload, ownership, validation and deletion. No AI calls.\n";

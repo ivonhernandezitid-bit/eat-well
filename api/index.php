@@ -13,6 +13,7 @@ require_once __DIR__ . '/lifestyle-goals.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Expose-Headers: X-Auth-Token');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -325,9 +326,12 @@ function registerUser(PDO $pdo, array $input): void
     $finalUsername = $requestedUsername !== '' ? $requestedUsername : explode('@', $email)[0];
     $plainPassword = trim((string)($input['password'] ?? ''));
 
-    if ($name === '' || $email === '' || $plainPassword === '') {
-        sendError('Nombre, correo y contrasena son obligatorios.', 422);
-    }
+    if ($name === '') sendError('El campo “Nombre completo” es obligatorio.', 422);
+    if ($email === '') sendError('El campo “Correo” es obligatorio.', 422);
+    if ($plainPassword === '') sendError('El campo “Contraseña” es obligatorio.', 422);
+    if (strlen($name) > 100) sendError('El campo “Nombre completo” no puede superar 100 caracteres.', 422);
+    if (strlen($email) > 120) sendError('El campo “Correo” no puede superar 120 caracteres.', 422);
+    if (strlen($finalUsername) > 50) sendError('El campo “Usuario” no puede superar 50 caracteres; escribe uno más corto.', 422);
 
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         sendError('El correo ingresado no tiene un formato válido.', 422);
@@ -337,12 +341,13 @@ function registerUser(PDO $pdo, array $input): void
         sendError('La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.', 422);
     }
 
-    $statement = $pdo->prepare('SELECT id FROM users WHERE email = ? OR username = ? LIMIT 1');
-    $statement->execute([$email, $finalUsername]);
+    $statement = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
+    $statement->execute([$email]);
+    if ($statement->fetch()) sendError('Este correo ya está registrado. Inicia sesión o usa otro correo.', 409);
 
-    if ($statement->fetch()) {
-        sendError('Ya existe una cuenta registrada con ese correo o usuario.', 409);
-    }
+    $statement = $pdo->prepare('SELECT id FROM users WHERE username = ? LIMIT 1');
+    $statement->execute([$finalUsername]);
+    if ($statement->fetch()) sendError('Este nombre de usuario ya está en uso. Elige otro usuario.', 409);
 
     $passwordHash = password_hash($plainPassword, PASSWORD_DEFAULT);
     $statement = $pdo->prepare(
@@ -356,7 +361,7 @@ function registerUser(PDO $pdo, array $input): void
     ]);
 
     $userId = (int)$pdo->lastInsertId();
-    sendJson(['user' => mapUser(getUserById($pdo, $userId)), 'authToken' => issueAuthToken($userId)], 201);
+    sendJson(['user' => mapUser(getUserById($pdo, $userId)), 'authToken' => issueAuthToken($pdo, $userId)], 201);
 }
 
 function loginUser(PDO $pdo, array $input): void
@@ -364,15 +369,20 @@ function loginUser(PDO $pdo, array $input): void
     $identifier = strtolower(trim((string)($input['email'] ?? '')));
     $plainPassword = trim((string)($input['password'] ?? ''));
 
+    if ($identifier === '') sendError('Ingresa tu correo o nombre de usuario.', 422);
+    if ($plainPassword === '') sendError('Ingresa tu contraseña.', 422);
+    if (str_contains($identifier, '@') && !filter_var($identifier, FILTER_VALIDATE_EMAIL)) {
+        sendError('El correo no tiene un formato válido. Revisa la dirección e inténtalo de nuevo.', 422);
+    }
+
     $statement = $pdo->prepare('SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? LIMIT 1');
     $statement->execute([$identifier, $identifier]);
     $user = $statement->fetch();
 
-    if (!$user || !password_verify($plainPassword, $user['password_hash'])) {
-        sendError('Correo o contrasena incorrectos.', 401);
-    }
+    if (!$user) sendError('No existe una cuenta con ese correo o nombre de usuario.', 404);
+    if (!password_verify($plainPassword, $user['password_hash'])) sendError('La contraseña es incorrecta.', 401);
 
-    sendJson(['user' => mapUser($user), 'authToken' => issueAuthToken((int)$user['id'])]);
+    sendJson(['user' => mapUser($user), 'authToken' => issueAuthToken($pdo, (int)$user['id'])]);
 }
 
 function getProfile(PDO $pdo, int $userId): void

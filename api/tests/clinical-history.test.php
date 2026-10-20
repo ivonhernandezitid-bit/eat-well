@@ -22,9 +22,14 @@ function capture(callable $action, int $expected = 200): array {
     }
     throw new RuntimeException('No API response');
 }
-function expectInvalid(array $history): void {
+function expectInvalid(array $history, ?string $expectedMessage = null): void {
     try { validateClinicalHistory($history, ['gender' => 'female']); }
-    catch (InvalidArgumentException) { return; }
+    catch (InvalidArgumentException $error) {
+        if ($expectedMessage !== null && !str_contains($error->getMessage(), $expectedMessage)) {
+            throw new RuntimeException('Unexpected validation message: ' . $error->getMessage());
+        }
+        return;
+    }
     throw new RuntimeException('Invalid history was accepted');
 }
 
@@ -40,10 +45,10 @@ $history['allergies'] = ['Gluten', 'Nuez/Maní'];
 $history['wellbeingNotes'] = 'Nota de prueba con acentos: información.';
 $history['waterLiters'] = 2;
 validateClinicalHistory($history, ['gender' => 'female']);
-$invalid = $history; $invalid['familyNone'] = true; expectInvalid($invalid);
-$invalid = $history; $invalid['waterLiters'] = -1; expectInvalid($invalid);
+$invalid = $history; $invalid['familyNone'] = true; expectInvalid($invalid, 'Antecedentes heredofamiliares');
+$invalid = $history; $invalid['waterLiters'] = -1; expectInvalid($invalid, 'Agua natural al día');
 $invalid = $history; $invalid['allergies'] = [['invalid']]; expectInvalid($invalid);
-$invalid = $history; $invalid['sleepHours'] = ''; expectInvalid($invalid);
+$invalid = $history; $invalid['sleepHours'] = ''; expectInvalid($invalid, 'Horas de sueño');
 foreach (['pregnant','lactating','menstrualCycle'] as $field) {
     $invalid = $history; $invalid[$field] = ''; expectInvalid($invalid);
 }
@@ -100,10 +105,31 @@ try {
     $_GET = [];
     $_SERVER['REQUEST_METHOD'] = 'GET';
     capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []), 401);
-    $token = issueAuthToken(91001);
+    $token = issueAuthToken($pdo, 91001);
+    $storedToken = $pdo->prepare('SELECT token_hash, expires_at FROM auth_sessions WHERE user_id = ?');
+    $storedToken->execute([91001]);
+    $tokenRecord = $storedToken->fetch();
+    if (!$tokenRecord || $tokenRecord['token_hash'] !== hash('sha256', $token) || $tokenRecord['token_hash'] === $token) {
+        throw new RuntimeException('Authentication token was not stored as a hash');
+    }
     $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
     $empty = capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []));
     if ($empty['history'] !== null) throw new RuntimeException('New patient has a history');
+    $pdo->exec("UPDATE auth_sessions SET expires_at = DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 DAY) WHERE user_id = 91001");
+    capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []));
+    $daysRemaining = $pdo->query("SELECT DATEDIFF(expires_at, CURRENT_TIMESTAMP) FROM auth_sessions WHERE user_id = 91001")->fetchColumn();
+    if ((int)$daysRemaining < AUTH_TOKEN_LIFETIME_DAYS - 1) throw new RuntimeException('Authentication token was not renewed');
+    $legacyToken = bin2hex(random_bytes(13));
+    session_id($legacyToken);
+    session_start(['use_cookies' => 0, 'use_only_cookies' => 0, 'use_strict_mode' => 0, 'cache_limiter' => '']);
+    $_SESSION = ['user_id' => 91001, 'expires_at' => time() + 3600];
+    session_write_close();
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $legacyToken;
+    if ((int)requireSessionUser($pdo)['id'] !== 91001) throw new RuntimeException('A valid legacy session was not migrated');
+    if ((int)$pdo->query('SELECT COUNT(*) FROM auth_sessions WHERE user_id = 91001')->fetchColumn() !== 2) {
+        throw new RuntimeException('Legacy session did not receive a persistent token');
+    }
+    $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $token;
     $_SERVER['REQUEST_METHOD'] = 'POST';
     capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['userId' => 91002, 'history' => $history]), 403);
     $saved = capture(fn() => handleClinicalHistory($pdo, 'clinical.save', ['userId' => 91001, 'history' => $history]));
@@ -120,7 +146,7 @@ try {
     $masked = readClinicalHistory($pdo, 91001)['history'];
     if ($masked['pregnant'] !== '' || $masked['lactating'] !== '' || $masked['menstrualCycle'] !== '' || $masked['diagnosisSop'] !== false) throw new RuntimeException('Read exposed sex-specific fields');
     $pdo->exec("UPDATE users SET gender='female' WHERE id=91001");
-    $otherToken = issueAuthToken(91002);
+    $otherToken = issueAuthToken($pdo, 91002);
     $_SERVER['HTTP_AUTHORIZATION'] = 'Bearer ' . $otherToken;
     $empty = capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []));
     if ($empty['history'] !== null) throw new RuntimeException('Patient histories leaked');
@@ -130,15 +156,11 @@ try {
     capture(fn() => handleClinicalHistory($pdo, 'clinical.delete', []));
     if (readClinicalHistory($pdo, 91001)['history'] !== null) throw new RuntimeException('History was not deleted');
     capture(fn() => logoutSession($pdo));
+    $revoked = $pdo->prepare('SELECT COUNT(*) FROM auth_sessions WHERE token_hash = ?');
+    $revoked->execute([hash('sha256', $token)]);
+    if ((int)$revoked->fetchColumn() !== 0) throw new RuntimeException('Logout did not revoke the token');
     capture(fn() => handleClinicalHistory($pdo, 'clinical.get', []), 401);
 } finally {
-    foreach ([$token ?? null, $otherToken ?? null] as $testToken) {
-        if ($testToken) {
-            startApiSession($testToken);
-            $_SESSION = [];
-            session_destroy();
-        }
-    }
     $pdo->exec('USE eatwell_db');
     $pdo->exec("DROP DATABASE `$test`");
 }
