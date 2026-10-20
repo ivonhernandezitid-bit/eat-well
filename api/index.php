@@ -1111,7 +1111,10 @@ function getUserById(PDO $pdo, int $userId): array
         sendError('Usuario no encontrado.', 404);
     }
 
-    $user['imc'] = $user['bmi'] ?? $user['imc'];
+    $user['imc'] = $user['bmi'] ?? $user['imc'] ?? calculateImc(
+        (float)$user['weight_kg'],
+        (float)$user['height_cm'],
+    );
     return $user;
 }
 
@@ -1127,7 +1130,10 @@ function mapUser(array $user): array
         'gender' => $user['gender'],
         'heightCm' => (float)$user['height_cm'],
         'weightKg' => (float)$user['weight_kg'],
-        'imc' => (float)($user['bmi'] ?? $user['imc']),
+        'imc' => (float)($user['bmi'] ?? $user['imc'] ?? calculateImc(
+            (float)$user['weight_kg'],
+            (float)$user['height_cm'],
+        )),
         'activityLevel' => $user['activity_level'],
         'goal' => $user['goal'],
         'createdAt' => $user['created_at'],
