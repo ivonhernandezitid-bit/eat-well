@@ -5,6 +5,7 @@ import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRe
 import { calculateMacroTargets, MacroTargets } from '../core/lifestyle-goals';
 import { RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
+import { ClinicalHistoryData } from '../core/clinical-history';
 
 interface MealCardView extends RecipeMetadata {
   id: string;
@@ -42,6 +43,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   selectedFilter: 'all' | 'favorites' | 'history' = 'all';
   scanHistory: FoodScanHistoryItem[] = [];
   macroTargets: MacroTargets | null = null;
+  clinicalPlanAlerts: string[] = [];
+  clinicalHistoryLoadError = '';
   
   isLoadingPersonalized = false;
   personalizedError = '';
@@ -552,6 +555,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.isRecipeModalOpen = false;
     this.isLoadingPersonalized = false;
     this.preferencesCompleted = false;
+    this.clinicalPlanAlerts = [];
+    this.clinicalHistoryLoadError = '';
     this.stopTimer();
   }
 
@@ -575,9 +580,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   private async fetchMealsForUser(user: UserProfile): Promise<void> {
     this.macroTargets = null;
+    this.clinicalPlanAlerts = [];
+    this.clinicalHistoryLoadError = '';
 
     try {
-      const [prefs, general, favorites, scanHistory, dailyPlan, lifestyle] = await Promise.all([
+      const [prefs, general, favorites, scanHistory, dailyPlan, lifestyle, clinicalHistory] = await Promise.all([
         this.eatWellService.getFoodPreferences().catch(() => null),
         this.eatWellService.getGeneralRecipes(),
         this.eatWellService.getFavoriteRecipes(),
@@ -587,6 +594,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         }),
         this.eatWellService.getDailyMealPlan(),
         this.eatWellService.getLifestyleGoals().catch(() => null),
+        this.eatWellService.getClinicalHistory().catch(error => {
+          console.error('Error loading clinical history for meal guidance', error);
+          return null;
+        }),
       ]);
 
       if (this.activeUserId !== user.id) {
@@ -595,6 +606,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
       this.preferencesCompleted = prefs?.completed ?? false;
       this.macroTargets = lifestyle?.settings ? calculateMacroTargets(lifestyle.user ?? user, lifestyle.settings) : null;
+      this.setClinicalPlanAlerts(clinicalHistory?.history ?? null, clinicalHistory !== null);
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
       this.scanHistory = scanHistory;
@@ -613,6 +625,36 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         this.recipes = [];
         await this.showError(error instanceof Error ? error.message : 'No se pudieron cargar las recetas.');
       }
+    }
+  }
+
+  private setClinicalPlanAlerts(history: ClinicalHistoryData | null, loaded: boolean): void {
+    if (!loaded) {
+      this.clinicalHistoryLoadError = 'No se pudo consultar tu historial clínico; las sugerencias no incluirán ajustes según tus condiciones.';
+      return;
+    }
+    if (!history) return;
+
+    const hasThyroidCondition = history.diagnosisHypothyroidism || history.diagnosisHyperthyroidism;
+    const hasRenalCondition = history.diagnosisChronicKidneyDisease || history.diagnosisKidneyStones;
+    const hasClinicalConditions = [
+      history.diagnosisDiabetes,
+      history.diagnosisInsulinResistance,
+      hasThyroidCondition,
+      history.diagnosisHypertension,
+      history.diagnosisDyslipidemia,
+      history.diagnosisFattyLiver,
+      history.diagnosisGout,
+      hasRenalCondition,
+    ].some(Boolean);
+
+    if (!hasClinicalConditions) return;
+    this.clinicalPlanAlerts.push('Las condiciones registradas orientan la selección de ingredientes, pero el catálogo no permite verificar por completo sodio, azúcares añadidos, grasas saturadas, purinas, potasio, fósforo u oxalatos.');
+    if (hasThyroidCondition) {
+      this.clinicalPlanAlerts.push('Las calorías estimadas no se ajustan automáticamente por una condición tiroidea. Consulta con tu profesional de salud para una valoración individual.');
+    }
+    if (hasRenalCondition) {
+      this.clinicalPlanAlerts.push('En enfermedad renal o litiasis, no se fijan límites automáticos de proteína, sodio, potasio, fósforo u oxalatos; sigue la pauta indicada por tu equipo médico.');
     }
   }
 

@@ -35,14 +35,18 @@ function validateDietaryRecall(array $input): array
         'afternoonSnackTime' => 'Hora de la colación vespertina',
         'dinnerTime' => 'Hora de la cena',
     ];
-    $textFields = ['wakeActivity'=>10000,'activityType'=>150,'activityDuration'=>120];
+    $wakeActivity = $input['wakeActivity'] ?? '';
+    if (!is_string($wakeActivity) || strlen($wakeActivity) > 10000) {
+        throw new InvalidArgumentException('El campo “Actividad al despertar” no puede superar 10000 caracteres.');
+    }
+    $textFields = ['activityType'=>150,'activityDuration'=>120];
     foreach (recallMealFields() as [$type, $time, $place, $details, $skipped]) {
         $textFields[$place] = 150;
         $textFields[$details] = 10000;
         if (!isset($input[$skipped]) || !is_bool($input[$skipped])) throw new InvalidArgumentException('Indica si omitiste cada comida.');
     }
     if (!isset($input['noActivity']) || !is_bool($input['noActivity'])) throw new InvalidArgumentException('Actividad física: indica si realizaste actividad o movimiento.');
-    $values = ['noActivity' => $input['noActivity']];
+    $values = ['noActivity' => $input['noActivity'], 'wakeActivity' => trim($wakeActivity)];
     foreach ($timeFields as $field) {
         $value = $input[$field] ?? null;
         if (!is_string($value) || ($value !== '' && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D', $value))) {
@@ -53,13 +57,12 @@ function validateDietaryRecall(array $input): array
     foreach ($textFields as $field => $max) {
         $value = $input[$field] ?? null;
         if (!is_string($value) || ($max === 10000 ? strlen($value) : mb_strlen($value, 'UTF-8')) > $max) {
-            $label = ['wakeActivity' => 'Actividad al despertar', 'activityType' => 'Tipo de actividad', 'activityDuration' => 'Duración de actividad'][$field] ?? $field;
+            $label = ['activityType' => 'Tipo de actividad', 'activityDuration' => 'Duración de actividad'][$field] ?? $field;
             throw new InvalidArgumentException("El campo “$label” debe contener texto y no superar $max caracteres.");
         }
         $values[$field] = trim($value);
     }
     if ($values['wakeTime'] === '') throw new InvalidArgumentException('Hora de despertar: selecciona una hora.');
-    if ($values['wakeActivity'] === '') throw new InvalidArgumentException('Actividad al despertar: describe qué hiciste al levantarte.');
     if ($values['sleepTime'] === '') throw new InvalidArgumentException('Hora de dormir: selecciona una hora.');
     $mealLabels = ['breakfast' => 'Desayuno', 'snack' => 'Colación', 'lunch' => 'Comida', 'dinner' => 'Cena'];
     foreach (recallMealFields() as [$type, $time, $place, $details, $skipped]) {
@@ -116,7 +119,10 @@ function saveDietaryRecall(PDO $pdo, int $userId, string $date, array $data): ar
     $pdo->beginTransaction();
     try {
         $lock=$pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE'); $lock->execute([$userId]);
-        if(initialRecallRecord($pdo,$userId)) throw new InitialRecallCompleted('El recordatorio inicial ya fue completado. Ajusta tus horarios desde el perfil.');
+        $initial = initialRecallRecord($pdo,$userId);
+        if($initial && $initial['recall_date'] !== $date) {
+            throw new InitialRecallCompleted('El recordatorio inicial ya fue completado. Solo puedes corregir la fecha original.');
+        }
         $statement = $pdo->prepare('INSERT INTO dietary_recalls (user_id,recall_date,wake_time,wake_activity,exercise_time,exercise_type,exercise_duration,sleep_time,completed_at) VALUES (?,?,?,?,?,?,?,?,NOW()) ON DUPLICATE KEY UPDATE id=LAST_INSERT_ID(id),wake_time=VALUES(wake_time),wake_activity=VALUES(wake_activity),exercise_time=VALUES(exercise_time),exercise_type=VALUES(exercise_type),exercise_duration=VALUES(exercise_duration),sleep_time=VALUES(sleep_time),completed_at=NOW()');
         $statement->execute([$userId,$date,$data['wakeTime'],$data['wakeActivity'],
             $data['noActivity'] ? null : $data['activityTime'], $data['noActivity'] ? null : $data['activityType'],

@@ -43,6 +43,7 @@ export class DatosPerfilPage implements OnInit {
   imc = 24.22;
   profileImage: string | null = null;
   isOnboarding = false;
+  profileProgressReady = false;
   foodPreferencesCompleted = false;
   showProfileModuleDetails = false;
   view: 'settings' | 'general' | 'clinical' | 'r24h' | 'schedule' | 'lifestyle' | 'privacy' = 'settings';
@@ -57,6 +58,7 @@ export class DatosPerfilPage implements OnInit {
   private moduleTouchStartX = 0;
   private moduleTouchStartY = 0;
   private moduleSwipeEligible = false;
+  private profileLoadVersion = 0;
 
   lifestyleSettings: LifestyleSettings = {
     goal: 'improve_health',
@@ -96,7 +98,7 @@ export class DatosPerfilPage implements OnInit {
   r24hMaxDate = calendarDate();
   r24hLoading = false;
   r24hSaving = false;
-  private r24hSaved = false;
+  r24hSaved = false;
   private r24hOwnerId: string | null = null;
   private r24hLoadVersion = 0;
   private r24hLoadError = '';
@@ -173,7 +175,6 @@ export class DatosPerfilPage implements OnInit {
     const items: { id: string; icon: string; title: string; subtitle: string; route: string }[] = [];
     for (const item of this.baseSettingsItems) {
       if (item.id === 'privacy') continue;
-      if (item.id === 'record' && (this.r24hSaved || this.r24hLoading)) continue;
       items.push(item);
       if (item.id === 'food' && this.r24hSaved) {
         items.push({ id: 'schedule', icon: 'time-outline', title: 'Horarios de alimentación', subtitle: 'Desayuno, colaciones, comida y cena', route: '/tabs/datos-perfil' });
@@ -207,7 +208,6 @@ export class DatosPerfilPage implements OnInit {
   private readonly platform = inject(Platform);
 
   openProfileModule(view: Exclude<DatosPerfilPage['view'], 'settings'>): void {
-    if(view==='r24h' && this.r24hSaved) view='schedule';
     if(view==='schedule') void this.loadMealSchedule();
     if (view === 'general') {
       this.syncGeneralFormFromProfile();
@@ -280,6 +280,8 @@ export class DatosPerfilPage implements OnInit {
   }
 
   private loadProfileData(): void {
+    const version = ++this.profileLoadVersion;
+    this.profileProgressReady = false;
     this.isOnboarding = this.route.snapshot.queryParamMap.get('onboarding') === '1';
     const activeUser = this.eatWellService.getActiveUser();
 
@@ -316,12 +318,25 @@ export class DatosPerfilPage implements OnInit {
     this.imc = activeUser.imc;
     this.profileImage = activeUser.profileImage ?? null;
     this.foodPreferencesCompleted = false;
-    void this.loadFoodPreferencesCompletion(activeUser.id);
-    void this.loadLifestyleForm(activeUser.id);
-    void this.loadClinicalHistory(activeUser.id);
+    const profileLoads = [
+      this.loadFoodPreferencesCompletion(activeUser.id),
+      this.loadLifestyleForm(activeUser.id),
+      this.loadClinicalHistory(activeUser.id),
+      this.loadR24h(activeUser.id),
+      this.loadMealSchedule(),
+    ];
+    const markProgressReady = (): void => {
+      if (version === this.profileLoadVersion && this.eatWellService.getActiveUser()?.id === activeUser.id) {
+        this.profileProgressReady = true;
+      }
+    };
+    void Promise.all(profileLoads).then(markProgressReady, error => {
+      markProgressReady();
+      if (version === this.profileLoadVersion && this.eatWellService.getActiveUser()?.id === activeUser.id) {
+        void this.showAlert('No se pudo cargar el perfil', error instanceof Error ? error.message : 'Inténtalo nuevamente.');
+      }
+    });
     this.r24hMaxDate = calendarDate();
-    void this.loadR24h(activeUser.id);
-    void this.loadMealSchedule();
 
     this.formName = this.fullName;
     this.birthDate = this.buildBirthDateFromAge(this.age);
@@ -399,7 +414,6 @@ export class DatosPerfilPage implements OnInit {
         if(response.completed) {
           this.r24hDate=response.recallDate;
           this.r24hLoadedDate=response.recallDate;
-          if(this.view==='r24h') this.openProfileModule('schedule');
         }
       }
     } catch (error) {
@@ -413,7 +427,7 @@ export class DatosPerfilPage implements OnInit {
         this.r24hSnapshot = JSON.stringify(this.r24hData);
         const requested=this.route.snapshot.queryParamMap.get('module');
         if(this.view==='settings' && requested==='schedule' && this.r24hSaved) this.openProfileModule('schedule');
-        if(this.view==='settings' && requested==='r24h' && !this.r24hSaved) this.openProfileModule('r24h');
+        if(this.view==='settings' && requested==='r24h') this.openProfileModule('r24h');
       }
     }
   }
@@ -650,7 +664,6 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async saveR24h(): Promise<void> {
-    if(this.r24hSaved) { this.openProfileModule('schedule'); return; }
     if (this.r24hLoading || this.r24hSaving) return;
     if (this.r24hLoadError) {
       await this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
@@ -662,6 +675,7 @@ export class DatosPerfilPage implements OnInit {
       return;
     }
     const userId = this.eatWellService.getActiveUser()?.id;
+    const wasSaved = this.r24hSaved;
     this.r24hSaving = true;
     try {
       const response = await this.eatWellService.saveDietaryRecall(this.r24hDate, this.r24hData);
@@ -669,8 +683,8 @@ export class DatosPerfilPage implements OnInit {
       this.r24hData = response.recall ?? emptyDietaryRecall();
       this.r24hSaved = response.completed;
       this.r24hSnapshot = JSON.stringify(this.r24hData);
-      await this.showAlert('Guardado', 'El recordatorio inicial se guardó correctamente.');
-      this.openProfileModule('schedule');
+      await this.showAlert('Guardado', wasSaved ? 'Los cambios del recordatorio se guardaron correctamente.' : 'El recordatorio inicial se guardó correctamente.');
+      this.returnToProfile();
     } catch (error) {
       if(error instanceof Error && error.message.includes('El recordatorio inicial ya fue completado')) {
         const active=this.eatWellService.getActiveUser();

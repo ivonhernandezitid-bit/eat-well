@@ -538,6 +538,21 @@
   --profile-section-accent: var(--eatwell-green-700);
 }
 
+.r24h-fields {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.r24h-readonly-note {
+  margin: 0;
+  color: var(--eatwell-muted, #607166);
+  font-size: 0.85rem;
+}
+
 .r24h-card h3 {
   margin: 0 0 12px;
   color: var(--eatwell-green-700);
@@ -734,6 +749,17 @@
   color: var(--eatwell-muted);
   font-size: 0.82rem;
   line-height: 1.4;
+}
+
+.medical-disclaimer {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--eatwell-green-700);
+  border-radius: 8px;
+  background: rgba(47, 125, 89, 0.07);
+  color: var(--eatwell-green-900);
+  font-size: 0.8rem;
+  line-height: 1.45;
 }
 
 .clinical-diagnosis-groups {

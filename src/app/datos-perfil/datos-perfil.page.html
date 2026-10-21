@@ -49,7 +49,7 @@
         </div>
       </section>
 
-      <div class="progress-card" *ngIf="profileCompletion < 100">
+      <div class="progress-card" *ngIf="profileProgressReady && profileCompletion < 100">
         <div class="progress-header profile-progress-heading">
           <strong>Progreso del Perfil: {{ profileCompletion }}%</strong>
           <button type="button" class="profile-progress-info" [title]="profileModulesTooltip" aria-label="Ver módulos completos y pendientes" [attr.aria-expanded]="showProfileModuleDetails" (click)="toggleProfileModuleDetails()">
@@ -99,11 +99,12 @@
         <p>Alimentos, bebidas y actividades de las últimas 24 horas.</p>
       </div>
 
+      <p class="r24h-readonly-note" *ngIf="r24hSaved">Puedes corregir las respuestas del recordatorio guardado y volver a guardar los cambios.</p>
+      <fieldset class="r24h-fields" [disabled]="r24hLoading || r24hSaving">
       <section class="r24h-card">
         <h3>MAÑANA / INICIO DEL DÍA</h3>
-        <div class="clinical-field"><label for="r24h-date">Día recordado:</label><input id="r24h-date" type="date" min="1900-01-01" [max]="r24hMaxDate" [disabled]="r24hLoading || r24hSaving" [(ngModel)]="r24hDate" (ngModelChange)="changeRecallDate($event)" /></div>
+        <div class="clinical-field"><label for="r24h-date">Día recordado:</label><input id="r24h-date" type="date" min="1900-01-01" [max]="r24hMaxDate" [disabled]="r24hLoading || r24hSaving || r24hSaved" [(ngModel)]="r24hDate" (ngModelChange)="changeRecallDate($event)" /></div>
         <div class="clinical-field"><label>Hora de despertar:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving" [class.has-time]="r24hData.wakeTime" (click)="openTimePicker('wakeTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.wakeTime) }}</span></button></div>
-        <div class="clinical-field"><label>Actividad al despertar:</label><input [disabled]="r24hLoading || r24hSaving" [(ngModel)]="r24hData.wakeActivity" placeholder="Trabajo de oficina, traslado..." /></div>
       </section>
 
       <section class="r24h-card">
@@ -154,8 +155,9 @@
         <div class="clinical-field"><label>Alimentos y bebidas:</label><textarea [disabled]="r24hLoading || r24hSaving || r24hData.noDinner" [(ngModel)]="r24hData.dinnerDetails" placeholder="Describe platillos, cantidades y bebidas..."></textarea></div>
         <div class="clinical-field"><label>Hora de dormir:</label><button type="button" class="time-picker-trigger" [disabled]="r24hLoading || r24hSaving" [class.has-time]="r24hData.sleepTime" (click)="openTimePicker('sleepTime')"><ion-icon name="time-outline"></ion-icon><span>{{ formatTime(r24hData.sleepTime) }}</span></button></div>
       </section>
+      </fieldset>
 
-      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">{{ r24hSaved ? 'Guardar cambios' : 'Guardar y continuar' }}</ion-button>
     </div>
 
     <div *ngIf="view === 'schedule'" class="r24h-shell">
@@ -311,6 +313,10 @@
         <h1>Historial clínico</h1>
         <p>Comparte la información de salud que ayudará a personalizar tus recomendaciones.</p>
       </div>
+
+      <p class="medical-disclaimer" role="note">
+        Eat Well adapta tus planes de alimentación según tus condiciones informadas para apoyar tu tratamiento. Esta aplicación no sustituye la consulta médica ni la prescripción de tus medicamentos.
+      </p>
 
       <section class="clinical-card">
         <h3>1. ANTECEDENTES HEREDOFAMILIARES</h3>

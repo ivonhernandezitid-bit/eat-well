@@ -2,10 +2,76 @@
 declare(strict_types=1);
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/lifestyle-goals.php';
+require_once __DIR__ . '/clinical-history.php';
 
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
     return hash('sha256', recipePreferenceHash($user, $preferences) . ':seven-options-v1:' . $mealType);
+}
+
+function mealPlanClinicalConditions(PDO $pdo, int $userId): array
+{
+    ensureClinicalHistoryColumns($pdo);
+    $history = readClinicalHistory($pdo, $userId)['history'] ?? [];
+    $fields = [
+        'diabetes' => 'diagnosisDiabetes',
+        'insulinResistance' => 'diagnosisInsulinResistance',
+        'hypothyroidism' => 'diagnosisHypothyroidism',
+        'hyperthyroidism' => 'diagnosisHyperthyroidism',
+        'hypertension' => 'diagnosisHypertension',
+        'dyslipidemia' => 'diagnosisDyslipidemia',
+        'fattyLiver' => 'diagnosisFattyLiver',
+        'gout' => 'diagnosisGout',
+        'chronicKidneyDisease' => 'diagnosisChronicKidneyDisease',
+        'kidneyStones' => 'diagnosisKidneyStones',
+    ];
+    $conditions = [];
+    foreach ($fields as $condition => $field) {
+        $conditions[$condition] = (bool)($history[$field] ?? false);
+    }
+    return $conditions;
+}
+
+function filterRecipesByClinicalConditions(array $recipes, array $conditions): array
+{
+    $blockedTerms = [];
+    if (!empty($conditions['diabetes']) || !empty($conditions['insulinResistance'])) {
+        $blockedTerms = [...$blockedTerms, 'azucar', 'jarabe de maiz', 'jarabe de agave', 'leche condensada', 'refresco', 'pan blanco', 'harina blanca', 'harina refinada'];
+    }
+    if (!empty($conditions['hypertension'])) {
+        $blockedTerms = [...$blockedTerms, 'jamon', 'salchicha', 'chorizo', 'tocino', 'salami', 'mortadela', 'embutido', 'sopa enlatada', 'consome en cubo', 'salsa de soya', 'alimento enlatado'];
+    }
+    if (!empty($conditions['dyslipidemia'])) {
+        $blockedTerms = [...$blockedTerms, 'grasa trans', 'aceite parcialmente hidrogenado', 'manteca', 'mantequilla', 'tocino', 'fritura', 'ultraprocesado'];
+    }
+    if (!empty($conditions['fattyLiver'])) {
+        $blockedTerms = [...$blockedTerms, 'jarabe de maiz de alta fructosa', 'jarabe de maiz', 'refresco', 'bebida azucarada', 'azucar', 'pan blanco', 'harina blanca', 'harina refinada'];
+    }
+    if (!empty($conditions['gout'])) {
+        $blockedTerms = [...$blockedTerms, 'visceras', 'higado', 'riñon', 'mollejas', 'anchoas', 'sardinas', 'mejillones', 'mariscos', 'camarones', 'langostinos', 'cangrejo', 'almejas', 'pulpo', 'calamar'];
+    }
+    if (!$blockedTerms) return $recipes;
+
+    $blockedTerms = array_values(array_unique($blockedTerms));
+    $normalize = static fn(string $value): string => strtr(
+        mb_strtolower($value, 'UTF-8'),
+        ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n'],
+    );
+    $blockedTerms = array_map($normalize, $blockedTerms);
+    return array_values(array_filter($recipes, static function (array $recipe) use ($blockedTerms): bool {
+        $ingredients = array_merge(
+            is_array($recipe['ingredients'] ?? null) ? $recipe['ingredients'] : [],
+            array_map(static fn($item) => is_array($item) ? ($item['name'] ?? '') : '', is_array($recipe['ingredientData'] ?? null) ? $recipe['ingredientData'] : []),
+        );
+        foreach ($ingredients as $ingredient) {
+            if (!is_string($ingredient)) continue;
+            $normalized = strtr(mb_strtolower($ingredient, 'UTF-8'), ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+            foreach ($blockedTerms as $term) {
+                if (str_contains($normalized, $term)) return false;
+            }
+        }
+        return true;
+    }));
 }
 
 function validatePlanDate(mixed $date, ?string $today = null): string
@@ -41,10 +107,12 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
     if (count($rows) === 7) return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
     if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503);
     $labels = ['breakfast' => 'Desayuno', 'morning_snack' => 'Colacion matutina', 'lunch' => 'Comida', 'afternoon_snack' => 'Colacion vespertina', 'dinner' => 'Cena'];
-    $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences))
+    $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences), recipeClinicalGuidance($preferences['clinicalConditions'] ?? []))
         . "\nGenera exactamente siete opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no siete comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de siete recetas.";
     $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), 7, $type);
-    if (count(filterRecipesByPreferences($recipes, $preferences)) !== 7) throw new RuntimeException('Se detecto un ingrediente incompatible con tus preferencias. Vuelve a intentarlo.');
+    $recipes = filterRecipesByPreferences($recipes, $preferences);
+    $recipes = filterRecipesByClinicalConditions($recipes, $preferences['clinicalConditions'] ?? []);
+    if (count($recipes) !== 7) throw new RuntimeException('Una o más recetas no cumplieron con las restricciones registradas. Vuelve a generar las opciones.');
     $pdo->beginTransaction();
     try {
         // Lock this account so concurrent requests reuse a single completed option set.
@@ -68,7 +136,11 @@ function saveDailyMealChoice(PDO $pdo, array $user, array $preferences, string $
     $stmt->execute([$matches[1], $user['id'], mealOptionHash($user, $preferences, $type)]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !in_array($type, readRecipeInstructions($row['instructions'])['mealTypes'], true)) throw new InvalidArgumentException('La receta no corresponde a tu cuenta, comida o preferencias actuales.');
-    if (!filterRecipesByPreferences([mapPersonalizedRecipe($row)], $preferences)) throw new InvalidArgumentException('La receta no es compatible con tus preferencias actuales.');
+    $recipe = mapPersonalizedRecipe($row);
+    if (!filterRecipesByPreferences([$recipe], $preferences)
+        || !filterRecipesByClinicalConditions([$recipe], $preferences['clinicalConditions'] ?? [])) {
+        throw new InvalidArgumentException('La receta no es compatible con tus preferencias o condiciones registradas.');
+    }
     $save = $pdo->prepare('INSERT INTO daily_meal_choices (user_id,plan_date,meal_type,recipe_id,preference_hash) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE recipe_id=VALUES(recipe_id),preference_hash=VALUES(preference_hash)');
     $save->execute([$user['id'], $date, $type, $row['id'], recipePreferenceHash($user, $preferences)]);
 }
@@ -85,6 +157,7 @@ function handleMealPlan(PDO $pdo, string $action, array $input, string $apiKey, 
     if ((string)($input['userId'] ?? $_GET['userId'] ?? $user['id']) !== (string)$user['id']) sendError('No puedes acceder al plan de otra cuenta.', 403);
     if ($_SERVER['REQUEST_METHOD'] !== ($action === 'plan.choose' ? 'POST' : 'GET')) sendError('Metodo no permitido.', 405);
     $preferences = withLifestylePreferences($pdo, $user, mapFoodPreferences(getFoodPreferencesRecord($pdo, (int)$user['id'])));
+    $preferences['clinicalConditions'] = mealPlanClinicalConditions($pdo, (int)$user['id']);
     try {
         $type = $input['mealType'] ?? $_GET['mealType'] ?? null;
         if ($action !== 'plan.get' && !in_array($type, RECIPE_MEAL_TYPES, true)) throw new InvalidArgumentException('Selecciona un tipo de comida valido.');

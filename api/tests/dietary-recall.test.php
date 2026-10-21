@@ -14,14 +14,17 @@ function capture(callable $call,int $status=200):array{
     throw new RuntimeException('Missing response');
 }
 function invalid(callable $call):void{try{$call();}catch(InvalidArgumentException){return;}throw new RuntimeException('Invalid data accepted');}
-$data=['wakeTime'=>'07:00','wakeActivity'=>'Trabajo','sleepTime'=>'23:00','activityTime'=>'','activityType'=>'','activityDuration'=>'','noActivity'=>true];
+$data=['wakeTime'=>'07:00','wakeActivity'=>'','sleepTime'=>'23:00','activityTime'=>'','activityType'=>'','activityDuration'=>'','noActivity'=>true];
 $times=['breakfastTime'=>'08:00','snackTime'=>'11:00','lunchTime'=>'14:00','afternoonSnackTime'=>'17:00','dinnerTime'=>'20:00'];
 foreach(recallMealFields() as [$type,$time,$place,$details,$skip]){$data[$time]=$times[$time];$data[$place]='En casa';$data[$details]='Alimentos de prueba';$data[$skip]=false;}
 validateDietaryRecall($data);
+$withoutWakeActivity=$data;unset($withoutWakeActivity['wakeActivity']);validateDietaryRecall($withoutWakeActivity);
 foreach(['2000-02-30','1900-02-29','2999-01-01',''] as $date)invalid(fn()=>validateRecallDate($date));
 foreach(recallMealFields() as [$type,$time,$place,$details,$skip]){
     $bad=$data;$bad[$skip]=true;invalid(fn()=>validateDietaryRecall($bad));
     $bad=$data;$bad[$time]='24:00';invalid(fn()=>validateDietaryRecall($bad));
+    $bad=$data;$bad[$place]='';invalid(fn()=>validateDietaryRecall($bad));
+    $bad=$data;$bad[$details]=' ';invalid(fn()=>validateDietaryRecall($bad));
     $ok=$data;$ok[$skip]=true;$ok[$time]=$ok[$place]=$ok[$details]='';validateDietaryRecall($ok);
 }
 $suggested=suggestedMealSchedule($data);validateMealSchedule($suggested);
@@ -51,7 +54,9 @@ try{
     capture(fn()=>handleDietaryRecall($pdo,'recall.save',['userId'=>91002,...$input]),403);
     capture(fn()=>handleDietaryRecall($pdo,'recall.save',$input));
     if((int)$pdo->query('SELECT COUNT(*) FROM dietary_recall_meals')->fetchColumn()!==5)throw new RuntimeException('Not five meals');
-    capture(fn()=>handleDietaryRecall($pdo,'recall.save',$input),409);
+    $corrected=$data;$corrected['breakfastDetails']='Respuesta corregida';
+    capture(fn()=>handleDietaryRecall($pdo,'recall.save',['recallDate'=>'2000-01-01','recall'=>$corrected]));
+    if(readDietaryRecall($pdo,91001,'2000-01-01')['recall']['breakfastDetails']!=='Respuesta corregida')throw new RuntimeException('Completed survey could not be corrected');
     capture(fn()=>handleDietaryRecall($pdo,'recall.save',['recallDate'=>'2000-01-02','recall'=>$data]),409);
     if((int)$pdo->query('SELECT COUNT(*) FROM dietary_recalls')->fetchColumn()!==1)throw new RuntimeException('Second initial survey saved');
     $_SERVER['REQUEST_METHOD']='GET';$initial=capture(fn()=>handleDietaryRecall($pdo,'recall.initial',[]));

@@ -51,7 +51,6 @@ export function dietaryRecallError(data: DietaryRecallData, date: string, today 
   if (dateError) return dateError;
   const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
   if (!validTime(data.wakeTime)) return 'Hora de despertar: selecciona una hora válida.';
-  if (!data.wakeActivity.trim()) return 'Actividad al despertar: describe qué hiciste al levantarte.';
   if (!validTime(data.sleepTime)) return 'Hora de dormir: selecciona una hora válida.';
   const mealLabels = ['Desayuno', 'Colación matutina', 'Comida', 'Colación vespertina', 'Cena'];
   for (const [index, meal] of recallMeals.entries()) {
@@ -75,7 +74,6 @@ export function dietaryRecallError(data: DietaryRecallData, date: string, today 
     if (!data.activityDuration.trim()) return 'Duración de la actividad: indica cuánto tiempo o marca que no realizaste actividad.';
   }
   const textLabels: Record<string, string> = {
-    wakeActivity: 'Actividad al despertar',
     activityType: 'Tipo de actividad',
     activityDuration: 'Duración de actividad',
   };

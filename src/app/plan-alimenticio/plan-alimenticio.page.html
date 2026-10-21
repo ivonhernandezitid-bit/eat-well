@@ -70,6 +70,12 @@
 
     <h1 class="screen-title">PLAN ALIMENTICIO</h1>
 
+    <p class="medical-disclaimer" role="note">
+      Eat Well adapta tus planes de alimentación según tus condiciones informadas para apoyar tu tratamiento. Esta aplicación no sustituye la consulta médica ni la prescripción de tus medicamentos.
+    </p>
+    <p class="clinical-plan-alert" role="status" *ngIf="clinicalHistoryLoadError">{{ clinicalHistoryLoadError }}</p>
+    <p class="clinical-plan-alert" role="note" *ngFor="let alert of clinicalPlanAlerts">{{ alert }}</p>
+
     <section class="macro-targets" *ngIf="macroTargets as targets" aria-label="Distribución diaria estimada de macronutrientes">
       <div class="macro-targets-heading">
         <div>
