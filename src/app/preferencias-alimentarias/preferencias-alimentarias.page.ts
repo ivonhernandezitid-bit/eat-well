@@ -4,10 +4,23 @@ import { AlertController, ToastController } from '@ionic/angular';
 import { DietType, EatWellService, FoodPreferences } from '../core';
 
 function emptyFoodPreferences(): FoodPreferences {
-  return { dietType: 'omnivore', preferredFruits: [], preferredVegetables: [], preferredProteins: [], preferredCarbohydrates: [], preferredLegumes: [], preferredDairy: [], preferredFats: [], allergies: [], dislikedFoods: [], cookingTimeMinutes: 30, completed: false };
+  return { dietType: 'omnivore', preferredFruits: [], preferredVegetables: [], preferredProteins: [], preferredCarbohydrates: [], preferredLegumes: [], preferredDairy: [], preferredFats: [], allergies: [], dislikedFoods: [], noPreferenceCategories: [], cookingTimeMinutes: 30, completed: false };
 }
 
 type FoodPreferenceList = 'preferredFruits' | 'preferredVegetables' | 'preferredProteins' | 'preferredCarbohydrates' | 'preferredLegumes' | 'preferredDairy' | 'preferredFats' | 'allergies' | 'dislikedFoods';
+type FoodPreferenceCategory = 'fruits' | 'vegetables' | 'proteins' | 'carbohydrates' | 'legumes' | 'dairy' | 'fats' | 'allergies' | 'dislikedFoods';
+
+const foodPreferenceCategories: Record<FoodPreferenceCategory, { label: string; list: FoodPreferenceList }> = {
+  fruits: { label: 'Frutas preferidas', list: 'preferredFruits' },
+  vegetables: { label: 'Verduras preferidas', list: 'preferredVegetables' },
+  proteins: { label: 'Proteínas', list: 'preferredProteins' },
+  carbohydrates: { label: 'Carbohidratos', list: 'preferredCarbohydrates' },
+  legumes: { label: 'Legumbres', list: 'preferredLegumes' },
+  dairy: { label: 'Lácteos y alternativas', list: 'preferredDairy' },
+  fats: { label: 'Aceites, grasas, semillas y frutos secos', list: 'preferredFats' },
+  allergies: { label: 'Alergias', list: 'allergies' },
+  dislikedFoods: { label: 'Alimentos que no te gustan', list: 'dislikedFoods' },
+};
 
 const allergyFoodTerms: Record<string, string[]> = {
   lacteos: ['leche', 'yogur', 'queso', 'requeson', 'mantequilla', 'crema de leche'],
@@ -103,6 +116,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
   otherAllergiesInput = '';
   isLoading = true;
   isSaving = false;
+  validationAttempted = false;
   currentSection: string | null = null;
   private dietToastTimeout: number | undefined;
   private dietToastSequence = 0;
@@ -152,6 +166,57 @@ export class PreferenciasAlimentariasPage implements OnInit {
       case 'general': return 'Guardar preferencias';
       default: return 'Guardar preferencias';
     }
+  }
+
+  get missingPreferenceCategories(): string[] {
+    return (Object.entries(foodPreferenceCategories) as [FoodPreferenceCategory, typeof foodPreferenceCategories[FoodPreferenceCategory]][])
+      .filter(([category]) => this.isPreferenceCategoryMissing(category))
+      .map(([, config]) => config.label);
+  }
+
+  get isPreferencesComplete(): boolean {
+    return this.missingPreferenceCategories.length === 0
+      && ['omnivore', 'vegetarian', 'vegan'].includes(this.preferences.dietType);
+  }
+
+  showSection(section: string): boolean {
+    return !this.currentSection || !this.isPreferencesComplete || this.currentSection === section;
+  }
+
+  isNoPreferenceCategory(category: FoodPreferenceCategory): boolean {
+    return this.preferences.noPreferenceCategories.includes(category);
+  }
+
+  isPreferenceCategoryMissing(category: FoodPreferenceCategory): boolean {
+    const hasSelection = this.hasPreferenceCategorySelection(category);
+    return hasSelection === this.isNoPreferenceCategory(category);
+  }
+
+  private hasPreferenceCategorySelection(category: FoodPreferenceCategory): boolean {
+    const list = foodPreferenceCategories[category].list;
+    const hasSavedItems = this.preferences[list].length > 0;
+    if (category === 'fruits') return hasSavedItems || this.otherFruitsInput.split(',').some(value => value.trim());
+    if (category === 'vegetables') return hasSavedItems || this.otherVegetablesInput.split(',').some(value => value.trim());
+    if (category === 'allergies') return hasSavedItems || this.otherAllergiesInput.split(',').some(value => value.trim());
+    if (category === 'dislikedFoods') return hasSavedItems || this.dislikedFoodsInput.split(',').some(value => value.trim());
+    return hasSavedItems;
+  }
+
+  toggleNoPreferenceCategory(category: FoodPreferenceCategory): void {
+    const config = foodPreferenceCategories[category];
+    const currentlyConfirmed = this.isNoPreferenceCategory(category);
+    this.preferences.noPreferenceCategories = this.preferences.noPreferenceCategories.filter(item => item !== category);
+    if (currentlyConfirmed) return;
+    this.preferences[config.list] = [];
+    if (category === 'fruits') this.otherFruitsInput = '';
+    if (category === 'vegetables') this.otherVegetablesInput = '';
+    if (category === 'allergies') this.otherAllergiesInput = '';
+    if (category === 'dislikedFoods') this.dislikedFoodsInput = '';
+    this.preferences.noPreferenceCategories = [...this.preferences.noPreferenceCategories, category];
+  }
+
+  clearNoPreferenceCategory(category: FoodPreferenceCategory): void {
+    this.preferences.noPreferenceCategories = this.preferences.noPreferenceCategories.filter(item => item !== category);
   }
 
   ngOnInit(): void {
@@ -213,6 +278,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
     this.loadError = '';
     this.loadedUserId = null;
     this.preferences = emptyFoodPreferences();
+    this.validationAttempted = false;
     this.otherFruitsInput = this.otherVegetablesInput = this.otherAllergiesInput = this.dislikedFoodsInput = '';
     try {
       if (!userId) throw new Error('Vuelve a iniciar sesión para cargar tus preferencias.');
@@ -334,6 +400,9 @@ export class PreferenciasAlimentariasPage implements OnInit {
 
   async togglePreference(listName: FoodPreferenceList, value: string): Promise<void> {
     const values = this.preferences[listName];
+    const category = (Object.entries(foodPreferenceCategories) as [FoodPreferenceCategory, typeof foodPreferenceCategories[FoodPreferenceCategory]][])
+      .find(([, config]) => config.list === listName)?.[0];
+    if (category) this.clearNoPreferenceCategory(category);
     if (values.includes(value)) {
       this.preferences[listName] = values.filter(item => item !== value);
       return;
@@ -563,6 +632,8 @@ export class PreferenciasAlimentariasPage implements OnInit {
         return;
       }
     }
+    this.validationAttempted = true;
+    if (this.missingPreferenceCategories.length) return;
     // Keep selected options and custom values in the same saved lists.
     const selectedFruits = this.preferences.preferredFruits.filter(f => this.fruits.includes(f));
     const customFruits = this.otherFruitsInput.split(',')
@@ -614,6 +685,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
           preferredFats: this.preferences.preferredFats,
           allergies: finalAllergies,
           dislikedFoods: finalDisliked,
+          noPreferenceCategories: this.preferences.noPreferenceCategories,
           completed: true,
         });
       if (this.eatWellService.getActiveUser()?.id !== userId) return;

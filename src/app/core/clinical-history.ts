@@ -203,3 +203,62 @@ export function clinicalHistoryError(data: ClinicalHistoryData, sex: string): st
   if (current.waterLiters === null || ![1, 2, 3].includes(current.waterLiters)) return 'Agua natural al día: selecciona 1, 2 o 3 litros.';
   return null;
 }
+
+export function clinicalHistoryMissingFields(data: ClinicalHistoryData, sex: string): string[] {
+  const current = clinicalHistoryForSex(data, sex);
+  const missing: string[] = [];
+  const groupLabels: Record<keyof typeof clinicalGroups, string> = {
+    familyNone: 'Antecedentes heredofamiliares',
+    diagnosisMetabolismNone: 'Metabolismo y hormonas',
+    diagnosisThyroidNone: 'Patología tiroidea',
+    diagnosisOtherNone: 'Otros antecedentes',
+    diagnosisDigestiveNone: 'Salud digestiva',
+    allergiesNone: 'Alergias e intolerancias alimentarias',
+    surgeriesNone: 'Cirugías previas',
+    hospitalizationsNone: 'Hospitalizaciones',
+    medicationsNone: 'Medicamentos actuales',
+    medicationAllergiesNone: 'Alergias a medicamentos',
+    supplementsNone: 'Suplementos / proteínas',
+  };
+  for (const [none, fields] of Object.entries(clinicalGroups) as [keyof typeof clinicalGroups, readonly (keyof ClinicalHistoryData)[]][]) {
+    const answered = fields.some(field => hasAnswer(current[field]));
+    if (!current[none] && !answered) missing.push(groupLabels[none]);
+  }
+
+  const selectionLabels: Record<string, string> = {
+    pregnant: 'Embarazo actual',
+    lactating: 'Periodo de lactancia',
+    menstrualCycle: 'Ciclo menstrual',
+    weightLossTreatment: 'Uso de pastillas para bajar de peso',
+    sleepHours: 'Horas de sueño',
+    sleepQuality: 'Calidad del sueño',
+    bowelFrequency: 'Frecuencia de evacuaciones',
+    alcohol: 'Consumo de alcohol',
+    tobacco: 'Consumo de tabaco',
+    otherSubstances: 'Consumo de otras sustancias',
+    cooksAtHome: 'Quién cocina en casa',
+    weekdayPlace: 'Lugar donde comes entre semana',
+  };
+  const validSelections: Record<string, string[]> = {
+    pregnant: ['No', 'Sí'],
+    lactating: ['No', 'Sí'],
+    menstrualCycle: ['Regular', 'Irregular', 'No aplica'],
+    weightLossTreatment: ['No', 'Sí'],
+    sleepHours: ['7-8 hrs', 'Menos de 6 hrs', 'Más de 8 hrs'],
+    sleepQuality: ['Reparador', 'No reparador'],
+    bowelFrequency: ['1 a 2 veces al día', 'Menos de 1 vez al día'],
+    alcohol: ['Ocasional', 'Frecuente', 'No consumo'],
+    tobacco: ['No fumo', 'Fumo'],
+    otherSubstances: ['No', 'Sí'],
+    cooksAtHome: ['Yo mismo(a)', 'Otra persona'],
+    weekdayPlace: ['En casa', 'En el trabajo'],
+  };
+  for (const [field, options] of Object.entries(validSelections)) {
+    if (sex !== 'female' && ['pregnant', 'lactating', 'menstrualCycle'].includes(field)) continue;
+    const value = current[field as keyof ClinicalHistoryData];
+    if (typeof value !== 'string' || !options.includes(value)) missing.push(selectionLabels[field]);
+  }
+  if (current.tobacco === 'Fumo' && !current.cigarettesPerDay) missing.push('Cigarrillos al día');
+  if (current.waterLiters === null || ![1, 2, 3].includes(current.waterLiters)) missing.push('Agua natural al día');
+  return missing;
+}

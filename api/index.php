@@ -514,6 +514,7 @@ function getFoodPreferencesRecord(PDO $pdo, int $userId): array
         'preferred_fats' => '[]',
         'allergies' => '[]',
         'disliked_foods' => '[]',
+        'no_preference_categories' => '[]',
         'cooking_time_minutes' => 30,
         'completed_at' => null,
     ];
@@ -521,7 +522,7 @@ function getFoodPreferencesRecord(PDO $pdo, int $userId): array
 
 function mapFoodPreferences(array $preferences): array
 {
-    return [
+    $mapped = [
         'dietType' => $preferences['diet_type'],
         'preferredFruits' => decodeJsonList($preferences['preferred_fruits']),
         'preferredVegetables' => decodeJsonList($preferences['preferred_vegetables']),
@@ -532,9 +533,28 @@ function mapFoodPreferences(array $preferences): array
         'preferredFats' => decodeJsonList($preferences['preferred_fats']),
         'allergies' => decodeJsonList($preferences['allergies']),
         'dislikedFoods' => decodeJsonList($preferences['disliked_foods']),
+        'noPreferenceCategories' => decodeJsonList($preferences['no_preference_categories'] ?? '[]'),
         'cookingTimeMinutes' => (int)$preferences['cooking_time_minutes'],
         'completed' => $preferences['completed_at'] !== null,
     ];
+    $requiredCategories = [
+        'fruits' => 'preferredFruits',
+        'vegetables' => 'preferredVegetables',
+        'proteins' => 'preferredProteins',
+        'carbohydrates' => 'preferredCarbohydrates',
+        'legumes' => 'preferredLegumes',
+        'dairy' => 'preferredDairy',
+        'fats' => 'preferredFats',
+        'allergies' => 'allergies',
+        'dislikedFoods' => 'dislikedFoods',
+    ];
+    foreach ($requiredCategories as $category => $field) {
+        if ((count($mapped[$field]) > 0) === in_array($category, $mapped['noPreferenceCategories'], true)) {
+            $mapped['completed'] = false;
+            break;
+        }
+    }
+    return $mapped;
 }
 
 function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string $model): void

@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS food_preferences (
   preferred_fats LONGTEXT NULL,
   allergies LONGTEXT NOT NULL,
   disliked_foods LONGTEXT NOT NULL,
+  no_preference_categories LONGTEXT NULL,
   cooking_time_minutes INT NOT NULL DEFAULT 30,
   completed_at TIMESTAMP NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -117,6 +118,7 @@ ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_carbohydrates LO
 ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_legumes LONGTEXT NULL;
 ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_dairy LONGTEXT NULL;
 ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS preferred_fats LONGTEXT NULL;
+ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS no_preference_categories LONGTEXT NULL;
 
 CREATE TABLE IF NOT EXISTS favorite_recipes (
   id INT AUTO_INCREMENT PRIMARY KEY,

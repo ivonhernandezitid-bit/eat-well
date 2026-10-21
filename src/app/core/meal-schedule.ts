@@ -20,6 +20,10 @@ export interface MealScheduleResponse {
 export function mealScheduleError(schedule: MealSchedule): string | null {
   const times = scheduleMeals.map(meal => schedule[meal.field]);
   if (times.some(time => !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return 'Indica una hora válida para cada comida.';
-  if (new Set(times).size !== times.length) return 'Asigna un horario diferente a cada comida.';
+  for (let index = 1; index < scheduleMeals.length; index++) {
+    if (times[index] <= times[index - 1]) {
+      return `El horario ingresado no es válido. La hora de ${scheduleMeals[index].label} debe ser posterior a la hora de ${scheduleMeals[index - 1].label} previa.`;
+    }
+  }
   return null;
 }

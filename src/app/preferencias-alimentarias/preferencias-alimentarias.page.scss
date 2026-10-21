@@ -79,6 +79,42 @@ ion-content {
   box-shadow: 0 7px 18px rgba(31, 68, 48, 0.065);
 }
 
+.preference-section.validation-invalid {
+  border-color: #c62828;
+  box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.12);
+}
+
+.validation-summary {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #c62828;
+  border-radius: 12px;
+  background: #fff1f0;
+  color: #a61b1b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.no-preference-button {
+  min-height: 36px;
+  margin: 0 0 12px;
+  padding: 7px 11px;
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--eatwell-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.no-preference-button.selected {
+  border-color: var(--eatwell-green-700);
+  background: rgba(47, 125, 89, 0.09);
+  color: var(--page-green);
+}
+
 h1,
 h2 {
   margin: 0 0 12px;

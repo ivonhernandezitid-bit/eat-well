@@ -33,9 +33,13 @@ $missing=$data;$missing['snackTime']=$missing['afternoonSnackTime']='';
 validateMealSchedule(suggestedMealSchedule($missing));
 $night=$data;$night['wakeTime']='20:00';$night['sleepTime']='12:00';$night['breakfastTime']='21:00';$night['lunchTime']='02:00';$night['dinnerTime']='09:00';
 $nightSchedule=suggestedMealSchedule($night);validateMealSchedule($nightSchedule);
-if($nightSchedule['lunchTime']!=='02:00')throw new RuntimeException('Night schedule changed');
+if($nightSchedule['lunchTime']!=='13:00')throw new RuntimeException('Incoherent overnight suggestions were not replaced.');
 $bad=$suggested;$bad['lunchTime']='24:00';invalid(fn()=>validateMealSchedule($bad));
 $bad=$suggested;$bad['lunchTime']=$bad['breakfastTime'];invalid(fn()=>validateMealSchedule($bad));
+$bad=$suggested;$bad['lunchTime']='09:00';
+try{validateMealSchedule($bad);throw new RuntimeException('Out-of-order meals were accepted.');}catch(InvalidArgumentException $error){
+    if($error->getMessage()!=='El horario ingresado no es válido. La hora de Comida debe ser posterior a la hora de Colación matutina previa.')throw $error;
+}
 $pdo=new PDO('mysql:host=127.0.0.1;dbname=eatwell_db;charset=utf8mb4','root','',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
 $schemas=[];foreach(['users','dietary_recalls','dietary_recall_meals','meal_schedules'] as $table)$schemas[]=$pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM)[1];
 $test='eatwell_initial_check_'.bin2hex(random_bytes(6));$pdo->exec("CREATE DATABASE `$test` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");

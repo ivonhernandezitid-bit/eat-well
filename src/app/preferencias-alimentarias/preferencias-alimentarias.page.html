@@ -22,7 +22,7 @@
     </div>
 
     <ng-container *ngIf="!isLoading && !loadError">
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" *ngIf="showSection('general')">
         <h1>Tu alimentación</h1>
         <ion-segment [scrollable]="true" [value]="preferences.dietType" (ionChange)="setDietType($any($event.detail.value))">
           <ion-segment-button value="omnivore">Omnívora</ion-segment-button>
@@ -31,8 +31,9 @@
         </ion-segment>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'fruits'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('fruits')" *ngIf="showSection('fruits')">
         <h2>Frutas preferidas</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('fruits')" (click)="toggleNoPreferenceCategory('fruits')">No tengo preferencia por frutas</button>
         <div class="option-grid">
           <button
             type="button"
@@ -49,13 +50,15 @@
           <ion-label position="stacked">Otras frutas (separadas por comas)</ion-label>
           <ion-input
             [(ngModel)]="otherFruitsInput"
+            (ngModelChange)="clearNoPreferenceCategory('fruits')"
             placeholder="Ej. Mandarina, Coco, Maracuyá"
           ></ion-input>
         </ion-item>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'vegetables'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('vegetables')" *ngIf="showSection('vegetables')">
         <h2>Verduras preferidas</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('vegetables')" (click)="toggleNoPreferenceCategory('vegetables')">No tengo preferencia por verduras</button>
         <div class="option-grid">
           <button
             type="button"
@@ -72,13 +75,15 @@
           <ion-label position="stacked">Otras verduras (separadas por comas)</ion-label>
           <ion-input
             [(ngModel)]="otherVegetablesInput"
+            (ngModelChange)="clearNoPreferenceCategory('vegetables')"
             placeholder="Ej. Espárragos, Alcachofa"
           ></ion-input>
         </ion-item>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('proteins')" *ngIf="showSection('general')">
         <h2>Proteínas</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('proteins')" (click)="toggleNoPreferenceCategory('proteins')">No tengo preferencia por proteínas</button>
         <div class="option-grid">
           <button type="button" *ngFor="let food of proteinsForDiet" class="food-option protein-option" [class.selected]="isSelected('preferredProteins', food)" (click)="togglePreference('preferredProteins', food)">
             <ion-icon [name]="isSelected('preferredProteins', food) ? 'checkmark-circle' : 'restaurant-outline'"></ion-icon><span>{{ food }}</span>
@@ -86,8 +91,9 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('carbohydrates')" *ngIf="showSection('general')">
         <h2>Carbohidratos</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('carbohydrates')" (click)="toggleNoPreferenceCategory('carbohydrates')">No tengo preferencia por carbohidratos</button>
         <div class="option-grid">
           <button type="button" *ngFor="let food of carbohydrates" class="food-option carbohydrate-option" [class.selected]="isSelected('preferredCarbohydrates', food)" (click)="togglePreference('preferredCarbohydrates', food)">
             <ion-icon [name]="isSelected('preferredCarbohydrates', food) ? 'checkmark-circle' : 'grid-outline'"></ion-icon><span>{{ food }}</span>
@@ -95,8 +101,9 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('legumes')" *ngIf="showSection('general')">
         <h2>Legumbres</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('legumes')" (click)="toggleNoPreferenceCategory('legumes')">No tengo preferencia por legumbres</button>
         <div class="option-grid">
           <button type="button" *ngFor="let food of legumes" class="food-option legume-option" [class.selected]="isSelected('preferredLegumes', food)" (click)="togglePreference('preferredLegumes', food)">
             <ion-icon [name]="isSelected('preferredLegumes', food) ? 'checkmark-circle' : 'leaf-outline'"></ion-icon><span>{{ food }}</span>
@@ -104,8 +111,9 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('dairy')" *ngIf="showSection('general')">
         <h2>{{ preferences.dietType === 'vegan' ? 'Bebidas y alternativas vegetales' : 'Lácteos y alternativas' }}</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('dairy')" (click)="toggleNoPreferenceCategory('dairy')">No tengo preferencia por esta categoría</button>
         <div class="option-grid">
           <button type="button" *ngFor="let food of dairyForDiet" class="food-option dairy-option" [class.selected]="isSelected('preferredDairy', food)" (click)="togglePreference('preferredDairy', food)">
             <ion-icon [name]="isSelected('preferredDairy', food) ? 'checkmark-circle' : 'water-outline'"></ion-icon><span>{{ food }}</span>
@@ -113,8 +121,9 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('fats')" *ngIf="showSection('general')">
         <h2>Aceites y grasas</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('fats')" (click)="toggleNoPreferenceCategory('fats')">No tengo preferencia por aceites y grasas</button>
         <div class="option-grid">
           <button type="button" *ngFor="let food of oilsAndFats" class="food-option fat-option" [class.selected]="isSelected('preferredFats', food)" (click)="togglePreference('preferredFats', food)">
             <ion-icon [name]="isSelected('preferredFats', food) ? 'checkmark-circle' : 'nutrition-outline'"></ion-icon><span>{{ food }}</span>
@@ -122,7 +131,7 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('fats')" *ngIf="showSection('general')">
         <h2>Semillas</h2>
         <div class="option-grid">
           <button type="button" *ngFor="let food of seeds" class="food-option fat-option" [class.selected]="isSelected('preferredFats', food)" (click)="togglePreference('preferredFats', food)">
@@ -131,7 +140,7 @@
         </div>
       </section>
 
-      <section class="preference-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('fats')" *ngIf="showSection('general')">
         <h2>Frutos secos</h2>
         <div class="option-grid">
           <button type="button" *ngFor="let food of nuts" class="food-option fat-option" [class.selected]="isSelected('preferredFats', food)" (click)="togglePreference('preferredFats', food)">
@@ -140,8 +149,9 @@
         </div>
       </section>
 
-      <section class="preference-section allergy-section" *ngIf="!currentSection || currentSection === 'allergies'">
+      <section class="preference-section allergy-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('allergies')" *ngIf="showSection('allergies')">
         <h2>Alergias</h2>
+        <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('allergies')" (click)="toggleNoPreferenceCategory('allergies')">No tengo alergias conocidas</button>
         <div class="chip-list">
           <button
             type="button"
@@ -158,6 +168,7 @@
           <ion-label position="stacked">Otras alergias (separadas por comas)</ion-label>
           <ion-input
             [(ngModel)]="otherAllergiesInput"
+            (ngModelChange)="clearNoPreferenceCategory('allergies')"
             placeholder="Ej. Kiwi, Chocolate"
             (ionInput)="handleAllergyInput($event)"
             (ionBlur)="checkAllergyInputOnBlur()"
@@ -166,9 +177,10 @@
         </ion-item>
       </section>
 
-      <section class="preference-section compact-section" *ngIf="!currentSection || currentSection === 'general'">
+      <section class="preference-section compact-section" [class.validation-invalid]="validationAttempted && isPreferenceCategoryMissing('dislikedFoods')" *ngIf="showSection('general')">
         <div>
           <h2>Alimentos que no te gustan</h2>
+          <button type="button" class="no-preference-button" [class.selected]="isNoPreferenceCategory('dislikedFoods')" (click)="toggleNoPreferenceCategory('dislikedFoods')">No hay alimentos que quiera excluir</button>
           <div class="chip-list" style="margin-bottom: 14px;">
             <button
               type="button"
@@ -185,6 +197,7 @@
             <ion-label position="stacked">Otros alimentos que no te gustan (separados por comas)</ion-label>
             <ion-input
               [(ngModel)]="dislikedFoodsInput"
+              (ngModelChange)="clearNoPreferenceCategory('dislikedFoods')"
               placeholder="Ej. Hígado, Pasas"
               (ionInput)="handleDislikedInput($event)"
               (ionBlur)="checkDislikedInputOnBlur()"
@@ -195,6 +208,9 @@
 
       </section>
 
+      <div class="validation-summary" *ngIf="validationAttempted && missingPreferenceCategories.length" role="alert">
+        No puedes avanzar. Por favor completa los siguientes campos obligatorios: {{ missingPreferenceCategories.join(', ') }}.
+      </div>
       <ion-button class="profile-module-save-button" [disabled]="isSaving" (click)="save()">
         <ion-spinner *ngIf="isSaving; else saveLabel" name="crescent"></ion-spinner>
         <ng-template #saveLabel>{{ saveButtonLabel }}</ng-template>

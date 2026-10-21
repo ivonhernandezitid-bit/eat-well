@@ -1149,3 +1149,28 @@
     color: var(--eatwell-lime);
   }
 }
+
+.validation-summary {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid #c62828;
+  border-radius: 12px;
+  background: #fff1f0;
+  color: #a61b1b;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.validation-invalid {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.12);
+}
+
+.validation-invalid input:not([type='checkbox']),
+.validation-invalid select,
+.validation-invalid textarea,
+input.validation-invalid {
+  border-color: #c62828 !important;
+  box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.12);
+}

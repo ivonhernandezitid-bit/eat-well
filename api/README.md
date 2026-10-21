@@ -67,7 +67,9 @@ conservan en `favorite_recipes`.
 
 Las preferencias de alimentacion, frutas, verduras, carnes y proteínas,
 carbohidratos, legumbres, lácteos, grasas, alergias, alimentos no deseados y
-tiempo para cocinar se guardan en `food_preferences`. Al actualizar una base
+tiempo para cocinar se guardan en `food_preferences`, junto con las categorías
+confirmadas explícitamente como “sin preferencia”. Cada categoría requiere al
+menos una selección o una confirmación antes de completar el módulo. Al actualizar una base
 existente, vuelve a importar `schema.sql` para agregar las columnas nuevas. Las
 recomendaciones de Meal Plan se almacenan por version de preferencias para no
 generarlas de nuevo en cada visita.

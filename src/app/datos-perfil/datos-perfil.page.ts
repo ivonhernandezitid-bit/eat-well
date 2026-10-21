@@ -6,7 +6,7 @@ import { ActionSheetController, AlertController, IonicModule, IonContent, Platfo
 import { EatWellService, Gender } from '../core';
 import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
-import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, emptyClinicalHistory } from '../core/clinical-history';
+import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, clinicalHistoryMissingFields, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
 import { MealSchedule, mealScheduleError, scheduleMeals } from '../core/meal-schedule';
 
@@ -50,6 +50,8 @@ export class DatosPerfilPage implements OnInit {
   mealSchedule: MealSchedule | null = null;
   scheduleLoading = false;
   scheduleSaving = false;
+  scheduleValidationAttempted = false;
+  scheduleValidationError = '';
   private scheduleOwnerId: string | null = null;
   private scheduleCustomized = false;
   readonly scheduleMeals = scheduleMeals;
@@ -99,6 +101,7 @@ export class DatosPerfilPage implements OnInit {
   r24hLoading = false;
   r24hSaving = false;
   r24hSaved = false;
+  r24hValidationAttempted = false;
   private r24hOwnerId: string | null = null;
   private r24hLoadVersion = 0;
   private r24hLoadError = '';
@@ -112,6 +115,7 @@ export class DatosPerfilPage implements OnInit {
   clinicalData = emptyClinicalHistory();
   clinicalLoading = false;
   clinicalSaving = false;
+  clinicalValidationAttempted = false;
   private clinicalLoadVersion = 0;
   private clinicalLoadError = '';
   private clinicalHistorySaved = false;
@@ -121,6 +125,101 @@ export class DatosPerfilPage implements OnInit {
   formName = '';
   birthDate = '';
   activityLevel: 'sedentary' | 'standing' | 'active' = 'sedentary';
+  generalValidationAttempted = false;
+  lifestyleValidationAttempted = false;
+
+  get generalMissingFields(): string[] {
+    const missing: string[] = [];
+    const birthDateValue = this.birthDate ? new Date(`${this.birthDate}T00:00:00`) : null;
+    const validBirthDate = !!birthDateValue
+      && !Number.isNaN(birthDateValue.getTime())
+      && `${birthDateValue.getFullYear()}-${String(birthDateValue.getMonth() + 1).padStart(2, '0')}-${String(birthDateValue.getDate()).padStart(2, '0')}` === this.birthDate
+      && birthDateValue.getTime() <= Date.now()
+      && this.calculateAgeFromBirthDate(this.birthDate) > 0
+      && this.calculateAgeFromBirthDate(this.birthDate) <= 120;
+    if (!this.formName.trim()) missing.push('Nombre completo');
+    if (!validBirthDate) missing.push('Fecha de nacimiento válida');
+    if (this.gender !== 'female' && this.gender !== 'male') missing.push('Género biológico');
+    if (!Number.isFinite(Number(this.heightCm)) || Number(this.heightCm) <= 0) missing.push('Estatura');
+    if (!Number.isFinite(Number(this.weightKg)) || Number(this.weightKg) <= 0) missing.push('Peso actual');
+    if (!['sedentary', 'standing', 'active'].includes(this.activityLevel)) missing.push('Actividad diaria');
+    return missing;
+  }
+
+  get clinicalMissingFields(): string[] {
+    return clinicalHistoryMissingFields(this.clinicalData, this.clinicalGender);
+  }
+
+  get r24hMissingFields(): string[] {
+    const missing: string[] = [];
+    if (!this.r24hDate) missing.push('Día recordado');
+    if (!this.r24hData.wakeTime) missing.push('Hora de despertar');
+    for (const [index, meal] of recallMeals.entries()) {
+      if (this.r24hData[meal.skipped]) continue;
+      const label = ['Desayuno', 'Colación matutina', 'Comida', 'Colación vespertina', 'Cena'][index];
+      if (!this.r24hData[meal.time]) missing.push(`Hora de ${label}`);
+      if (!this.r24hData[meal.place]) missing.push(`Lugar de ${label}`);
+      if (!this.r24hData[meal.details].trim()) missing.push(`Alimentos y bebidas de ${label}`);
+    }
+    if (!this.r24hData.noActivity) {
+      if (!this.r24hData.activityTime) missing.push('Hora de actividad');
+      if (!this.r24hData.activityType.trim()) missing.push('Tipo de actividad');
+      if (!this.r24hData.activityDuration.trim()) missing.push('Duración de actividad');
+    }
+    if (!this.r24hData.sleepTime) missing.push('Hora de dormir');
+    return missing;
+  }
+
+  get lifestyleMissingFields(): string[] {
+    const missing: string[] = [];
+    if (!this.lifestyleGoals.some(goal => goal.value === this.lifestyleSettings.goal)) missing.push('Meta principal de salud');
+    if (!Number.isFinite(Number(this.lifestyleSettings.targetWeightKg)) || Number(this.lifestyleSettings.targetWeightKg) < 25 || Number(this.lifestyleSettings.targetWeightKg) > 350) missing.push('Peso meta deseado');
+    if (!['sedentary', 'light', 'moderate', 'intense'].includes(this.lifestyleSettings.activityBand)) missing.push('Nivel habitual de actividad');
+    if (!this.lifestyleSettings.exerciseTypes.length) missing.push('Tipo de ejercicio habitual (o Ninguno por ahora)');
+    return missing;
+  }
+
+  get scheduleMissingFields(): string[] {
+    if (!this.mealSchedule) return ['Horarios de alimentación'];
+    return scheduleMeals
+      .filter(meal => !/^([01]\d|2[0-3]):[0-5]\d$/.test(this.mealSchedule![meal.field]))
+      .map(meal => `Hora de ${meal.label}`);
+  }
+
+  isScheduleMealInvalid(index: number): boolean {
+    if (this.scheduleMissingFields.some(field => field === `Hora de ${scheduleMeals[index].label}`)) return true;
+    if (!this.mealSchedule) return false;
+    const currentTime = this.mealSchedule[scheduleMeals[index].field];
+    const previousTime = index > 0 ? this.mealSchedule[scheduleMeals[index - 1].field] : '';
+    const nextTime = index < scheduleMeals.length - 1 ? this.mealSchedule[scheduleMeals[index + 1].field] : '';
+    return (!!previousTime && currentTime <= previousTime) || (!!nextTime && currentTime >= nextTime);
+  }
+
+  getScheduleMinTime(index: number): string | null {
+    if (!this.mealSchedule || index === 0) return null;
+    return this.mealSchedule[scheduleMeals[index - 1].field] || null;
+  }
+
+  getScheduleMaxTime(index: number): string | null {
+    if (!this.mealSchedule || index >= scheduleMeals.length - 1) return null;
+    return this.mealSchedule[scheduleMeals[index + 1].field] || null;
+  }
+
+  isR24hMealIncomplete(index: number): boolean {
+    const meal = recallMeals[index];
+    return this.r24hMissingFields.some(field => field.includes(['Desayuno', 'Colación matutina', 'Comida', 'Colación vespertina', 'Cena'][index]))
+      || (!this.r24hData[meal.skipped] && (!this.r24hData[meal.time] || !this.r24hData[meal.place] || !this.r24hData[meal.details].trim()));
+  }
+
+  isClinicalSectionMissing(...fields: string[]): boolean {
+    return this.clinicalValidationAttempted && fields.some(field => this.clinicalMissingFields.includes(field));
+  }
+
+  setScheduleTime(field: keyof MealSchedule, value: string): void {
+    if (!this.mealSchedule) return;
+    this.mealSchedule[field] = value;
+    this.scheduleValidationError = '';
+  }
 
   get activityLevelLabel(): string {
     return { sedentary: 'Sentado', standing: 'De pie', active: 'Trabajo físico' }[this.activityLevel];
@@ -602,6 +701,8 @@ export class DatosPerfilPage implements OnInit {
 
   async saveLifestyleGoals(): Promise<void> {
     if (this.lifestyleLoading || this.lifestyleSaving || this.lifestyleLoadError) return;
+    this.lifestyleValidationAttempted = true;
+    if (this.lifestyleMissingFields.length) return;
     const activeUser = this.eatWellService.getActiveUser();
     if (!activeUser || this.lifestyleOwnerId !== activeUser.id) return;
     const error = lifestyleSettingsError(this.lifestyleSettings, true, activeUser.weightKg);
@@ -641,6 +742,8 @@ export class DatosPerfilPage implements OnInit {
       return;
     }
     this.clinicalData = clinicalHistoryForSex(this.clinicalData, this.clinicalGender);
+    this.clinicalValidationAttempted = true;
+    if (this.clinicalMissingFields.length) return;
     const validationError = clinicalHistoryError(this.clinicalData, this.clinicalGender);
     if (validationError) {
       await this.showAlert('Revisa el historial', validationError);
@@ -669,6 +772,8 @@ export class DatosPerfilPage implements OnInit {
       await this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
       return;
     }
+    this.r24hValidationAttempted = true;
+    if (this.r24hMissingFields.length) return;
     const validationError = dietaryRecallError(this.r24hData, this.r24hDate);
     if (validationError) {
       await this.showAlert('Revisa el recordatorio', validationError);
@@ -717,8 +822,11 @@ export class DatosPerfilPage implements OnInit {
 
   async saveMealSchedule(): Promise<void> {
     if(this.scheduleLoading || this.scheduleSaving || !this.mealSchedule) return;
+    this.scheduleValidationAttempted = true;
+    this.scheduleValidationError = '';
+    if (this.scheduleMissingFields.length) return;
     const error=mealScheduleError(this.mealSchedule);
-    if(error) { await this.showAlert('Revisa los horarios',error); return; }
+    if(error) { this.scheduleValidationError = error; await this.showAlert('Revisa los horarios',error); return; }
     const userId=this.eatWellService.getActiveUser()?.id;
     this.scheduleSaving=true;
     try {
@@ -820,10 +928,8 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async saveAndContinueToHistory(): Promise<void> {
-    if (!this.formName.trim() || !this.birthDate || !this.heightCm || !this.weightKg) {
-      await this.showAlert('Datos incompletos', 'Completa la información personal y las medidas para continuar.');
-      return;
-    }
+    this.generalValidationAttempted = true;
+    if (this.generalMissingFields.length) return;
 
     const nextAge = this.calculateAgeFromBirthDate(this.birthDate);
     const nextGender: Gender = this.gender === 'female' ? 'female' : this.gender === 'male' ? 'male' : 'other';

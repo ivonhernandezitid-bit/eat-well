@@ -156,6 +156,7 @@ export interface FoodPreferences {
   preferredFats: string[];
   allergies: string[];
   dislikedFoods: string[];
+  noPreferenceCategories: string[];
   cookingTimeMinutes: number;
   completed: boolean;
 }
@@ -186,4 +187,3 @@ export interface FoodScanHistoryItem {
   aiRecommendation: string;
   createdAt: string;
 }
-

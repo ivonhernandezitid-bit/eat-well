@@ -29,7 +29,11 @@ function suggestedMealSchedule(array $data): array
     $afternoon=$relative($data['afternoonSnackTime'] ?? '');
     if ($afternoon===null || $afternoon<=$lunch || $afternoon>=$dinner) $afternoon=(int)floor(($lunch+$dinner)/2);
     $format=fn($offset)=>sprintf('%02d:%02d',intdiv(($wake+$offset)%1440,60),($wake+$offset)%60);
-    return array_combine(array_keys(mealScheduleFields()),array_map($format,[$breakfast,$morning,$lunch,$afternoon,$dinner]));
+    $schedule=array_combine(array_keys(mealScheduleFields()),array_map($format,[$breakfast,$morning,$lunch,$afternoon,$dinner]));
+    if (!is_array($schedule) || !isChronologicalMealSchedule($schedule)) {
+        return ['breakfastTime'=>'07:00','morningSnackTime'=>'10:00','lunchTime'=>'13:00','afternoonSnackTime'=>'16:00','dinnerTime'=>'19:00'];
+    }
+    return $schedule;
 }
 function ensureMealSchedule(PDO $pdo, int $userId, array $source): void
 {
@@ -56,8 +60,20 @@ function validateMealSchedule(mixed $input): array
         if (!is_string($value) || !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/D',$value)) throw new InvalidArgumentException('Indica una hora valida para cada comida.');
         $times[$field]=$value;
     }
-    if(count(array_unique($times))!==5) throw new InvalidArgumentException('Asigna un horario diferente a cada comida.');
+    $labels=['Desayuno','Colación matutina','Comida','Colación vespertina','Cena'];
+    $values=array_values($times);
+    for($index=1;$index<count($values);$index++) {
+        if($values[$index]<=$values[$index-1]) {
+            throw new InvalidArgumentException("El horario ingresado no es válido. La hora de {$labels[$index]} debe ser posterior a la hora de {$labels[$index-1]} previa.");
+        }
+    }
     return $times;
+}
+function isChronologicalMealSchedule(array $schedule): bool
+{
+    $times=array_values($schedule);
+    for($index=1;$index<count($times);$index++) if($times[$index]<=$times[$index-1]) return false;
+    return true;
 }
 function handleMealSchedule(PDO $pdo,string $action,array $input): void
 {

@@ -66,6 +66,30 @@ function validateFoodPreferences(array $input, array $existing): array
         }
         $result[$field] = array_values($unique);
     }
+    $categoryFields = [
+        'fruits' => 'preferredFruits',
+        'vegetables' => 'preferredVegetables',
+        'proteins' => 'preferredProteins',
+        'carbohydrates' => 'preferredCarbohydrates',
+        'legumes' => 'preferredLegumes',
+        'dairy' => 'preferredDairy',
+        'fats' => 'preferredFats',
+        'allergies' => 'allergies',
+        'dislikedFoods' => 'dislikedFoods',
+    ];
+    $noPreferenceCategories = $data['noPreferenceCategories'] ?? [];
+    if (!is_array($noPreferenceCategories)
+        || array_filter($noPreferenceCategories, static fn(mixed $category): bool => !is_string($category) || !array_key_exists($category, $categoryFields))) {
+        throw new InvalidArgumentException('Confirma cada categoría de preferencias alimentarias.');
+    }
+    $result['noPreferenceCategories'] = array_values(array_unique($noPreferenceCategories));
+    foreach ($categoryFields as $category => $field) {
+        $hasSelection = count($result[$field]) > 0;
+        $hasConfirmation = in_array($category, $result['noPreferenceCategories'], true);
+        if ($hasSelection === $hasConfirmation) {
+            throw new InvalidArgumentException('En cada categoría selecciona al menos una opción o confirma que no tienes preferencia.');
+        }
+    }
     $time = $data['cookingTimeMinutes'] ?? 30;
     if (!is_numeric($time) || (int)$time != $time || $time < 10 || $time > 120) throw new InvalidArgumentException('El tiempo para cocinar debe ser de 10 a 120 minutos.');
     $result['cookingTimeMinutes'] = (int)$time;
@@ -81,7 +105,7 @@ function validateFoodPreferences(array $input, array $existing): array
 
 function persistFoodPreferences(PDO $pdo, int $userId, array $data): void
 {
-    $columns = ['preferredFruits'=>'preferred_fruits','preferredVegetables'=>'preferred_vegetables','preferredProteins'=>'preferred_proteins','preferredCarbohydrates'=>'preferred_carbohydrates','preferredLegumes'=>'preferred_legumes','preferredDairy'=>'preferred_dairy','preferredFats'=>'preferred_fats','allergies'=>'allergies','dislikedFoods'=>'disliked_foods'];
+    $columns = ['preferredFruits'=>'preferred_fruits','preferredVegetables'=>'preferred_vegetables','preferredProteins'=>'preferred_proteins','preferredCarbohydrates'=>'preferred_carbohydrates','preferredLegumes'=>'preferred_legumes','preferredDairy'=>'preferred_dairy','preferredFats'=>'preferred_fats','allergies'=>'allergies','dislikedFoods'=>'disliked_foods','noPreferenceCategories'=>'no_preference_categories'];
     $values = [$userId, $data['dietType']];
     foreach ($columns as $field => $column) $values[] = json_encode($data[$field], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
     $values[] = $data['cookingTimeMinutes'];
