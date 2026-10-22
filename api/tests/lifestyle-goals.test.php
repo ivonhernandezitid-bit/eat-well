@@ -56,11 +56,12 @@ try{
     check(readLifestyleGoals($pdo,94001)['completed'],'Failed reset removed goals.');
     $pdo->exec('DROP TRIGGER fail_profile');
     $prefs=mapFoodPreferences(getFoodPreferencesRecord($pdo,94001));
-    persistFoodPreferences($pdo,94001,validateFoodPreferences(['goal'=>'maintain','activityLevel'=>'low'],$prefs));
+    $noPreferenceCategories=['fruits','vegetables','proteins','carbohydrates','legumes','dairy','fats','allergies','dislikedFoods'];
+    persistFoodPreferences($pdo,94001,validateFoodPreferences(['goal'=>'maintain','activityLevel'=>'low','noPreferenceCategories'=>$noPreferenceCategories],$prefs));
     $synced=readLifestyleGoals($pdo,94001)['settings'];check($synced['goal']==='maintain'&&$synced['activityBand']==='sedentary'&&$synced['targetWeightKg']===75.5,'Preference changes did not synchronize goals.');
     persistLifestyleGoals($pdo,94001,validateLifestyleSettings([...$settings,'activityBand'=>'light']));
     check((int)$pdo->query('SELECT cooking_time_minutes FROM food_preferences WHERE user_id=94001')->fetchColumn()===90,'Lifestyle cooking time did not synchronize preferences.');
-    persistFoodPreferences($pdo,94001,validateFoodPreferences(['activityLevel'=>'low'],$prefs));
+    persistFoodPreferences($pdo,94001,validateFoodPreferences(['activityLevel'=>'low','noPreferenceCategories'=>$noPreferenceCategories],$prefs));
     check(readLifestyleGoals($pdo,94001)['settings']['activityBand']==='light','Fine activity band was lost.');
     check(isset(withLifestylePreferences($pdo,getUserById($pdo,94001),$prefs)['lifestyle']),'Recommendation context missing.');
     persistLifestyleGoals($pdo,94001,validateLifestyleSettings([...$settings,'activityBand'=>'sedentary','exerciseTypes'=>['none']],true));

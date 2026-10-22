@@ -160,7 +160,7 @@
       <div class="validation-summary" *ngIf="r24hValidationAttempted && r24hMissingFields.length" role="alert">
         No puedes avanzar. Por favor completa los siguientes campos obligatorios: {{ r24hMissingFields.join(', ') }}.
       </div>
-      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">{{ r24hSaved ? 'Guardar cambios' : 'Guardar y continuar' }}</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">Guardar y continuar</ion-button>
     </div>
 
     <div *ngIf="view === 'schedule'" class="r24h-shell">
@@ -179,7 +179,7 @@
           <input type="time" [id]="'meal-time-' + meal.field" [min]="getScheduleMinTime(index)" [max]="getScheduleMaxTime(index)" [ngModel]="schedule[meal.field]" (ngModelChange)="setScheduleTime(meal.field, $event)" [disabled]="scheduleLoading || scheduleSaving" />
         </div>
       </section>
-      <ion-button *ngIf="mealSchedule" class="profile-module-save-button" [disabled]="scheduleLoading || scheduleSaving" (click)="saveMealSchedule()">Guardar horarios</ion-button>
+      <ion-button *ngIf="mealSchedule" class="profile-module-save-button" [disabled]="scheduleLoading || scheduleSaving" (click)="saveMealSchedule()">Guardar y continuar</ion-button>
     </div>
 
     <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
@@ -227,16 +227,16 @@
         <h3>ACTIVIDAD FÍSICA Y EJERCICIO</h3>
         <p class="clinical-help">¿Cuántos días por semana sueles realizar actividad?</p>
         <div class="activity-options" role="group" aria-label="Nivel habitual de actividad">
-          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'sedentary'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'sedentary'" (click)="lifestyleSettings.activityBand = 'sedentary'">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'sedentary'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'sedentary'" (click)="setLifestyleActivityBand('sedentary')">
             <strong>Sedentario</strong><span>Sin ejercicio planificado</span>
           </button>
-          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'light'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'light'" (click)="lifestyleSettings.activityBand = 'light'">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'light'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'light'" (click)="setLifestyleActivityBand('light')">
             <strong>Ligero</strong><span>1 a 2 días por semana</span>
           </button>
-          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'moderate'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'moderate'" (click)="lifestyleSettings.activityBand = 'moderate'">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'moderate'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'moderate'" (click)="setLifestyleActivityBand('moderate')">
             <strong>Moderado</strong><span>3 a 5 días por semana</span>
           </button>
-          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'intense'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'intense'" (click)="lifestyleSettings.activityBand = 'intense'">
+          <button type="button" class="activity-option" [class.selected]="lifestyleSettings.activityBand === 'intense'" [attr.aria-pressed]="lifestyleSettings.activityBand === 'intense'" (click)="setLifestyleActivityBand('intense')">
             <strong>Intenso</strong><span>6 a 7 días por semana</span>
           </button>
         </div>
@@ -293,7 +293,7 @@
         </div>
       </section>
 
-      <ion-button class="profile-module-save-button" [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" (click)="saveLifestyleGoals()"><ion-spinner *ngIf="lifestyleSaving; else lifestyleSaveLabel" name="crescent"></ion-spinner><ng-template #lifestyleSaveLabel>Guardar</ng-template></ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" (click)="saveLifestyleGoals()"><ion-spinner *ngIf="lifestyleSaving; else lifestyleSaveLabel" name="crescent"></ion-spinner><ng-template #lifestyleSaveLabel>Guardar y continuar</ng-template></ion-button>
       </fieldset>
     </div>
 
@@ -312,6 +312,7 @@
         <h2>Sección en proceso</h2>
         <p>Esta sección aún no está disponible. Próximamente implementaremos aquí las opciones de privacidad y administración de tus datos.</p>
       </section>
+      <ion-button class="profile-module-save-button" (click)="returnToProfile()">Terminar configuración del perfil</ion-button>
     </div>
 
     <div *ngIf="view === 'clinical'" class="clinical-history-shell">

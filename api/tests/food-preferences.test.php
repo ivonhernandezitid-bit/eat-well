@@ -29,7 +29,7 @@ $database='eatwell_preferences_check_'.bin2hex(random_bytes(6));$tokens=[];
 $pdo->exec("CREATE DATABASE `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 try{
     $pdo->exec("USE `$database`");foreach($schemas as $schema)$pdo->exec($schema);
-    $pdo->exec('ALTER TABLE food_preferences ADD COLUMN no_preference_categories LONGTEXT NULL');
+    $pdo->exec('ALTER TABLE food_preferences ADD COLUMN IF NOT EXISTS no_preference_categories LONGTEXT NULL');
     $pdo->exec("INSERT INTO users(id,name,username,email,password_hash) VALUES(93001,'Synthetic','prefs_1','prefs1@example.invalid','fake'),(93002,'Synthetic','prefs_2','prefs2@example.invalid','fake')");
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';capture(fn()=>handleFoodPreferences($pdo,'preferences.get',[]),401);
     $tokens[]=issueAuthToken($pdo,93001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];

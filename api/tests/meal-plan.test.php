@@ -42,7 +42,9 @@ $pdo->exec("CREATE DATABASE `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_un
 try{
     $pdo->exec("USE `$database`");foreach($schemas as $schema)$pdo->exec($schema);
     $pdo->exec("INSERT INTO users(id,name,username,email,password_hash) VALUES(92001,'Synthetic','plan_test_1','plan1@example.invalid','fake'),(92002,'Synthetic','plan_test_2','plan2@example.invalid','fake')");
-    $pdo->exec("INSERT INTO food_preferences(user_id,completed_at) VALUES(92001,NOW()),(92002,NOW())");
+    $noPreferenceCategories=json_encode(['fruits','vegetables','proteins','carbohydrates','legumes','dairy','fats','allergies','dislikedFoods'],JSON_THROW_ON_ERROR);
+    $preferencesStatement=$pdo->prepare('INSERT INTO food_preferences(user_id,no_preference_categories,completed_at) VALUES(?,?,NOW()),(?,?,NOW())');
+    $preferencesStatement->execute([92001,$noPreferenceCategories,92002,$noPreferenceCategories]);
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';$today=(new DateTimeImmutable('today',new DateTimeZone('America/Mexico_City')))->format('Y-m-d');
     capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'),401);
     $tokens[]=issueAuthToken($pdo,92001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];

@@ -17,6 +17,14 @@ export interface MealScheduleResponse {
   initialCompleted: boolean;
   customized: boolean;
 }
+export function shiftMealTime(time: string, minutes: number): string | null {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time);
+  if (!match || !Number.isInteger(minutes)) return null;
+  const shiftedMinutes = Number(match[1]) * 60 + Number(match[2]) + minutes;
+  if (shiftedMinutes < 0 || shiftedMinutes >= 24 * 60) return null;
+  return `${String(Math.floor(shiftedMinutes / 60)).padStart(2, '0')}:${String(shiftedMinutes % 60).padStart(2, '0')}`;
+}
+
 export function mealScheduleError(schedule: MealSchedule): string | null {
   const times = scheduleMeals.map(meal => schedule[meal.field]);
   if (times.some(time => !/^([01]\d|2[0-3]):[0-5]\d$/.test(time))) return 'Indica una hora válida para cada comida.';

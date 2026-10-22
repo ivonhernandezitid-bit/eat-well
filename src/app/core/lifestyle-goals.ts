@@ -23,6 +23,13 @@ export function defaultLifestyleSettings(user: Pick<UserProfile, 'goal' | 'weigh
   return { goal: user.goal, targetWeightKg: user.weightKg, activityBand: user.activityLevel === 'low' ? 'sedentary' : user.activityLevel === 'high' ? 'intense' : 'moderate', exerciseTypes: [], sessionDuration: 45, trainingTime: 'afternoon', cookingTime: 'medium', stressLevel: 'moderate' };
 }
 
+export function normalizeLifestyleSettings(settings: LifestyleSettings): LifestyleSettings {
+  if (settings.activityBand === 'sedentary' && settings.exerciseTypes.length === 0) {
+    return { ...settings, exerciseTypes: ['none'] };
+  }
+  return settings;
+}
+
 export function lifestyleSettingsError(settings: LifestyleSettings, requireExercise = false, currentWeightKg?: number): string | null {
   if (!settings || !['lose_weight','maintain','gain_muscle','improve_health'].includes(settings.goal)) return 'Selecciona una meta válida.';
   if (!Number.isFinite(Number(settings.targetWeightKg)) || Number(settings.targetWeightKg) < 25 || Number(settings.targetWeightKg) > 350) return 'Indica un peso objetivo entre 25 y 350 kg.';

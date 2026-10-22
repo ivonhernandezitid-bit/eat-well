@@ -159,13 +159,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   get saveButtonLabel(): string {
-    switch (this.currentSection) {
-      case 'vegetables': return 'Guardar verduras';
-      case 'fruits': return 'Guardar frutas';
-      case 'allergies': return 'Guardar alergias';
-      case 'general': return 'Guardar preferencias';
-      default: return 'Guardar preferencias';
-    }
+    return 'Guardar y continuar';
   }
 
   get missingPreferenceCategories(): string[] {
@@ -690,7 +684,14 @@ export class PreferenciasAlimentariasPage implements OnInit {
         });
       if (this.eatWellService.getActiveUser()?.id !== userId) return;
       this.preferences = saved;
-      await this.returnToProfile();
+      const alert = await this.alertController.create({
+        header: 'Guardado',
+        message: 'Preferencias alimentarias guardadas correctamente.',
+        buttons: ['Aceptar'],
+      });
+      await alert.present();
+      await alert.onDidDismiss();
+      await this.router.navigateByUrl('/tabs/datos-perfil?module=schedule');
     } catch (error) {
       await this.showError(error instanceof Error ? error.message : 'No se pudieron guardar tus preferencias.');
     } finally {

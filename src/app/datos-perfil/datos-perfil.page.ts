@@ -4,11 +4,11 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ActionSheetController, AlertController, IonicModule, IonContent, Platform } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
-import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings } from '../core/lifestyle-goals';
+import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings, normalizeLifestyleSettings } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
 import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, clinicalHistoryMissingFields, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
-import { MealSchedule, mealScheduleError, scheduleMeals } from '../core/meal-schedule';
+import { MealSchedule, mealScheduleError, scheduleMeals, shiftMealTime } from '../core/meal-schedule';
 
 type WeightUnit = 'kg' | 'lbs';
 type HeightUnit = 'cm' | 'ft';
@@ -197,12 +197,14 @@ export class DatosPerfilPage implements OnInit {
 
   getScheduleMinTime(index: number): string | null {
     if (!this.mealSchedule || index === 0) return null;
-    return this.mealSchedule[scheduleMeals[index - 1].field] || null;
+    const previousTime = this.mealSchedule[scheduleMeals[index - 1].field];
+    return previousTime ? shiftMealTime(previousTime, 1) : null;
   }
 
   getScheduleMaxTime(index: number): string | null {
     if (!this.mealSchedule || index >= scheduleMeals.length - 1) return null;
-    return this.mealSchedule[scheduleMeals[index + 1].field] || null;
+    const nextTime = this.mealSchedule[scheduleMeals[index + 1].field];
+    return nextTime ? shiftMealTime(nextTime, -1) : null;
   }
 
   isR24hMealIncomplete(index: number): boolean {
@@ -306,7 +308,17 @@ export class DatosPerfilPage implements OnInit {
   private readonly actionSheetController = inject(ActionSheetController);
   private readonly platform = inject(Platform);
 
+  private resetProfileValidationState(): void {
+    this.generalValidationAttempted = false;
+    this.clinicalValidationAttempted = false;
+    this.r24hValidationAttempted = false;
+    this.lifestyleValidationAttempted = false;
+    this.scheduleValidationAttempted = false;
+    this.scheduleValidationError = '';
+  }
+
   openProfileModule(view: Exclude<DatosPerfilPage['view'], 'settings'>): void {
+    this.resetProfileValidationState();
     if(view==='schedule') void this.loadMealSchedule();
     if (view === 'general') {
       this.syncGeneralFormFromProfile();
@@ -335,7 +347,16 @@ export class DatosPerfilPage implements OnInit {
   }
 
   returnToProfile(): void {
+    this.resetProfileValidationState();
     this.view = 'settings';
+    if (this.route.snapshot.queryParamMap.has('module')) {
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { module: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true,
+      });
+    }
     void this.content?.scrollToTop(0);
   }
 
@@ -380,8 +401,12 @@ export class DatosPerfilPage implements OnInit {
 
   private loadProfileData(): void {
     const version = ++this.profileLoadVersion;
+    this.resetProfileValidationState();
     this.profileProgressReady = false;
     this.isOnboarding = this.route.snapshot.queryParamMap.get('onboarding') === '1';
+    const requestedModule = this.route.snapshot.queryParamMap.get('module');
+    if (requestedModule === 'schedule') this.view = 'schedule';
+    else if (requestedModule === 'r24h') this.view = 'settings';
     const activeUser = this.eatWellService.getActiveUser();
 
     if (!activeUser) {
@@ -493,8 +518,14 @@ export class DatosPerfilPage implements OnInit {
   }
 
   private async loadR24h(userId: string, date = this.r24hDate): Promise<void> {
+    this.r24hValidationAttempted = false;
     const newOwner = this.r24hOwnerId !== userId;
-    if (newOwner) { date = previousRecallDate(); this.mealSchedule=null; ++this.scheduleLoadVersion; this.view='settings'; }
+    if (newOwner) {
+      date = previousRecallDate();
+      this.mealSchedule = null;
+      ++this.scheduleLoadVersion;
+      if (this.route.snapshot.queryParamMap.get('module') !== 'schedule') this.view = 'settings';
+    }
     if (!newOwner && this.r24hLoading && this.r24hDate === date) return;
     this.r24hOwnerId = userId;
     const version = ++this.r24hLoadVersion;
@@ -585,6 +616,7 @@ export class DatosPerfilPage implements OnInit {
 
   private async loadClinicalHistory(userId: string): Promise<void> {
     const version = ++this.clinicalLoadVersion;
+    this.clinicalValidationAttempted = false;
     this.clinicalData = emptyClinicalHistory();
     this.clinicalHistorySaved = false;
     this.clinicalLoadError = '';
@@ -672,21 +704,31 @@ export class DatosPerfilPage implements OnInit {
     return this.lifestyleSettings.exerciseTypes.includes(value);
   }
 
+  setLifestyleActivityBand(activityBand: LifestyleSettings['activityBand']): void {
+    this.lifestyleSettings.activityBand = activityBand;
+    if (activityBand === 'sedentary' && !this.lifestyleSettings.exerciseTypes.length) {
+      this.lifestyleSettings.exerciseTypes = ['none'];
+    } else if (activityBand !== 'sedentary' && this.lifestyleSettings.exerciseTypes.includes('none')) {
+      this.lifestyleSettings.exerciseTypes = [];
+    }
+  }
+
   private async loadLifestyleForm(userId: string): Promise<void> {
     const activeUser = this.eatWellService.getActiveUser();
     if (!activeUser || activeUser.id !== userId) return;
     const version = ++this.lifestyleLoadVersion;
+    this.lifestyleValidationAttempted = false;
     this.lifestyleOwnerId = null;
     this.lifestyleLoading = true;
     this.lifestyleSaved = false;
     this.lifestyleLoadError = '';
-    this.lifestyleSettings = defaultLifestyleSettings(activeUser);
+    this.lifestyleSettings = normalizeLifestyleSettings(defaultLifestyleSettings(activeUser));
     try {
       const response = await this.eatWellService.getLifestyleGoals();
       if (version !== this.lifestyleLoadVersion || this.eatWellService.getActiveUser()?.id !== userId) return;
       const currentUser = this.eatWellService.getActiveUser()!;
-      this.lifestyleSettings = response.settings ?? loadLifestyleSettings(userId) ?? defaultLifestyleSettings(currentUser);
-      this.lifestyleSettings.goal = currentUser.goal;
+      const settings = response.settings ?? loadLifestyleSettings(userId) ?? defaultLifestyleSettings(currentUser);
+      this.lifestyleSettings = normalizeLifestyleSettings({ ...settings, goal: currentUser.goal });
       this.lifestyleSaved = response.completed;
       this.lifestyleOwnerId = userId;
     } catch (error) {
@@ -716,7 +758,8 @@ export class DatosPerfilPage implements OnInit {
       if (this.eatWellService.getActiveUser()?.id !== activeUser.id) return;
       this.lifestyleSettings = response.settings!;
       this.lifestyleSaved = response.completed;
-      this.returnToProfile();
+      await this.showAlert('Guardado', 'Estilo de vida y metas guardados correctamente.');
+      await this.continueToNextProfileModule('food');
     } catch (error) {
       if (this.eatWellService.getActiveUser()?.id === activeUser.id) await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
     } finally { this.lifestyleSaving = false; }
@@ -789,7 +832,7 @@ export class DatosPerfilPage implements OnInit {
       this.r24hSaved = response.completed;
       this.r24hSnapshot = JSON.stringify(this.r24hData);
       await this.showAlert('Guardado', wasSaved ? 'Los cambios del recordatorio se guardaron correctamente.' : 'El recordatorio inicial se guardó correctamente.');
-      this.returnToProfile();
+      this.openProfileModule('lifestyle');
     } catch (error) {
       if(error instanceof Error && error.message.includes('El recordatorio inicial ya fue completado')) {
         const active=this.eatWellService.getActiveUser();
@@ -802,6 +845,8 @@ export class DatosPerfilPage implements OnInit {
   }
 
   private async loadMealSchedule(): Promise<void> {
+    this.scheduleValidationAttempted = false;
+    this.scheduleValidationError = '';
     const userId=this.eatWellService.getActiveUser()?.id;
     if(!userId) return;
     const version=++this.scheduleLoadVersion;
@@ -836,7 +881,7 @@ export class DatosPerfilPage implements OnInit {
       this.scheduleOwnerId=userId ?? null;
       this.scheduleCustomized=response.customized;
       await this.showAlert('Guardado','Tus horarios de alimentación se actualizaron.');
-      if(this.isOnboarding) await this.continueToNextProfileModule('lifestyle'); else this.returnToProfile();
+      this.openProfileModule('privacy');
     } catch(error) { await this.showAlert('No se pudieron guardar',error instanceof Error?error.message:'Inténtalo nuevamente.'); }
     finally { this.scheduleSaving=false; }
   }
@@ -881,6 +926,7 @@ export class DatosPerfilPage implements OnInit {
   }
 
   private syncGeneralFormFromProfile(): void {
+    this.generalValidationAttempted = false;
     const activeUser = this.eatWellService.getActiveUser();
     if (!activeUser) {
       return;
