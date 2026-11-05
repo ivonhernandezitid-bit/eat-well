@@ -366,11 +366,19 @@
         <section class="recipe-section">
           <h2>Ingredientes <span class="subtitle-hint">(Toca para tachar lo que tengas)</span></h2>
           <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients" class="interactive-ingredients">
-            <li *ngFor="let ingredient of selectedRecipe?.ingredients"
+            <li *ngFor="let ingredient of selectedRecipe?.ingredients; let i = index"
                 [class.checked]="checkedIngredients.has(ingredient)"
                 (click)="toggleIngredient(ingredient)">
               <ion-icon [name]="checkedIngredients.has(ingredient) ? 'checkbox' : 'square-outline'"></ion-icon>
               <span>{{ ingredient | lowercase }}</span>
+              <button
+                type="button"
+                class="substitute-ingredient-button"
+                [attr.aria-label]="'Sustituir ' + ingredient"
+                (click)="openSubstitution(ingredient, i, $event)">
+                <ion-icon name="swap-horizontal-outline"></ion-icon>
+                <span>Sustituir</span>
+              </button>
             </li>
           </ul>
           <ng-template #noIngredients>
@@ -424,5 +432,68 @@
         <div class="timer-progress-bar" [style.width.%]="timerProgress * 100"></div>
       </div>
     </div>
+  </ng-template>
+</ion-modal>
+
+<ion-modal
+  class="substitution-sheet"
+  [isOpen]="isSubstitutionModalOpen"
+  [breakpoints]="[0, 0.55, 0.85]"
+  [initialBreakpoint]="0.55"
+  [handle]="true"
+  (didDismiss)="closeSubstitution()">
+  <ng-template>
+    <ion-content class="substitution-content">
+      <div class="substitution-panel">
+        <h2>Sustituir ingrediente</h2>
+        <div class="selected-ingredient-summary" *ngIf="selectedIngredient">
+          <strong>{{ selectedIngredient.name }}</strong>
+          <span>Porción actual: {{ selectedIngredient.portion }}</span>
+        </div>
+
+        <ion-searchbar
+          class="substitution-search"
+          placeholder="Buscar ingrediente"
+          aria-label="Buscar sustituto"
+          [(ngModel)]="substituteSearchTerm">
+        </ion-searchbar>
+
+        <p class="substitution-note">Opciones de prueba; no representan equivalencias nutricionales verificadas.</p>
+
+        <div class="substitution-loading" *ngIf="isLoadingSubstitutes">
+          <ion-spinner name="crescent"></ion-spinner>
+          <span>Cargando opciones...</span>
+        </div>
+        <p class="substitution-error" *ngIf="substitutionError" role="alert">{{ substitutionError }}</p>
+        <p class="substitution-empty" *ngIf="!isLoadingSubstitutes && !substitutionError && filteredSubstituteOptions.length === 0">
+          No hay ingredientes que coincidan con la búsqueda.
+        </p>
+
+        <div class="substitute-options" role="radiogroup" aria-label="Opciones de sustituto">
+          <button
+            type="button"
+            class="substitute-option"
+            *ngFor="let option of filteredSubstituteOptions"
+            [class.selected]="selectedSubstitute?.foodId === option.foodId"
+            [attr.aria-checked]="selectedSubstitute?.foodId === option.foodId"
+            role="radio"
+            (click)="selectedSubstitute = option">
+            <span class="substitute-option-copy">
+              <strong>{{ option.name }}</strong>
+              <span>Porción: {{ option.quantity ?? '—' }} {{ option.unit ?? '' }}</span>
+            </span>
+            <ion-icon [name]="selectedSubstitute?.foodId === option.foodId ? 'radio-button-on' : 'radio-button-off'"></ion-icon>
+          </button>
+        </div>
+
+        <ion-button
+          expand="block"
+          class="confirm-substitution-button"
+          [disabled]="!selectedSubstitute || isLoadingSubstitutes"
+          (click)="confirmSubstitution()">
+          Confirmar e Intercambiar
+        </ion-button>
+      </div>
+    </ion-content>
   </ng-template>
 </ion-modal>

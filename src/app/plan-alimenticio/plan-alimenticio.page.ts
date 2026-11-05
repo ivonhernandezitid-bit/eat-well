@@ -3,7 +3,7 @@ import { ActionSheetController, AlertController, Platform } from '@ionic/angular
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
 import { calculateMacroTargets, MacroTargets } from '../core/lifestyle-goals';
-import { RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
+import { IngredientSubstitute, RecipeIngredientData, RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
 import { ClinicalHistoryData } from '../core/clinical-history';
 
@@ -40,6 +40,14 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   selectedRecipe: MealCardView | null = null;
   loadingRecipeId: string | null = null;
   isRecipeModalOpen = false;
+  isSubstitutionModalOpen = false;
+  isLoadingSubstitutes = false;
+  selectedIngredient: { name: string; index: number; portion: string } | null = null;
+  substituteOptions: IngredientSubstitute[] = [];
+  selectedSubstitute: IngredientSubstitute | null = null;
+  substituteSearchTerm = '';
+  substitutionError = '';
+  private substituteRequest = 0;
   selectedFilter: 'all' | 'favorites' | 'history' = 'all';
   scanHistory: FoodScanHistoryItem[] = [];
   macroTargets: MacroTargets | null = null;
@@ -179,6 +187,91 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     } else {
       this.checkedIngredients.add(ingredient);
     }
+  }
+
+  get filteredSubstituteOptions(): IngredientSubstitute[] {
+    const term = this.substituteSearchTerm.trim().toLocaleLowerCase();
+    return term
+      ? this.substituteOptions.filter(option => option.name.toLocaleLowerCase().includes(term))
+      : this.substituteOptions;
+  }
+
+  async openSubstitution(ingredient: string, index: number, event: Event): Promise<void> {
+    event.stopPropagation();
+    if (!this.selectedRecipe) return;
+
+    const ingredientData = this.selectedRecipe.ingredientData?.[index];
+    this.selectedIngredient = {
+      name: ingredientData?.name || ingredient,
+      index,
+      portion: ingredientData?.quantity != null
+        ? `${ingredientData.quantity} ${ingredientData.unit ?? ''}`.trim()
+        : this.getTextPortion(ingredient) || 'Porción no especificada',
+    };
+    this.substituteOptions = [];
+    this.selectedSubstitute = null;
+    this.substituteSearchTerm = '';
+    this.substitutionError = '';
+    this.isSubstitutionModalOpen = true;
+    this.isLoadingSubstitutes = true;
+    const request = ++this.substituteRequest;
+
+    try {
+      const options = await this.eatWellService.obtenerSustitutos(
+        ingredientData?.foodId ?? ingredient,
+      );
+      if (request === this.substituteRequest) this.substituteOptions = options;
+    } catch (error) {
+      if (request === this.substituteRequest) {
+        this.substitutionError = error instanceof Error
+          ? error.message
+          : 'No se pudieron cargar los sustitutos.';
+      }
+    } finally {
+      if (request === this.substituteRequest) this.isLoadingSubstitutes = false;
+    }
+  }
+
+  confirmSubstitution(): void {
+    if (!this.selectedRecipe || !this.selectedIngredient || !this.selectedSubstitute) return;
+
+    const { index } = this.selectedIngredient;
+    const substitute = this.selectedSubstitute;
+    this.checkedIngredients.delete(this.selectedRecipe.ingredients[index]);
+    const portion = substitute.quantity != null
+      ? `${substitute.quantity} ${substitute.unit ?? ''}`.trim()
+      : 'Porción no especificada';
+    const nextIngredient = `${substitute.name} (${portion})`;
+
+    this.selectedRecipe.ingredients = this.selectedRecipe.ingredients.map((ingredient, ingredientIndex) =>
+      ingredientIndex === index ? nextIngredient : ingredient,
+    );
+    const ingredientData: RecipeIngredientData = {
+      foodId: substitute.foodId,
+      name: substitute.name,
+      quantity: substitute.quantity,
+      unit: substitute.unit,
+    };
+    const nextIngredientData = [...(this.selectedRecipe.ingredientData ?? [])];
+    nextIngredientData[index] = ingredientData;
+    this.selectedRecipe.ingredientData = nextIngredientData;
+    this.closeSubstitution();
+  }
+
+  closeSubstitution(): void {
+    ++this.substituteRequest;
+    this.isSubstitutionModalOpen = false;
+    this.isLoadingSubstitutes = false;
+    this.selectedIngredient = null;
+    this.selectedSubstitute = null;
+    this.substituteOptions = [];
+    this.substituteSearchTerm = '';
+    this.substitutionError = '';
+  }
+
+  private getTextPortion(ingredient: string): string {
+    const match = ingredient.match(/(?:\d+\s*(?:\/\s*\d+)?(?:[.,]\d+)?\s*(?:g|kg|ml|l|tazas?|cucharadas?|cucharaditas?|piezas?|unidades?)?)/i);
+    return match?.[0]?.trim() ?? '';
   }
 
   parseMinutes(instruction: string): number | null {
@@ -489,7 +582,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.stopTimer();
 
     if (recipe.source === 'local' || recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
-      this.selectedRecipe = recipe;
+      this.selectedRecipe = {
+        ...recipe,
+        ingredients: [...recipe.ingredients],
+        ingredientData: recipe.ingredientData?.map(item => ({ ...item })),
+      };
       this.isRecipeModalOpen = true;
       return;
     }
@@ -509,8 +606,9 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
         imageUrl: details.imageUrl || null,
         source: 'ai',
         favoriteId: this.findFavoriteId(details.title),
-        ingredients: details.ingredients,
+        ingredients: [...details.ingredients],
         instructions: details.instructions,
+        ingredientData: details.ingredientData?.map(item => ({ ...item })),
       };
       this.isRecipeModalOpen = true;
     } catch (error) {
@@ -522,6 +620,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   closeRecipe(): void {
     this.isRecipeModalOpen = false;
+    this.closeSubstitution();
     this.selectedRecipe = null;
     this.stopTimer();
   }
@@ -551,6 +650,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.scanPreview = null;
     this.scanResult = null;
     this.selectedRecipe = null;
+    this.closeSubstitution();
     this.loadingRecipeId = null;
     this.isRecipeModalOpen = false;
     this.isLoadingPersonalized = false;

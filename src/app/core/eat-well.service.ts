@@ -6,7 +6,7 @@ import { ClinicalHistoryData, ClinicalHistoryResponse } from './clinical-history
 import { DietaryRecallData, DietaryRecallResponse } from './dietary-recall';
 import { MealSchedule, MealScheduleResponse } from './meal-schedule';
 import { DailyMealPlan, mealPlanDate } from './daily-meal-plan';
-import { RecipeMealType } from './recipe-meals';
+import { IngredientSubstitute, RecipeMealType } from './recipe-meals';
 import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
 import {
   BodyZone,
@@ -347,6 +347,15 @@ export class EatWellService {
       userId: activeUser.id,
     });
     return response.recipes;
+  }
+
+  async obtenerSustitutos(ingredienteId: number | string): Promise<IngredientSubstitute[]> {
+    void ingredienteId;
+    return Promise.resolve([
+      { foodId: 90001, name: 'Tofu firme', quantity: 100, unit: 'g' },
+      { foodId: 90002, name: 'Frijoles cocidos', quantity: 90, unit: 'g' },
+      { foodId: 90003, name: 'Queso panela', quantity: 60, unit: 'g' },
+    ]);
   }
 
   async addFavoriteRecipe(recipe: SuggestedFoodRecipe, sourceType: string): Promise<FavoriteRecipe> {

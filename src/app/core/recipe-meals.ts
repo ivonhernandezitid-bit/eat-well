@@ -16,6 +16,8 @@ export interface RecipeIngredientData {
   unit: 'g' | 'ml' | null;
 }
 
+export type IngredientSubstitute = RecipeIngredientData;
+
 export interface RecipeNutrition {
   source: 'BAM';
   status: 'complete' | 'partial' | 'unavailable';

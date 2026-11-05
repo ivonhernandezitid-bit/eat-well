@@ -947,6 +947,10 @@ ion-modal {
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.9rem;
+
+    > span {
+      flex: 1;
+    }
     
     ion-icon {
       font-size: 20px;
@@ -965,6 +969,141 @@ ion-modal {
       }
     }
   }
+}
+
+.substitute-ingredient-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 9px;
+  border: 1px solid rgba(47, 125, 89, 0.2);
+  border-radius: 10px;
+  background: #f3faee;
+  color: var(--eatwell-green-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+
+  ion-icon {
+    font-size: 16px;
+    color: inherit;
+  }
+}
+
+.substitution-sheet {
+  --height: 72%;
+  --border-radius: 22px 22px 0 0;
+  --background: #f7fff4;
+}
+
+.substitution-content {
+  --background: #f7fff4;
+}
+
+.substitution-panel {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 12px 20px max(24px, env(safe-area-inset-bottom));
+  color: var(--eatwell-ink);
+
+  h2 {
+    margin: 8px 0 16px;
+    color: var(--eatwell-green-900);
+    font-size: 1.25rem;
+  }
+}
+
+.selected-ingredient-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--eatwell-green-900);
+
+  span {
+    color: var(--eatwell-muted);
+    font-size: 0.85rem;
+  }
+}
+
+.substitution-search {
+  --background: #fff;
+  --border-radius: 14px;
+  --box-shadow: none;
+  padding-inline: 0;
+}
+
+.substitution-note,
+.substitution-empty,
+.substitution-error {
+  color: var(--eatwell-muted);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.substitution-error {
+  color: #a52b2b;
+}
+
+.substitution-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  color: var(--eatwell-muted);
+}
+
+.substitute-options {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.substitute-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--eatwell-ink);
+  text-align: left;
+  cursor: pointer;
+
+  &.selected {
+    border-color: var(--eatwell-green-700);
+    background: #edf8df;
+  }
+
+  > ion-icon {
+    color: var(--eatwell-green-700);
+    font-size: 20px;
+  }
+}
+
+.substitute-option-copy {
+  display: grid;
+  gap: 4px;
+
+  span {
+    color: var(--eatwell-muted);
+    font-size: 0.82rem;
+  }
+}
+
+.confirm-substitution-button {
+  margin: 0;
+  --border-radius: 14px;
+  --background: var(--eatwell-green-700);
 }
 
 /* TEMPORIZADOR EN INSTRUCCIONES */
