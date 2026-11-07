@@ -29,11 +29,26 @@ import {
 const ACTIVE_USER_KEY = 'eat-well-active-user';
 const AUTH_TOKEN_KEY = 'eat-well-auth-token';
 const EXERCISE_CACHE_KEY = 'eat-well-generated-exercises';
+const EXERCISE_FAVORITES_KEY = 'eat-well-favorite-exercises';
 const EXERCISE_CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 interface ExerciseCacheEntry {
   expiresAt: number;
   exercises: GeminiExercise[];
+}
+
+function isGeminiExercise(value: unknown): value is GeminiExercise {
+  return typeof value === 'object'
+    && value !== null
+    && 'nombre' in value && typeof value.nombre === 'string'
+    && 'musculo' in value && typeof value.musculo === 'string'
+    && 'equipo' in value && typeof value.equipo === 'string'
+    && 'dificultad' in value
+    && (value.dificultad === 'Principiante' || value.dificultad === 'Intermedio' || value.dificultad === 'Avanzado')
+    && 'series' in value && typeof value.series === 'number'
+    && 'repeticiones' in value && typeof value.repeticiones === 'string'
+    && 'instrucciones' in value && Array.isArray(value.instrucciones)
+    && value.instrucciones.every(step => typeof step === 'string');
 }
 
 interface UserResponse {
@@ -85,6 +100,28 @@ export class EatWellService {
 
   getActiveUser(): UserProfile | null {
     return this.activeUserSubject.value;
+  }
+
+  getFavoriteExercises(): GeminiExercise[] {
+    const stored = localStorage.getItem(this.getExerciseFavoritesKey());
+    if (!stored) return [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stored);
+    } catch {
+      throw new Error('No se pudieron leer los ejercicios favoritos guardados.');
+    }
+
+    if (!Array.isArray(parsed) || !parsed.every(isGeminiExercise)) {
+      throw new Error('Los ejercicios favoritos guardados tienen un formato inválido.');
+    }
+
+    return parsed;
+  }
+
+  saveFavoriteExercises(exercises: GeminiExercise[]): void {
+    localStorage.setItem(this.getExerciseFavoritesKey(), JSON.stringify(exercises));
   }
 
   async registerUser(data: UserRegistrationData): Promise<UserProfile> {
@@ -268,6 +305,11 @@ export class EatWellService {
     };
     localStorage.setItem(EXERCISE_CACHE_KEY, JSON.stringify(cache));
     return exercises;
+  }
+
+  private getExerciseFavoritesKey(): string {
+    const userId = this.getActiveUser()?.id ?? 'guest';
+    return `${EXERCISE_FAVORITES_KEY}-${userId}`;
   }
 
   async getFoodPreferences(): Promise<FoodPreferences> {

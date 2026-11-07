@@ -12,7 +12,7 @@ ion-content {
   align-items: stretch;
   padding: 18px 16px 24px;
   box-sizing: border-box;
-  gap: 14px;
+  gap: 8px;
   color: var(--eatwell-ink);
   font-family: inherit;
 }
@@ -23,36 +23,202 @@ ion-content {
 }
 
 .activity-title {
-  margin: 28px 0 16px;
+  margin: 0 0 4px;
   font-size: 1.55rem;
   font-weight: 900;
   color: var(--eatwell-green-900);
   text-align: left;
 }
 
-.activity-subtitle {
+.activity-disclaimer {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--eatwell-green-700);
+  border-radius: 8px;
+  background: rgba(47, 125, 89, 0.07);
+  color: var(--eatwell-green-900);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.topbar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.topbar-row {
   display: flex;
   align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.filter-pills {
+  display: flex;
+  flex: 1 1 auto;
   gap: 8px;
-  margin: 20px 0 12px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 4px 2px;
+  scrollbar-width: none;
+}
+
+.filter-pills::-webkit-scrollbar {
+  display: none;
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 20px;
+  background: #fff;
   color: var(--eatwell-green-900);
-  font-size: 1.05rem;
+  box-shadow: 0 4px 12px rgba(31, 68, 48, 0.04);
+  cursor: pointer;
+  font-size: 0.78rem;
   font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
-.activity-subtitle ion-icon {
+.filter-pill:active,
+.icon-toggle-btn:active {
+  transform: scale(0.96);
+}
+
+.filter-pill ion-icon {
+  font-size: 16px;
+}
+
+.filter-pill.active {
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(111, 204, 115, 0.3);
+}
+
+.topbar-buttons {
+  display: flex;
   flex: 0 0 auto;
-  color: var(--eatwell-green-700);
-  font-size: 18px;
+  align-items: center;
+  gap: 6px;
 }
 
-.activity-intro p {
-  margin: 0 0 2px;
+.icon-toggle-btn {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgba(47, 125, 89, 0.12);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--eatwell-green-900);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-toggle-btn ion-icon {
+  font-size: 19px;
+}
+
+.search-block {
+  position: relative;
+  min-width: 0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(31, 68, 48, 0.08);
+}
+
+.search-input {
+  --padding-start: 16px;
+  --padding-end: 40px;
+}
+
+.search-icon {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  transform: translateY(-50%);
   color: var(--eatwell-muted);
-  font-size: 0.95rem;
-  line-height: 1.45;
+  pointer-events: none;
+}
+
+.muscle-search-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: -6px;
+}
+
+.muscle-search-results button {
+  padding: 7px 12px;
+  border: 1px solid rgba(47, 125, 89, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--eatwell-green-900);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.activity-map-card:fullscreen {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  overflow: auto;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: var(--eatwell-mint);
+  padding: 24px;
+}
+
+.activity-map-card:fullscreen .activity-image-box {
+  width: min(60vw, 520px);
+  max-height: 72vh;
+}
+
+.exercise-list.grid-view {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.exercise-list.grid-view .exercise-card {
+  margin: 0;
+}
+
+.exercise-list.grid-view .exercise-card.expanded,
+.exercise-list.grid-view .exercise-empty-state {
+  grid-column: 1 / -1;
+}
+
+.exercise-favorite-btn {
+  position: absolute;
+  top: 6px;
+  right: 5px;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  --color: #b44858;
+}
+
+.exercise-card {
+  position: relative;
+}
+
+.exercise-empty-state {
+  margin: 12px 0;
+  color: var(--eatwell-muted);
+  font-size: 0.9rem;
+  text-align: center;
 }
 
 .activity-map-card {
@@ -231,5 +397,25 @@ ion-content {
 
   .activity-map-card {
     padding: 10px;
+  }
+
+  .filter-pills {
+    gap: 5px;
+  }
+
+  .filter-pill {
+    gap: 4px;
+    padding-right: 9px;
+    padding-left: 9px;
+    font-size: 0.72rem;
+  }
+
+  .topbar-row {
+    gap: 6px;
+  }
+
+  .icon-toggle-btn {
+    width: 34px;
+    height: 34px;
   }
 }

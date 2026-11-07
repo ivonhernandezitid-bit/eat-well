@@ -1,15 +1,54 @@
 <ion-content class="activity-front-content" fullscreen>
   <div class="activity-front-wrapper">
+    <div class="topbar">
+      <div class="topbar-row">
+        <div class="filter-pills" role="group" aria-label="Filtros de actividad">
+          <button class="filter-pill" [class.active]="selectedFilter === 'recommended'" (click)="selectedFilter = 'recommended'" [attr.aria-pressed]="selectedFilter === 'recommended'">
+            <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
+            <span>Recomendados</span>
+          </button>
+          <button class="filter-pill" [class.active]="selectedFilter === 'favorites'" (click)="selectedFilter = 'favorites'" [attr.aria-pressed]="selectedFilter === 'favorites'">
+            <ion-icon name="heart-outline" aria-hidden="true"></ion-icon>
+            <span>Favoritos</span>
+          </button>
+        </div>
+
+        <div class="topbar-buttons">
+          <button class="icon-toggle-btn" [attr.aria-label]="viewMode === 'list' ? 'Cambiar a vista en cuadrícula' : 'Cambiar a vista de lista'" [attr.aria-pressed]="viewMode === 'grid'" (click)="toggleViewMode()">
+            <ion-icon [name]="viewMode === 'list' ? 'grid-outline' : 'list-outline'" aria-hidden="true"></ion-icon>
+          </button>
+          <button class="icon-toggle-btn" [attr.aria-label]="isMapFullscreen ? 'Salir de pantalla completa' : 'Ver mapa en pantalla completa'" (click)="toggleMapFullscreen(mapCard)">
+            <ion-icon [name]="isMapFullscreen ? 'contract-outline' : 'expand-outline'" aria-hidden="true"></ion-icon>
+          </button>
+        </div>
+      </div>
+
+      <div class="search-block">
+        <ion-input
+          class="search-input"
+          placeholder="Buscar por ejercicio o grupo muscular..."
+          aria-label="Buscar por ejercicio o grupo muscular"
+          [(ngModel)]="searchTerm"
+        ></ion-input>
+        <ion-icon name="search-outline" class="search-icon" aria-hidden="true"></ion-icon>
+      </div>
+
+      <div class="muscle-search-results" *ngIf="searchTerm.trim() && canAccessMuscleMap && filteredMuscles.length">
+        <button *ngFor="let muscle of filteredMuscles" type="button" (click)="selectMuscleFromSearch(muscle)">
+          {{ muscle }}
+        </button>
+      </div>
+    </div>
+
     <header class="activity-intro">
       <h1 class="activity-title">ACTIVIDAD FÍSICA</h1>
-      <h2 class="activity-subtitle">
-        <ion-icon name="sparkles-outline" aria-hidden="true"></ion-icon>
-        <span>MUÉVETE A TU RITMO</span>
-      </h2>
-      <p>Explora los grupos musculares y encuentra ejercicios para tu entrenamiento.</p>
     </header>
 
-    <section class="activity-map-card" aria-label="Mapa muscular, vista frontal">
+    <p class="activity-disclaimer" role="note">
+      Eat Well adapta tus rutinas según tu nivel de actividad y condiciones físicas para prevenir lesiones. Consulta a un profesional ante cualquier molestia.
+    </p>
+
+    <section #mapCard class="activity-map-card" aria-label="Mapa muscular, vista frontal">
       <div class="activity-map-heading">
         <div class="activity-map-icon"><ion-icon name="body-outline"></ion-icon></div>
         <div class="activity-map-copy">
@@ -113,11 +152,11 @@
     </div>
 
     <!-- Exercises Panel -->
-    <div class="exercise-panel" *ngIf="selectedMuscle">
-      <h2 class="section-title">Ejercicios: {{ selectedMuscle }}</h2>
+    <div class="exercise-panel" *ngIf="selectedMuscle || selectedFilter === 'favorites'">
+      <h2 class="section-title">{{ selectedFilter === 'favorites' ? 'Ejercicios favoritos' : 'Ejercicios: ' + selectedMuscle }}</h2>
 
       <!-- Skeleton Loading for Gemini Exercises -->
-      <div *ngIf="isLoadingExercises">
+      <div *ngIf="isLoadingExercises && selectedFilter !== 'favorites'">
         <ion-card *ngFor="let item of [1,2,3,4,5,6]" class="exercise-card">
           <ion-card-header>
             <ion-skeleton-text animated style="width: 70%; height: 20px; border-radius: 4px;"></ion-skeleton-text>
@@ -133,8 +172,8 @@
       </div>
 
       <!-- Loaded Gemini Exercises -->
-      <div *ngIf="!isLoadingExercises">
-        <ion-card *ngFor="let exercise of exercises; let i = index" class="exercise-card" [class.expanded]="expandedExerciseIndex === i">
+      <div *ngIf="!isLoadingExercises || selectedFilter === 'favorites'" class="exercise-list" [class.grid-view]="viewMode === 'grid'">
+        <ion-card *ngFor="let exercise of filteredExercises; let i = index" class="exercise-card" [class.expanded]="expandedExerciseIndex === i">
           <ion-card-header>
             <div class="card-header-row">
               <h3 class="exercise-name">{{ exercise.nombre }}</h3>
@@ -146,6 +185,16 @@
           </ion-card-header>
           <ion-card-content>
             <p class="series-text">{{ exercise.series }} series x {{ exercise.repeticiones }}</p>
+
+            <ion-button
+              fill="clear"
+              class="exercise-favorite-btn"
+              [attr.aria-label]="isFavoriteExercise(exercise) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+              [attr.aria-pressed]="isFavoriteExercise(exercise)"
+              (click)="toggleFavoriteExercise(exercise)"
+            >
+              <ion-icon slot="icon-only" [name]="isFavoriteExercise(exercise) ? 'heart' : 'heart-outline'"></ion-icon>
+            </ion-button>
 
             <ion-button fill="clear" size="small" (click)="toggleExercise(i)" class="instructions-toggle-btn">
               {{ expandedExerciseIndex === i ? 'Ocultar instrucciones' : 'Ver instrucciones' }}
@@ -160,6 +209,12 @@
             </div>
           </ion-card-content>
         </ion-card>
+        <p class="exercise-empty-state" *ngIf="selectedFilter === 'favorites' && !filteredExercises.length">
+          {{ favoriteExercises.length ? 'No encontramos ejercicios que coincidan con tu búsqueda.' : 'Aún no tienes ejercicios favoritos.' }}
+        </p>
+        <p class="exercise-empty-state" *ngIf="selectedFilter !== 'favorites' && exercises.length && !filteredExercises.length">
+          No encontramos ejercicios que coincidan con tu búsqueda.
+        </p>
       </div>
     </div>
 

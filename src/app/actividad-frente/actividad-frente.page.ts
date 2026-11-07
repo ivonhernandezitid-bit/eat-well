@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, HostListener, inject, OnInit } from '@angular/core';
 import { ToastController } from '@ionic/angular';
 import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from '../core';
 
@@ -9,10 +9,15 @@ import { EatWellService, GeminiExercise, RoutineResult, CustomRoutineForm } from
   standalone: false
 })
 export class ActividadFrentePage implements OnInit {
+  selectedFilter: 'recommended' | 'favorites' = 'recommended';
+  searchTerm = '';
+  viewMode: 'list' | 'grid' = 'list';
+  isMapFullscreen = false;
   isFemaleUser = false;
   canAccessMuscleMap = false;
   selectedMuscle: string | null = null;
   exercises: GeminiExercise[] = [];
+  favoriteExercises: GeminiExercise[] = [];
   isLoadingExercises = false;
   expandedExerciseIndex: number | null = null;
 
@@ -43,6 +48,30 @@ export class ActividadFrentePage implements OnInit {
 
   muscleList = ['Pecho', 'Espalda', 'Hombros', 'Bíceps', 'Tríceps', 'Antebrazos', 'Abdomen', 'Glúteos', 'Cuádriceps', 'Isquiotibiales', 'Pantorrillas', 'Trapecios'];
 
+  get filteredMuscles(): string[] {
+    const term = this.normalizeSearchTerm(this.searchTerm);
+    return this.muscleList.filter(muscle => this.normalizeSearchTerm(muscle).includes(term));
+  }
+
+  get filteredExercises(): GeminiExercise[] {
+    const sourceExercises = this.selectedFilter === 'favorites' ? this.favoriteExercises : this.exercises;
+    const term = this.normalizeSearchTerm(this.searchTerm);
+    if (!term || (this.selectedFilter !== 'favorites' && this.selectedMuscle && this.normalizeSearchTerm(this.selectedMuscle).includes(term))) {
+      return sourceExercises;
+    }
+
+    return sourceExercises.filter(exercise =>
+      this.normalizeSearchTerm([
+        exercise.nombre,
+        exercise.musculo,
+        exercise.equipo,
+        exercise.dificultad,
+        exercise.repeticiones,
+        ...exercise.instrucciones
+      ].join(' ')).includes(term)
+    );
+  }
+
   savedRoutine: RoutineResult | null = null;
   hasSavedRoutine = false;
   generatedRoutine: RoutineResult | null = null;
@@ -56,6 +85,7 @@ export class ActividadFrentePage implements OnInit {
 
   ionViewWillEnter() {
     this.loadSavedRoutine();
+    this.loadFavoriteExercises();
     const activeUser = this.eatWellService.getActiveUser();
     this.isFemaleUser = activeUser?.gender === 'female';
     this.canAccessMuscleMap = !!activeUser
@@ -64,6 +94,11 @@ export class ActividadFrentePage implements OnInit {
       && activeUser.weightKg > 0
       && activeUser.heightCm > 0
       && activeUser.gender !== 'other';
+  }
+
+  @HostListener('document:fullscreenchange')
+  onFullscreenChange(): void {
+    this.isMapFullscreen = document.fullscreenElement !== null;
   }
 
   loadSavedRoutine() {
@@ -111,6 +146,57 @@ export class ActividadFrentePage implements OnInit {
     } else {
       this.expandedExerciseIndex = index;
     }
+  }
+
+  isFavoriteExercise(exercise: GeminiExercise): boolean {
+    return this.favoriteExercises.some(favorite => this.exerciseIdentity(favorite) === this.exerciseIdentity(exercise));
+  }
+
+  async toggleFavoriteExercise(exercise: GeminiExercise): Promise<void> {
+    const isFavorite = this.isFavoriteExercise(exercise);
+    const updatedFavorites = isFavorite
+      ? this.favoriteExercises.filter(favorite => this.exerciseIdentity(favorite) !== this.exerciseIdentity(exercise))
+      : [exercise, ...this.favoriteExercises];
+
+    try {
+      this.eatWellService.saveFavoriteExercises(updatedFavorites);
+      this.favoriteExercises = updatedFavorites;
+      await this.showSuccessToast(isFavorite ? 'Ejercicio eliminado de favoritos.' : 'Ejercicio agregado a favoritos.');
+    } catch (error) {
+      await this.showToast(error instanceof Error ? error.message : 'No se pudo actualizar el ejercicio favorito.');
+    }
+  }
+
+  private loadFavoriteExercises(): void {
+    try {
+      this.favoriteExercises = this.eatWellService.getFavoriteExercises();
+    } catch (error) {
+      this.favoriteExercises = [];
+      this.showToast(error instanceof Error ? error.message : 'No se pudieron cargar los ejercicios favoritos.');
+    }
+  }
+
+  toggleViewMode(): void {
+    this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+  }
+
+  async toggleMapFullscreen(mapCard: HTMLElement): Promise<void> {
+    try {
+      if (document.fullscreenElement === mapCard) {
+        await document.exitFullscreen();
+      } else if (document.fullscreenEnabled && mapCard.requestFullscreen) {
+        await mapCard.requestFullscreen();
+      } else {
+        await this.showToast('La pantalla completa no está disponible en este dispositivo.');
+      }
+    } catch (error) {
+      await this.showToast(error instanceof Error ? error.message : 'No se pudo cambiar a pantalla completa.');
+    }
+  }
+
+  async selectMuscleFromSearch(muscleName: string): Promise<void> {
+    this.searchTerm = '';
+    await this.selectMuscle(muscleName);
   }
 
   openRoutineModal() {
@@ -206,5 +292,13 @@ export class ActividadFrentePage implements OnInit {
   private getSavedRoutineKey(): string {
     const activeUser = this.eatWellService.getActiveUser();
     return activeUser ? `eatwell-saved-routine-${activeUser.id}` : 'eatwell-saved-routine-guest';
+  }
+
+  private normalizeSearchTerm(value: string): string {
+    return value.trim().toLocaleLowerCase('es').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private exerciseIdentity(exercise: GeminiExercise): string {
+    return this.normalizeSearchTerm(`${exercise.nombre}|${exercise.musculo}`);
   }
 }
