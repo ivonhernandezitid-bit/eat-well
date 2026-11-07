@@ -356,17 +356,28 @@
       <div class="recipe-detail-body" [class.has-timer]="timerSecondsLeft > 0">
         <div class="meal-tags"><span *ngFor="let type of selectedRecipe?.mealTypes">{{ recipeMealLabels[type] }}</span></div>
         <p *ngIf="selectedRecipe?.servings || selectedRecipe?.preparationMinutes" class="recipe-description">
-          <span *ngIf="selectedRecipe?.servings">Porciones: {{ selectedRecipe?.servings }}</span>
-          <span *ngIf="selectedRecipe?.servings && selectedRecipe?.preparationMinutes"> · </span>
+          <span *ngIf="selectedRecipe?.servings && !canAdjustPortions">Porciones: {{ selectedRecipe?.servings }}</span>
+          <span *ngIf="selectedRecipe?.servings && !canAdjustPortions && selectedRecipe?.preparationMinutes"> · </span>
           <span *ngIf="selectedRecipe?.preparationMinutes">Preparación: {{ selectedRecipe?.preparationMinutes }} min</span>
         </p>
+        <div class="recipe-portions" *ngIf="canAdjustPortions">
+          <span id="recipe-portions-label">Porciones para preparar</span>
+          <div class="recipe-portions-controls" [attr.aria-busy]="portionLoading">
+            <button type="button" title="Reducir porciones" aria-label="Reducir porciones" [disabled]="portionLoading || displayedServings <= 1" (click)="changeRecipeServings(-1)"><ion-icon name="remove-outline"></ion-icon></button>
+            <output aria-labelledby="recipe-portions-label" aria-live="polite">{{ displayedServings }}</output>
+            <button type="button" title="Aumentar porciones" aria-label="Aumentar porciones" [disabled]="portionLoading || displayedServings >= 12" (click)="changeRecipeServings(1)"><ion-icon name="add-outline"></ion-icon></button>
+            <ion-spinner [style.visibility]="portionLoading ? 'visible' : 'hidden'" [attr.aria-hidden]="!portionLoading" name="crescent" aria-label="Ajustando cantidades"></ion-spinner>
+          </div>
+        </div>
+        <p *ngIf="portionError" class="recipe-description" role="alert">{{ portionError }}</p>
+        <p *ngIf="portionPreview?.instructionQuantitiesUnchanged" class="recipe-description" role="status">Las cantidades escritas en los pasos conservan el valor original; las cantidades ajustadas están en Ingredientes.</p>
         <p class="recipe-description">{{ selectedRecipe?.description }}</p>
 
         <!-- Lista de Ingredientes Interactiva -->
         <section class="recipe-section">
           <h2>Ingredientes <span class="subtitle-hint">(Toca para tachar lo que tengas)</span></h2>
-          <ul *ngIf="selectedRecipe?.ingredients?.length; else noIngredients" class="interactive-ingredients">
-            <li *ngFor="let ingredient of selectedRecipe?.ingredients; let i = index"
+          <ul *ngIf="displayedIngredients.length; else noIngredients" class="interactive-ingredients">
+            <li *ngFor="let ingredient of displayedIngredients; let i = index"
                 [class.checked]="checkedIngredients.has(ingredient)"
                 (click)="toggleIngredient(ingredient)">
               <ion-icon [name]="checkedIngredients.has(ingredient) ? 'checkbox' : 'square-outline'"></ion-icon>
@@ -374,6 +385,7 @@
               <button
                 type="button"
                 class="substitute-ingredient-button"
+                [disabled]="!canSubstituteIngredient"
                 [attr.aria-label]="'Sustituir ' + ingredient"
                 (click)="openSubstitution(ingredient, i, $event)">
                 <ion-icon name="swap-horizontal-outline"></ion-icon>

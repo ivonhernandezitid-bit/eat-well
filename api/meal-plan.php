@@ -4,9 +4,17 @@ require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/lifestyle-goals.php';
 require_once __DIR__ . '/clinical-history.php';
 
+const MEAL_PLAN_OPTION_COUNT = 4;
+
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
-    return hash('sha256', recipePreferenceHash($user, $preferences) . ':seven-options-v1:' . $mealType);
+    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-options-v2:' . $mealType);
+}
+
+function compatibleMealOptionHashes(array $user, array $preferences, string $mealType): array
+{
+    return [mealOptionHash($user,$preferences,$mealType),
+        hash('sha256', recipePreferenceHash($user,$preferences) . ':seven-options-v1:' . $mealType)];
 }
 
 function mealPlanClinicalConditions(PDO $pdo, int $userId): array
@@ -86,39 +94,85 @@ function validatePlanDate(mixed $date, ?string $today = null): string
 
 function readDailyMealChoices(PDO $pdo, array $user, array $preferences, string $date): array
 {
-    $stmt = $pdo->prepare('SELECT r.*, c.meal_type FROM daily_meal_choices c JOIN personalized_recipes r ON r.id=c.recipe_id AND r.user_id=c.user_id WHERE c.user_id=? AND c.plan_date=? AND c.preference_hash=?');
-    $stmt->execute([$user['id'], $date, recipePreferenceHash($user, $preferences)]);
-    $choices = [];
+    $stmt = $pdo->prepare('SELECT r.*, c.meal_type AS chosen_meal_type, c.preference_hash AS chosen_preference_hash FROM daily_meal_choices c LEFT JOIN personalized_recipes r ON r.id=c.recipe_id AND r.user_id=c.user_id WHERE c.user_id=? AND c.plan_date=?');
+    $stmt->execute([$user['id'], $date]);
+    $choices = []; $needsReview = [];
+    $hash = recipePreferenceHash($user, $preferences);
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        if (in_array($row['meal_type'], recipeMetadata(readRecipeInstructions($row['instructions']))['mealTypes'], true)) {
-            $choices[$row['meal_type']] = withRecipeNutrition($pdo, mapPersonalizedRecipe($row));
+        $type = $row['chosen_meal_type'];
+        if (!in_array($type, RECIPE_MEAL_TYPES, true)) continue;
+        $valid = !empty($preferences['completed']) && $row['id'] !== null
+            && $row['chosen_preference_hash'] === $hash
+            && in_array($row['preference_hash'], compatibleMealOptionHashes($user,$preferences,$type), true)
+            && in_array($type, recipeMetadata(readRecipeInstructions($row['instructions']))['mealTypes'], true);
+        if ($valid) {
+            $recipe = mapPersonalizedRecipe($row);
+            $valid = (bool)filterRecipesByPreferences([$recipe], $preferences)
+                && (bool)filterRecipesByClinicalConditions([$recipe], $preferences['clinicalConditions'] ?? []);
         }
+        if ($valid) $choices[$type] = withRecipeNutrition($pdo, $recipe);
+        else $needsReview[] = $type;
     }
-    return ['date' => $date, 'choices' => (object)$choices];
+    $schedule = $pdo->prepare('SELECT * FROM meal_schedules WHERE user_id=?');
+    $schedule->execute([$user['id']]);
+    $schedule = $schedule->fetch(PDO::FETCH_ASSOC) ?: null;
+    return structureDailyMealPlan($date, $choices, $needsReview, $schedule);
+}
+
+function structureDailyMealPlan(string $date, array $choices, array $needsReview, ?array $schedule): array
+{
+    $slots = [
+        'breakfast' => ['Desayuno', 'breakfast_time'],
+        'morning_snack' => ['Colación matutina', 'morning_snack_time'],
+        'lunch' => ['Comida', 'lunch_time'],
+        'afternoon_snack' => ['Colación vespertina', 'afternoon_snack_time'],
+        'dinner' => ['Cena', 'dinner_time'],
+    ];
+    $meals = []; $validChoices = []; $reviewCount = 0;
+    foreach ($slots as $type => [$label, $field]) {
+        $time = $schedule[$field] ?? null;
+        $time = is_string($time) && preg_match('/^([01]\d|2[0-3]):[0-5]\d(?::00)?$/D', $time) ? substr($time, 0, 5) : null;
+        $review = in_array($type, $needsReview, true);
+        $recipe = $review ? null : ($choices[$type] ?? null);
+        if ($recipe) $validChoices[$type] = $recipe;
+        if ($review) ++$reviewCount;
+        $meals[] = ['mealType'=>$type, 'label'=>$label, 'scheduledTime'=>$time,
+            'selectionStatus'=>$review ? 'needs_review' : ($recipe ? 'selected' : 'pending'),
+            'recipe'=>$recipe];
+    }
+    $selected = count($validChoices);
+    return ['date'=>$date, 'choices'=>(object)$validChoices, 'meals'=>$meals,
+        'scheduleCustomized'=>(bool)($schedule['is_customized'] ?? false),
+        'summary'=>['totalMeals'=>5, 'selectedMeals'=>$selected, 'pendingMeals'=>5-$selected,
+            'needsReviewMeals'=>$reviewCount, 'complete'=>$selected===5]];
 }
 
 function readMealOptions(PDO $pdo, array $user, array $preferences, string $type, string $apiKey, string $model): array
 {
     if (!$preferences['completed']) throw new InvalidArgumentException('Completa tus preferencias alimentarias antes de elegir tus recetas.');
     $hash = mealOptionHash($user, $preferences, $type);
-    $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT 7');
+    $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT ' . MEAL_PLAN_OPTION_COUNT);
     $stmt->execute([$user['id'], $hash]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (count($rows) === 7) return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
+    if (count($rows) === MEAL_PLAN_OPTION_COUNT) return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
+    // Reuse four compatible options from the old cache instead of generating again.
+    $legacy = compatibleMealOptionHashes($user,$preferences,$type)[1];
+    $stmt->execute([$user['id'],$legacy]); $olderRows=$stmt->fetchAll(PDO::FETCH_ASSOC);
+    if (count($olderRows) === MEAL_PLAN_OPTION_COUNT) return array_map(fn($row) => withRecipeNutrition($pdo,mapPersonalizedRecipe($row)),$olderRows);
     if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503);
     $labels = ['breakfast' => 'Desayuno', 'morning_snack' => 'Colacion matutina', 'lunch' => 'Comida', 'afternoon_snack' => 'Colacion vespertina', 'dinner' => 'Cena'];
     $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences), recipeClinicalGuidance($preferences['clinicalConditions'] ?? []))
-        . "\nGenera exactamente siete opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no siete comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de siete recetas.";
-    $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), 7, $type);
+        . "\nGenera exactamente cuatro opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no cuatro comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de cuatro recetas.";
+    $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), MEAL_PLAN_OPTION_COUNT, $type);
     $recipes = filterRecipesByPreferences($recipes, $preferences);
     $recipes = filterRecipesByClinicalConditions($recipes, $preferences['clinicalConditions'] ?? []);
-    if (count($recipes) !== 7) throw new RuntimeException('Una o más recetas no cumplieron con las restricciones registradas. Vuelve a generar las opciones.');
+    if (count($recipes) !== MEAL_PLAN_OPTION_COUNT) throw new RuntimeException('Una o más recetas no cumplieron con las restricciones registradas. Vuelve a generar las opciones.');
     $pdo->beginTransaction();
     try {
         // Lock this account so concurrent requests reuse a single completed option set.
         $lock = $pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE'); $lock->execute([$user['id']]);
         $stmt->execute([$user['id'], $hash]); $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if (count($rows) !== 7) {
+        if (count($rows) !== MEAL_PLAN_OPTION_COUNT) {
             if ($rows) throw new RuntimeException('El conjunto de recetas esta incompleto. Requiere revision.');
             $insert = $pdo->prepare('INSERT INTO personalized_recipes (user_id,preference_hash,title,description,ingredients,instructions) VALUES (?,?,?,?,?,?)');
             foreach ($recipes as $recipe) $insert->execute([$user['id'], $hash, cleanText($recipe['title'], 180), cleanText($recipe['description'], 255), json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), encodeRecipeInstructions($recipe)]);
@@ -132,8 +186,8 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
 function saveDailyMealChoice(PDO $pdo, array $user, array $preferences, string $date, string $type, mixed $recipeId): void
 {
     if (!is_string($recipeId) || !preg_match('/^personalized-([1-9]\d*)$/D', $recipeId, $matches)) throw new InvalidArgumentException('Selecciona una receta de las sugerencias de esta comida.');
-    $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE id=? AND user_id=? AND preference_hash=?');
-    $stmt->execute([$matches[1], $user['id'], mealOptionHash($user, $preferences, $type)]);
+    $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE id=? AND user_id=? AND preference_hash IN (?,?)');
+    $stmt->execute([$matches[1], $user['id'], ...compatibleMealOptionHashes($user,$preferences,$type)]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !in_array($type, readRecipeInstructions($row['instructions'])['mealTypes'], true)) throw new InvalidArgumentException('La receta no corresponde a tu cuenta, comida o preferencias actuales.');
     $recipe = mapPersonalizedRecipe($row);

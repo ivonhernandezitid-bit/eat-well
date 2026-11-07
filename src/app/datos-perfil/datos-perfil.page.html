@@ -160,7 +160,7 @@
       <div class="validation-summary" *ngIf="r24hValidationAttempted && r24hMissingFields.length" role="alert">
         No puedes avanzar. Por favor completa los siguientes campos obligatorios: {{ r24hMissingFields.join(', ') }}.
       </div>
-      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="r24hLoading || r24hSaving" (click)="saveR24h()">Guardar</ion-button>
     </div>
 
     <div *ngIf="view === 'schedule'" class="r24h-shell">
@@ -179,7 +179,7 @@
           <input type="time" [id]="'meal-time-' + meal.field" [min]="getScheduleMinTime(index)" [max]="getScheduleMaxTime(index)" [ngModel]="schedule[meal.field]" (ngModelChange)="setScheduleTime(meal.field, $event)" [disabled]="scheduleLoading || scheduleSaving" />
         </div>
       </section>
-      <ion-button *ngIf="mealSchedule" class="profile-module-save-button" [disabled]="scheduleLoading || scheduleSaving" (click)="saveMealSchedule()">Guardar y continuar</ion-button>
+      <ion-button *ngIf="mealSchedule" class="profile-module-save-button" [disabled]="scheduleLoading || scheduleSaving" (click)="saveMealSchedule()">Guardar horarios</ion-button>
     </div>
 
     <div *ngIf="view === 'lifestyle'" class="lifestyle-shell">
@@ -293,7 +293,7 @@
         </div>
       </section>
 
-      <ion-button class="profile-module-save-button" [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" (click)="saveLifestyleGoals()"><ion-spinner *ngIf="lifestyleSaving; else lifestyleSaveLabel" name="crescent"></ion-spinner><ng-template #lifestyleSaveLabel>Guardar y continuar</ng-template></ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="lifestyleLoading || lifestyleSaving || !!lifestyleLoadError" (click)="saveLifestyleGoals()"><ion-spinner *ngIf="lifestyleSaving; else lifestyleSaveLabel" name="crescent"></ion-spinner><ng-template #lifestyleSaveLabel>Guardar</ng-template></ion-button>
       </fieldset>
     </div>
 
@@ -435,7 +435,7 @@
       <div class="validation-summary" *ngIf="clinicalValidationAttempted && clinicalMissingFields.length" role="alert">
         No puedes avanzar. Por favor completa los siguientes campos obligatorios: {{ clinicalMissingFields.join(', ') }}.
       </div>
-      <ion-button class="profile-module-save-button" [disabled]="clinicalLoading || clinicalSaving" (click)="saveClinicalHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="clinicalLoading || clinicalSaving" (click)="saveClinicalHistory()">Guardar</ion-button>
     </div>
 
     <div *ngIf="view === 'general'" class="datos-generales-shell">
@@ -451,6 +451,8 @@
       <div class="validation-summary" *ngIf="generalValidationAttempted && generalMissingFields.length" role="alert">
         No puedes avanzar. Por favor completa los siguientes campos obligatorios: {{ generalMissingFields.join(', ') }}.
       </div>
+      <p class="validation-summary" *ngIf="generalValidationError" role="alert">{{ generalValidationError }}</p>
+      <fieldset [disabled]="generalSaving" style="border: 0; padding: 0; margin: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px;">
       <section class="datos-card">
         <h3>INFORMACIÓN PERSONAL</h3>
 
@@ -491,20 +493,25 @@
         <div class="field-split">
           <div class="field-row inline" [class.validation-invalid]="generalValidationAttempted && generalMissingFields.includes('Estatura')">
             <label>Estatura:</label>
-            <input type="number" [(ngModel)]="heightCm" placeholder="170" />
+            <input type="number" min="0.01" max="300" step="0.01" [(ngModel)]="heightCm" placeholder="170" />
             <span class="unit">cm</span>
           </div>
 
           <div class="field-row inline" [class.validation-invalid]="generalValidationAttempted && generalMissingFields.includes('Peso actual')">
             <label>Peso actual:</label>
-            <input type="number" [(ngModel)]="weightKg" placeholder="70.5" />
+            <input type="number" min="0.01" max="500" step="0.01" [(ngModel)]="weightKg" placeholder="70.5" />
             <span class="unit">kg</span>
           </div>
         </div>
 
+        <div class="field-row">
+          <label>IMC:</label>
+          <span class="static-value" aria-live="polite">{{ measurementImc === null ? 'Pendiente' : (measurementImc | number:'1.2-2') }}</span>
+        </div>
+
         <div class="field-row" [class.validation-invalid]="generalValidationAttempted && generalMissingFields.includes('Actividad diaria')">
           <label>Actividad diaria:</label>
-          <ion-select [(ngModel)]="activityLevel" [selectedText]="activityLevelLabel" interface="action-sheet" cancelText="Cancelar" aria-label="Actividad diaria">
+          <ion-select [disabled]="generalSaving" [(ngModel)]="activityLevel" [selectedText]="activityLevelLabel" interface="action-sheet" cancelText="Cancelar" aria-label="Actividad diaria">
             <ion-select-option value="sedentary">Sentado: oficina, estudio o teletrabajo</ion-select-option>
             <ion-select-option value="standing">De pie: ventas, docencia o limpieza</ion-select-option>
             <ion-select-option value="active">Trabajo físico: obra, campo o carga</ion-select-option>
@@ -512,7 +519,8 @@
         </div>
       </section>
 
-      <ion-button class="profile-module-save-button" (click)="saveAndContinueToHistory()">Guardar y continuar</ion-button>
+      <ion-button class="profile-module-save-button" [disabled]="generalSaving" (click)="saveAndContinueToHistory()"><ion-spinner *ngIf="generalSaving; else generalSaveLabel" name="crescent"></ion-spinner><ng-template #generalSaveLabel>Guardar</ng-template></ion-button>
+      </fieldset>
 
     </div>
 

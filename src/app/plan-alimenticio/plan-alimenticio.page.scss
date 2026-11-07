@@ -1257,3 +1257,38 @@ ion-modal {
   background: linear-gradient(90deg, var(--eatwell-green-700), #8dcc73);
   transition: width 1s linear;
 }
+.recipe-portions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 12px 0;
+  color: var(--eatwell-green-900);
+}
+
+.recipe-portions-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+
+  button {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--eatwell-green-700);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--eatwell-green-700);
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  button:disabled { opacity: 0.4; cursor: default; }
+  button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+  output { min-width: 3ch; text-align: center; font-weight: 700; }
+  ion-spinner { width: 20px; height: 20px; }
+}

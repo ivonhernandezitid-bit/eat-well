@@ -5,7 +5,10 @@ import { environment } from '../../environments/environment';
 import { ClinicalHistoryData, ClinicalHistoryResponse } from './clinical-history';
 import { DietaryRecallData, DietaryRecallResponse } from './dietary-recall';
 import { MealSchedule, MealScheduleResponse } from './meal-schedule';
-import { DailyMealPlan, mealPlanDate } from './daily-meal-plan';
+import { EatingHabitsResponse } from './eating-habits';
+import { MeasurementHistoryResponse } from './anthropometric-measurements';
+import { PortionRecipeSource, RecipePortionPreview } from './recipe-portions';
+import { DAILY_MEAL_OPTION_COUNT, DailyMealPlan, mealPlanDate } from './daily-meal-plan';
 import { IngredientSubstitute, RecipeMealType } from './recipe-meals';
 import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
 import {
@@ -151,11 +154,12 @@ export class EatWellService {
     localStorage.removeItem(ACTIVE_USER_KEY);
   }
 
-  async updateProfile(profileChanges: Partial<Omit<UserProfile, 'id' | 'email' | 'createdAt'>>): Promise<UserProfile> {
+  async updateProfile(profileChanges: Partial<Omit<UserProfile, 'id' | 'email' | 'createdAt'>>, recordMeasurement = false): Promise<UserProfile> {
     const activeUser = this.getRequiredActiveUser();
     const response = await this.post<UserResponse>('profile.update', {
-      ...activeUser,
+      id: activeUser.id,
       ...profileChanges,
+      ...(recordMeasurement ? { recordMeasurement: true } : {}),
     });
     if (this.getActiveUser()?.id === activeUser.id) this.saveActiveUser(response.user);
     return response.user;
@@ -174,6 +178,21 @@ export class EatWellService {
   async getInitialDietaryRecall(): Promise<DietaryRecallResponse> {
     const user=this.getRequiredActiveUser();
     return this.get('recall.initial', { userId:user.id });
+  }
+
+  async getEatingHabits(): Promise<EatingHabitsResponse> {
+    const user = this.getRequiredActiveUser();
+    return this.get('habits.get', { userId: user.id });
+  }
+
+  async getMeasurementHistory(limit = 50): Promise<MeasurementHistoryResponse> {
+    const user = this.getRequiredActiveUser();
+    return this.get('measurements.get', { userId: user.id, limit });
+  }
+
+  async getRecipePortions(recipeId: string, source: PortionRecipeSource, servings: number): Promise<RecipePortionPreview> {
+    const user = this.getRequiredActiveUser();
+    return this.get('recipes.portions', { userId: user.id, recipeId, source, servings });
   }
 
   async getMealSchedule(): Promise<MealScheduleResponse> {
@@ -211,7 +230,7 @@ export class EatWellService {
   async getMealOptions(mealType: RecipeMealType): Promise<Recipe[]> {
     const user = this.getRequiredActiveUser();
     const response = await this.get<RecipesResponse>('plan.options', { userId: user.id, mealType });
-    return response.recipes;
+    return response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT);
   }
 
   async getDailyMealPlan(date = mealPlanDate()): Promise<DailyMealPlan> {

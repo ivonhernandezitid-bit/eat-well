@@ -159,7 +159,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
   }
 
   get saveButtonLabel(): string {
-    return 'Guardar y continuar';
+    return 'Guardar preferencias';
   }
 
   get missingPreferenceCategories(): string[] {
@@ -691,7 +691,7 @@ export class PreferenciasAlimentariasPage implements OnInit {
       });
       await alert.present();
       await alert.onDidDismiss();
-      await this.router.navigateByUrl('/tabs/datos-perfil?module=schedule');
+      await this.returnToProfile();
     } catch (error) {
       await this.showError(error instanceof Error ? error.message : 'No se pudieron guardar tus preferencias.');
     } finally {

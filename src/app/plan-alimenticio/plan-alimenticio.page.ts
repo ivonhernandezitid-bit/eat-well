@@ -4,8 +4,9 @@ import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
 import { calculateMacroTargets, MacroTargets } from '../core/lifestyle-goals';
 import { IngredientSubstitute, RecipeIngredientData, RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
-import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
+import { DailyMealPlan, dailyMealOptions, mealPlanDate } from '../core/daily-meal-plan';
 import { ClinicalHistoryData } from '../core/clinical-history';
+import { recipeCanScale, RecipePortionPreview } from '../core/recipe-portions';
 
 interface MealCardView extends RecipeMetadata {
   id: string;
@@ -38,6 +39,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   scanPreview: string | null = null;
   scanResult: FoodScanResult | null = null;
   selectedRecipe: MealCardView | null = null;
+  portionPreview: RecipePortionPreview | null = null;
+  portionLoading = false;
+  portionError = '';
+  private portionRequest = 0;
   loadingRecipeId: string | null = null;
   isRecipeModalOpen = false;
   isSubstitutionModalOpen = false;
@@ -108,6 +113,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    this.resetPortionPreview();
     this.activeUserSubscription?.unsubscribe();
     this.stopTimer();
   }
@@ -198,7 +204,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   async openSubstitution(ingredient: string, index: number, event: Event): Promise<void> {
     event.stopPropagation();
-    if (!this.selectedRecipe) return;
+    if (!this.selectedRecipe || !this.canSubstituteIngredient) return;
 
     const ingredientData = this.selectedRecipe.ingredientData?.[index];
     this.selectedIngredient = {
@@ -233,7 +239,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   confirmSubstitution(): void {
-    if (!this.selectedRecipe || !this.selectedIngredient || !this.selectedSubstitute) return;
+    if (!this.selectedRecipe || !this.selectedIngredient || !this.selectedSubstitute || !this.canSubstituteIngredient) return;
+    this.resetPortionPreview();
 
     const { index } = this.selectedIngredient;
     const substitute = this.selectedSubstitute;
@@ -363,7 +370,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   get aiMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const list: MealCardView[] = this.recipes.map(recipe => ({
+    const chosen = this.dailyPlan?.date === mealPlanDate() ? this.dailyPlan.choices[this.selectedMealType] : undefined;
+    const list: MealCardView[] = dailyMealOptions(this.recipes, chosen).map(recipe => ({
       ...this.mealMetadata(recipe),
       id: recipe.id,
       title: recipe.title,
@@ -579,6 +587,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     }
 
     this.checkedIngredients.clear();
+    this.resetPortionPreview();
     this.stopTimer();
 
     if (recipe.source === 'local' || recipe.ingredients.length > 0 || recipe.instructions.length > 0) {
@@ -619,6 +628,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   closeRecipe(): void {
+    this.resetPortionPreview();
     this.isRecipeModalOpen = false;
     this.closeSubstitution();
     this.selectedRecipe = null;
@@ -629,11 +639,55 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     return { mealTypes: recipeMealTypes(recipe), servings: recipe.servings, preparationMinutes: recipe.preparationMinutes, validationNotes: recipe.validationNotes, ingredientData: recipe.ingredientData, nutrition: recipe.nutrition };
   }
 
+  get canAdjustPortions(): boolean {
+    return !!this.selectedRecipe && recipeCanScale(this.selectedRecipe);
+  }
+
+  get canSubstituteIngredient(): boolean {
+    return !this.portionLoading && (!this.portionPreview || this.displayedServings === this.selectedRecipe?.servings);
+  }
+
+  get displayedServings(): number {
+    return this.portionPreview?.requestedServings ?? this.selectedRecipe?.servings ?? 1;
+  }
+
+  get displayedIngredients(): string[] {
+    return this.portionPreview?.ingredients ?? this.selectedRecipe?.ingredients ?? [];
+  }
+
+  async changeRecipeServings(change: number): Promise<void> {
+    const recipe = this.selectedRecipe;
+    const userId = this.user?.id;
+    const target = this.displayedServings + change;
+    if (!recipe || !userId || !this.canAdjustPortions || this.portionLoading || this.isSubstitutionModalOpen || !Number.isInteger(target) || target < 1 || target > 12) return;
+    const version = ++this.portionRequest;
+    this.portionLoading = true;
+    this.portionError = '';
+    const source = recipe.id.startsWith('personalized-') ? 'personalized' : recipe.id.startsWith('favorite-') ? 'favorite' : recipe.source === 'local' ? 'local' : 'scan';
+    try {
+      const preview = await this.eatWellService.getRecipePortions(recipe.id,source,target);
+      if (version !== this.portionRequest || this.user?.id !== userId || this.selectedRecipe !== recipe || !this.isRecipeModalOpen) return;
+      if (!preview.available) { this.portionError = preview.reason ?? 'No se pudieron ajustar las cantidades.'; return; }
+      this.portionPreview = preview;
+      this.checkedIngredients.clear();
+    } catch (error) {
+      if (version === this.portionRequest && this.user?.id === userId) this.portionError = error instanceof Error ? error.message : 'No se pudieron ajustar las porciones.';
+    } finally { if (version === this.portionRequest) this.portionLoading = false; }
+  }
+
+  private resetPortionPreview(): void {
+    ++this.portionRequest;
+    this.portionPreview = null;
+    this.portionLoading = false;
+    this.portionError = '';
+  }
+
   private findFavoriteId(title: string): string | null {
     return this.favoriteRecipes.find(recipe => recipe.title === title)?.favoriteId ?? null;
   }
 
   private resetMealState(): void {
+    this.resetPortionPreview();
     ++this.optionRequest;
     this.optionSets = {};
     this.optionsContext = '';

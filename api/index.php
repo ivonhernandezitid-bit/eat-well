@@ -5,7 +5,10 @@ require_once __DIR__ . '/auth-session.php';
 require_once __DIR__ . '/clinical-history.php';
 require_once __DIR__ . '/dietary-recall.php';
 require_once __DIR__ . '/meal-schedule.php';
+require_once __DIR__ . '/eating-habits.php';
+require_once __DIR__ . '/anthropometric-measurements.php';
 require_once __DIR__ . '/recipe-generation.php';
+require_once __DIR__ . '/recipe-portions.php';
 require_once __DIR__ . '/meal-plan.php';
 require_once __DIR__ . '/food-preferences.php';
 require_once __DIR__ . '/lifestyle-goals.php';
@@ -238,6 +241,9 @@ try {
         case 'recall.save':
             handleDietaryRecall($pdo, $action, $input);
             break;
+        case 'habits.get':
+            handleEatingHabits($pdo, $input);
+            break;
         case 'schedule.get':
         case 'schedule.save':
             handleMealSchedule($pdo,$action,$input);
@@ -246,7 +252,10 @@ try {
             getProfile($pdo, (int)($_GET['userId'] ?? 0));
             break;
         case 'profile.update':
-            updateProfile($pdo, $input);
+            handleMeasuredProfile($pdo, $input);
+            break;
+        case 'measurements.get':
+            handleMeasurementHistory($pdo, $input);
             break;
         case 'preferences.get':
         case 'preferences.save':
@@ -265,6 +274,9 @@ try {
                 $geminiApiKey,
                 $geminiModel,
             );
+            break;
+        case 'recipes.portions':
+            handleRecipePortions($pdo, $input);
             break;
         case 'plan.options':
         case 'plan.get':

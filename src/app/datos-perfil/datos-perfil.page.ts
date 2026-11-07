@@ -1,11 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ActionSheetController, AlertController, IonicModule, IonContent, Platform } from '@ionic/angular';
 import { EatWellService, Gender } from '../core';
 import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings, normalizeLifestyleSettings } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
+import { measurementValuesError, measurementImc } from '../core/anthropometric-measurements';
 import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, clinicalHistoryMissingFields, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
 import { MealSchedule, mealScheduleError, scheduleMeals, shiftMealTime } from '../core/meal-schedule';
@@ -126,6 +128,9 @@ export class DatosPerfilPage implements OnInit {
   birthDate = '';
   activityLevel: 'sedentary' | 'standing' | 'active' = 'sedentary';
   generalValidationAttempted = false;
+  generalSaving = false;
+  generalValidationError = '';
+  private generalOwnerId: string | null = null;
   lifestyleValidationAttempted = false;
 
   get generalMissingFields(): string[] {
@@ -140,10 +145,14 @@ export class DatosPerfilPage implements OnInit {
     if (!this.formName.trim()) missing.push('Nombre completo');
     if (!validBirthDate) missing.push('Fecha de nacimiento válida');
     if (this.gender !== 'female' && this.gender !== 'male') missing.push('Género biológico');
-    if (!Number.isFinite(Number(this.heightCm)) || Number(this.heightCm) <= 0) missing.push('Estatura');
-    if (!Number.isFinite(Number(this.weightKg)) || Number(this.weightKg) <= 0) missing.push('Peso actual');
+    if (!Number.isFinite(Number(this.heightCm)) || Number(this.heightCm) < 0.01 || Number(this.heightCm) > 300) missing.push('Estatura');
+    if (!Number.isFinite(Number(this.weightKg)) || Number(this.weightKg) < 0.01 || Number(this.weightKg) > 500) missing.push('Peso actual');
     if (!['sedentary', 'standing', 'active'].includes(this.activityLevel)) missing.push('Actividad diaria');
     return missing;
+  }
+
+  get measurementImc(): number | null {
+    return measurementImc(this.weightKg, this.heightCm);
   }
 
   get clinicalMissingFields(): string[] {
@@ -303,6 +312,7 @@ export class DatosPerfilPage implements OnInit {
 
   private readonly eatWellService = inject(EatWellService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly route = inject(ActivatedRoute);
   private readonly alertController = inject(AlertController);
   private readonly actionSheetController = inject(ActionSheetController);
@@ -335,15 +345,6 @@ export class DatosPerfilPage implements OnInit {
     }
     if (view === 'r24h' && this.r24hLoadError) void this.showAlert('No se pudo cargar el recordatorio', this.r24hLoadError);
     void this.content?.scrollToTop(0);
-  }
-
-  private async continueToNextProfileModule(view: 'clinical' | 'r24h' | 'lifestyle' | 'food'): Promise<void> {
-    if (view === 'food') {
-      await this.router.navigateByUrl('/tabs/preferencias-alimentarias');
-      return;
-    }
-
-    this.openProfileModule(view);
   }
 
   returnToProfile(): void {
@@ -392,6 +393,13 @@ export class DatosPerfilPage implements OnInit {
   }
 
   ngOnInit() {
+    this.router.events.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(event => {
+      if (event instanceof NavigationEnd
+        && event.urlAfterRedirects.split(/[?#]/)[0] === '/tabs/datos-perfil'
+        && !this.route.snapshot.queryParamMap.has('module')) {
+        this.returnToProfile();
+      }
+    });
     this.loadProfileData();
   }
 
@@ -405,8 +413,7 @@ export class DatosPerfilPage implements OnInit {
     this.profileProgressReady = false;
     this.isOnboarding = this.route.snapshot.queryParamMap.get('onboarding') === '1';
     const requestedModule = this.route.snapshot.queryParamMap.get('module');
-    if (requestedModule === 'schedule') this.view = 'schedule';
-    else if (requestedModule === 'r24h') this.view = 'settings';
+    this.view = requestedModule === 'schedule' ? 'schedule' : 'settings';
     const activeUser = this.eatWellService.getActiveUser();
 
     if (!activeUser) {
@@ -759,7 +766,7 @@ export class DatosPerfilPage implements OnInit {
       this.lifestyleSettings = response.settings!;
       this.lifestyleSaved = response.completed;
       await this.showAlert('Guardado', 'Estilo de vida y metas guardados correctamente.');
-      await this.continueToNextProfileModule('food');
+      this.returnToProfile();
     } catch (error) {
       if (this.eatWellService.getActiveUser()?.id === activeUser.id) await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudieron guardar los objetivos.');
     } finally { this.lifestyleSaving = false; }
@@ -801,7 +808,7 @@ export class DatosPerfilPage implements OnInit {
       this.clinicalData = response.history ?? emptyClinicalHistory();
       this.clinicalHistorySaved = response.completed;
       await this.showAlert('Guardado', 'El historial clínico se guardó correctamente.');
-      await this.continueToNextProfileModule('r24h');
+      this.returnToProfile();
     } catch (error) {
       await this.showAlert('No se pudo guardar', error instanceof Error ? error.message : 'Inténtalo nuevamente.');
     } finally {
@@ -832,7 +839,7 @@ export class DatosPerfilPage implements OnInit {
       this.r24hSaved = response.completed;
       this.r24hSnapshot = JSON.stringify(this.r24hData);
       await this.showAlert('Guardado', wasSaved ? 'Los cambios del recordatorio se guardaron correctamente.' : 'El recordatorio inicial se guardó correctamente.');
-      this.openProfileModule('lifestyle');
+      this.returnToProfile();
     } catch (error) {
       if(error instanceof Error && error.message.includes('El recordatorio inicial ya fue completado')) {
         const active=this.eatWellService.getActiveUser();
@@ -881,7 +888,7 @@ export class DatosPerfilPage implements OnInit {
       this.scheduleOwnerId=userId ?? null;
       this.scheduleCustomized=response.customized;
       await this.showAlert('Guardado','Tus horarios de alimentación se actualizaron.');
-      this.openProfileModule('privacy');
+      this.returnToProfile();
     } catch(error) { await this.showAlert('No se pudieron guardar',error instanceof Error?error.message:'Inténtalo nuevamente.'); }
     finally { this.scheduleSaving=false; }
   }
@@ -927,12 +934,15 @@ export class DatosPerfilPage implements OnInit {
 
   private syncGeneralFormFromProfile(): void {
     this.generalValidationAttempted = false;
+    this.generalValidationError = '';
+    this.generalOwnerId = null;
     const activeUser = this.eatWellService.getActiveUser();
     if (!activeUser) {
       return;
     }
 
     this.formName = activeUser.name;
+    this.generalOwnerId = activeUser.id;
     this.birthDate = this.buildBirthDateFromAge(activeUser.age);
     this.gender = activeUser.gender;
     this.heightCm = activeUser.heightCm || 170;
@@ -974,8 +984,17 @@ export class DatosPerfilPage implements OnInit {
   }
 
   async saveAndContinueToHistory(): Promise<void> {
+    if (this.generalSaving) return;
     this.generalValidationAttempted = true;
+    this.generalValidationError = '';
     if (this.generalMissingFields.length) return;
+    const error = measurementValuesError(this.weightKg, this.heightCm);
+    if (error) { this.generalValidationError = error; return; }
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!userId || this.generalOwnerId !== userId) {
+      this.generalValidationError = 'La cuenta cambió. Vuelve a abrir Datos generales antes de guardar.';
+      return;
+    }
 
     const nextAge = this.calculateAgeFromBirthDate(this.birthDate);
     const nextGender: Gender = this.gender === 'female' ? 'female' : this.gender === 'male' ? 'male' : 'other';
@@ -985,27 +1004,30 @@ export class DatosPerfilPage implements OnInit {
       active: 'high',
     } as const;
 
+    this.generalSaving = true;
     try {
-      await this.eatWellService.updateProfile({
+      const saved = await this.eatWellService.updateProfile({
         name: this.formName.trim(),
         age: nextAge,
         gender: nextGender,
         heightCm: Number(this.heightCm),
         weightKg: Number(this.weightKg),
         activityLevel: activityMap[this.activityLevel],
-      });
+      }, true);
 
-      this.fullName = this.formName.trim();
-      this.age = nextAge;
-      this.weightKg = Number(this.weightKg);
-      this.heightCm = Number(this.heightCm);
+      if (this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.fullName = saved.name;
+      this.age = saved.age;
+      this.weightKg = saved.weightKg;
+      this.heightCm = saved.heightCm;
+      this.imc = saved.imc;
       this.syncDisplayValues();
 
       await this.showAlert('Guardado', 'Datos generales guardados correctamente.');
-      await this.continueToNextProfileModule('clinical');
+      this.returnToProfile();
     } catch (error) {
-      await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudo guardar la información.');
-    }
+      if (this.eatWellService.getActiveUser()?.id === userId) await this.showAlert('Error', error instanceof Error ? error.message : 'No se pudo guardar la información.');
+    } finally { this.generalSaving = false; }
   }
 
   async openPhotoPicker(): Promise<void> {
@@ -1255,16 +1277,7 @@ export class DatosPerfilPage implements OnInit {
         profileImage: this.profileImage,
       });
 
-      let preferencesCompleted = false;
-      try {
-        const prefs = await this.eatWellService.getFoodPreferences();
-        preferencesCompleted = !!prefs?.completed;
-      } catch {
-        preferencesCompleted = false;
-      }
-
-      const shouldGoToPreferences = this.isOnboarding && !preferencesCompleted;
-      await this.router.navigateByUrl(shouldGoToPreferences ? '/preferencias-alimentarias' : '/tabs/home');
+      this.returnToProfile();
     } catch (error) {
       await this.showAlert('Error de perfil', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }

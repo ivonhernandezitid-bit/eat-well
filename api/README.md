@@ -83,7 +83,7 @@ registro o login en la cabecera `Authorization: Bearer <authToken>`.
 La cuenta propietaria se obtiene de la sesion PHP; no se permite solicitar el
 historial de otra cuenta. Al actualizar, cerrar sesion e iniciar sesion de nuevo.
 
-Copiar `index.php`, `auth-session.php`, `clinical-history.php`, `dietary-recall.php`, `meal-schedule.php`, `recipe-generation.php`, `recipe-nutrition.php`, `meal-plan.php`, `food-preferences.php` y `lifestyle-goals.php` en la carpeta
+Copiar `index.php`, `auth-session.php`, `clinical-history.php`, `dietary-recall.php`, `meal-schedule.php`, `eating-habits.php`, `anthropometric-measurements.php`, `recipe-generation.php`, `recipe-portions.php`, `recipe-nutrition.php`, `meal-plan.php`, `food-preferences.php` y `lifestyle-goals.php` en la carpeta
 de la API de XAMPP, conservando `config.local.php`. El registro de sesiones PHP
 debe poder escribir en su carpeta de sesiones. No se necesitan nuevas tablas si
 ya existe `clinical_histories`. Usar HTTPS para un despliegue publico.
@@ -114,6 +114,39 @@ propuesta editable, no una evaluacion nutricional ni una prescripcion medica.
 La prueba de backend se ejecuta con PHP desde `api/tests/dietary-recall.test.php`.
 Utiliza una base temporal y no necesita llamadas a Google.
 
+## Procesamiento de habitos y horarios
+
+`GET index.php?action=habits.get` consulta el primer recordatorio completado de
+la cuenta autenticada. Requiere `Authorization: Bearer <authToken>`. Devuelve
+`initialCompleted=false` y `analysis=null` si todavia no existe esa captura.
+
+El analisis incluye las cinco comidas con su estado, conteos de comidas
+declaradas y omitidas, lugares de consumo, intervalos entre comidas y tiempos
+respecto a despertar y dormir. Los intervalos usan minutos desde el despertar
+para contemplar jornadas que cruzan medianoche. Solo se calculan intervalos con
+horas validas dentro de la jornada; los datos inconsistentes producen
+`qualityWarnings`, no correcciones automaticas. Los datos desconocidos se
+devuelven como `null`, no cero.
+
+El resultado describe un dia declarado, no demuestra habitos permanentes ni
+evalua nutrientes, cantidades o calidad de la dieta. No usa IA ni el catalogo
+para interpretar texto libre. Se calcula al consultar los datos, por lo que una
+correccion del recordatorio se refleja sin duplicar tablas de resultados.
+No modifica el recordatorio, no genera horarios y no reemplaza los horarios
+personalizados. Tampoco cambia las reglas del editor de horarios existente.
+
+Ionic dispone de `EatWellService.getEatingHabits()`. No se agrego una pantalla ni
+se envio este analisis automaticamente a la IA. Para probar los calculos:
+
+```powershell
+php api/tests/eating-habits.test.php
+```
+
+Con `--database`, tambien verifica autenticacion, cuentas separadas, lectura y
+correcciones usando una base temporal con usuarios ficticios. Requiere MySQL
+local activo y permisos para crear y eliminar esa base temporal. No necesita
+importar otro SQL en la instalacion existente.
+
 ## Catalogo BAM
 
 La base incluye tablas para almacenar el catalogo BAM. Para cargar sus datos en
@@ -132,6 +165,106 @@ anteriores del almacenamiento local solo sirven para recuperar el formulario
 cuando no hay un registro completado; abrir el modulo y guardar los conserva
 en la base. La prueba `api/tests/lifestyle-goals.test.php` utiliza pacientes
 ficticios en una base temporal, sin llamadas a Google.
+
+## Estructura del plan alimenticio
+
+`plan.get` y `plan.choose` conservan `date` y `choices` y devuelven tambien
+`meals` con cinco espacios ordenados, cada uno con `mealType`, `label`,
+`scheduledTime`, `selectionStatus` y `recipe`. Los estados son `pending`,
+`selected` y `needs_review`. Un horario o receta ausente se devuelve como `null`.
+`summary` cuenta las cinco comidas y sus elecciones; las que requieren revision
+forman parte del total pendiente. `scheduleCustomized` refleja los horarios
+actuales. Consultar el plan no genera recetas ni escribe horarios.
+
+`plan.options` entrega cuatro alternativas por comida. El servidor valida cuatro
+recetas nuevas y puede reutilizar cuatro de un conjunto anterior compatible,
+sin llamadas adicionales a Google. Las elecciones compatibles anteriores se
+conservan aunque provinieran de un conjunto de siete. La vista incluye la
+eleccion vigente dentro de sus cuatro opciones para permitir quitarla o cambiarla.
+
+Se reutilizan `daily_meal_choices`, `personalized_recipes` y `meal_schedules`.
+No se necesita una tabla nueva ni importar SQL por este cambio. BAM sigue como
+fuente actual; el cambio de fuente alimenticia y una adaptacion mas amplia del
+prompt quedan pendientes. Ahora solo se ajusto la cantidad solicitada a cuatro.
+
+Pruebas: `api/tests/daily-plan-structure.test.php`,
+`api/tests/meal-plan.test.php` y `tests/daily-meal-plan.test.cjs`.
+La prueba con MySQL crea una base temporal y simula la generacion, sin llamar
+a Google. Adapta el esquema de esa base temporal al campo de categorias sin
+preferencia del codigo actual, sin modificar la base real.
+
+## Mediciones antropometricas
+
+`profile.update` requiere sesion verificada y conserva los campos que no se
+envian. PHP valida peso en kg y estatura en cm, redondea a dos decimales y
+recalcula el IMC sin confiar en un valor enviado por el cliente. Los limites
+tecnicos son peso mayor que cero hasta 500 kg, estatura mayor que cero hasta
+300 cm e IMC positivo representable en la columna existente. No son rangos
+recomendados ni criterios de salud.
+
+El formulario envia `recordMeasurement=true` junto con peso y estatura para
+confirmar una captura. Un cambio efectivo en las medidas tambien se registra.
+Se usa `anthropometric_measurements`, que ya existe: no se requiere importar SQL.
+La actualizacion del usuario y la insercion del historial se confirman juntas.
+El bloqueo por usuario evita que dos guardados simultaneos inserten el mismo
+ultimo valor. Se omite un registro identico al ultimo del mismo dia; la misma
+medicion confirmada en otro dia si queda guardada.
+
+Actualizar solo la foto o el nombre no confirma una medicion ni guarda los
+valores predeterminados del registro inicial como una medicion real. Ionic
+envia unicamente los campos editados, no todo el perfil cacheado.
+
+`GET index.php?action=measurements.get` requiere sesion y devuelve las ultimas
+50 mediciones de la cuenta, ordenadas de mas reciente a mas antigua. Acepta
+`limit` entre 1 y 100. Cada medicion incluye el IMC calculado con sus propios
+valores y `measuredAt` en la zona `America/Mexico_City`. No se agrego una grafica
+ni una pantalla de historial; Ionic dispone de `getMeasurementHistory()`.
+
+```powershell
+php api/tests/anthropometric-measurements.test.php
+php api/tests/anthropometric-measurements.test.php --database
+node tests/anthropometric-measurements.test.cjs
+```
+
+La opcion `--database` utiliza y elimina una base temporal con cuentas ficticias.
+No usa IA ni modifica pacientes reales.
+
+## Ajuste de porciones
+
+`GET index.php?action=recipes.portions` requiere sesion verificada y recibe
+`recipeId`, `source` y `servings` (entero entre 1 y 12). Los origenes son
+`personalized`, `favorite`, `scan` y `local`. Para los dos primeros se usa el
+prefijo `personalized-` o `favorite-`; los otros usan su identificador numerico.
+El servidor recupera las cantidades almacenadas. Las recetas privadas deben
+pertenecer a la cuenta autenticada; no acepta cantidades del cliente como origen.
+
+Solo ajusta recetas con porciones originales y cantidades completas en g o ml,
+coincidentes con la lista de ingredientes. En otro caso devuelve
+`available=false` con el motivo, sin inventar equivalencias. Las cantidades
+visibles se redondean a tres decimales; no se admiten resultados positivos que
+queden mostrados como cero ni mas de 100000 g/ml por ingrediente.
+
+La respuesta distingue `baseServings`, `requestedServings`, `ingredients`,
+`ingredientData`, `nutrition.perServing` y `totalNutrition`. Los totales se
+calculan antes del redondeo visible. Los datos nutrimentales sin referencia BAM
+siguen como `null`. No se asumen referencias de 100 g.
+
+El detalle muestra controles de porciones solo con datos suficientes. No guarda
+el ajuste ni reemplaza recetas, favoritos o elecciones diarias. Los pasos y
+tiempos no se multiplican; se advierte si hay cantidades en el texto original.
+No implica una recomendacion de consumo individual.
+
+Copiar tambien `recipe-portions.php` al actualizar la API. No necesita tablas
+nuevas ni importacion SQL. Pruebas:
+
+```powershell
+php api/tests/recipe-portions.test.php
+php api/tests/recipe-portions.test.php --database
+node tests/recipe-portions.test.cjs
+```
+
+La opcion de base utiliza recetas ficticias y elimina la base temporal.
+No se hacen llamadas a Google.
 
 ## Conexion movil
 
