@@ -1,0 +1,75 @@
+<div class="ion-page recipe-suggestions-page">
+  <ion-header class="ion-no-border">
+    <ion-toolbar>
+      <ion-buttons slot="start">
+        <ion-back-button defaultHref="/tabs/plan-alimenticio" text="VOLVER AL PLAN"></ion-back-button>
+      </ion-buttons>
+      <ion-title>Recetas para {{ mealLabel }}</ion-title>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content class="recipe-suggestions-content">
+    <main class="recipe-suggestions-layout">
+      <header class="recipe-suggestions-heading">
+        <div>
+          <span>MENÚ DEL DÍA · {{ selectedDateLabel }}</span>
+          <h1>{{ mealLabel }}</h1>
+          <p>Selecciona una receta para agregarla a tu plan de este día.</p>
+        </div>
+        <div class="recipe-suggestions-target" aria-label="Meta calórica">
+          <strong>{{ targetCalories | number }}</strong>
+          <span>kcal meta</span>
+        </div>
+      </header>
+
+      <p *ngIf="error" class="recipe-suggestions-error" role="alert">{{ error }}</p>
+      <div class="recipe-suggestions-loading" *ngIf="isLoading" role="status">
+        <ion-spinner name="crescent"></ion-spinner>
+        <span>Cargando recetas...</span>
+      </div>
+      <div class="recipe-suggestions-retry" *ngIf="error && !isLoading && recipes.length === 0">
+        <ion-button expand="block" fill="outline" (click)="loadSuggestions()">Reintentar</ion-button>
+      </div>
+
+      <section class="recipe-suggestions-list" *ngIf="!isLoading && recipes.length" aria-label="Sugerencias de recetas">
+        <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes">
+          <ion-card-header>
+            <ion-card-title>{{ recipe.title }}</ion-card-title>
+            <ion-card-subtitle>{{ recipe.calories || recipe.calorias || recipe.estimatedNutrition?.calories || '—' }} kcal por porción</ion-card-subtitle>
+          </ion-card-header>
+          <ion-card-content>
+            <p class="recipe-suggestion-description">{{ recipe.description }}</p>
+            <div class="recipe-suggestion-preparation">
+              <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
+              <span>{{ recipe.preparationMinutes ? recipe.preparationMinutes + ' min de preparación' : 'Tiempo no disponible' }}</span>
+            </div>
+            <div class="recipe-suggestion-macros" aria-label="Macronutrientes por porción">
+              <div><strong>{{ recipe.proteinGrams || recipe.proteins_g || recipe.proteinas || recipe.estimatedNutrition?.proteinGrams || '—' }} g</strong><span>Proteínas</span></div>
+              <div><strong>{{ recipe.carbsGrams || recipe.carbs_g || recipe.carbohidratos || recipe.estimatedNutrition?.carbsGrams || '—' }} g</strong><span>Carbohidratos</span></div>
+              <div><strong>{{ recipe.fatGrams || recipe.fats_g || recipe.grasas || recipe.estimatedNutrition?.fatGrams || '—' }} g</strong><span>Grasas</span></div>
+            </div>
+            <p *ngIf="recipe.estimatedNutrition" class="recipe-suggestion-estimate-note" role="note">Valores nutricionales estimados por porción.</p>
+            <p *ngIf="isFixture(recipe)" class="recipe-suggestion-fixture-note" role="note">
+              Receta de respaldo: no se puede guardar en el plan.
+            </p>
+            <p *ngIf="!isFixture(recipe) && !hasAiNutrition(recipe)" class="recipe-suggestion-fixture-note" role="note">
+              Faltan los datos nutricionales de la IA; esta receta no se puede seleccionar.
+            </p>
+            <ion-button
+              expand="block"
+              class="recipe-suggestion-select"
+              [disabled]="isSaving || isFixture(recipe) || !hasAiNutrition(recipe) || isSelected(recipe)"
+              (click)="selectRecipe(recipe)">
+              <ion-spinner *ngIf="isSaving && !isSelected(recipe)" name="crescent"></ion-spinner>
+              <span>{{ isSelected(recipe) ? 'RECETA SELECCIONADA' : 'SELECCIONAR RECETA' }}</span>
+            </ion-button>
+          </ion-card-content>
+        </ion-card>
+      </section>
+
+      <p *ngIf="!isLoading && recipes.length === 0 && !error" class="recipe-suggestions-empty">
+        No hay sugerencias disponibles para esta comida.
+      </p>
+    </main>
+  </ion-content>
+</div>

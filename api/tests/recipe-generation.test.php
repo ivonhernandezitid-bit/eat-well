@@ -18,6 +18,11 @@ $prompt = recipeGenerationPrompt(['name' => 'PRIVATE', 'goal' => 'maintain', 'ag
 check(!str_contains($prompt, 'PRIVATE') && str_contains($prompt, 'cacahuate'), 'Prompt profile filtering failed.');
 check(str_contains($prompt, 'no a la base completa') && str_contains($prompt, 'mealTypes'), 'Prompt constraints missing.');
 check(recipeGenerationSchema()['properties']['mealTypes']['items']['enum'] === RECIPE_MEAL_TYPES, 'Schema categories mismatch.');
+check(array_intersect(
+    ['recipe_title', 'description', 'prep_time_minutes', 'calories', 'proteins_g', 'carbs_g', 'fats_g', 'ingredients', 'instructions'],
+    recipeGenerationSchema()['required'],
+) === ['recipe_title', 'description', 'prep_time_minutes', 'calories', 'proteins_g', 'carbs_g', 'fats_g', 'ingredients', 'instructions'], 'Structured recipe fields are not required.');
+check(recipeGenerationSchema()['properties']['ingredients']['type'] === 'ARRAY' && recipeGenerationSchema()['properties']['instructions']['type'] === 'ARRAY', 'Recipe lists are not arrays.');
 check(!isset(recipeGenerationSchema()['properties']['ingredientData']['maxItems']), 'Nested array constraints made provider schema too complex.');
 check(!isset(recipeGenerationSchema()['properties']['servings']['maximum']), 'Numeric bounds should be validated in PHP.');
 $profile = ['age' => 25, 'goal' => 'maintain', 'imc' => 22, 'weight_kg' => 60];
@@ -27,8 +32,9 @@ check($hashes[1] === recipePreferenceHash($profile, $preferences, 'eatwell-meals
 check($hashes[0] !== $hashes[1], 'Versions mixed.');
 check(compatibleRecipeHashes([...$profile, 'weight_kg' => 80], $preferences)[1] !== $hashes[1], 'Changed profile used old recipes.');
 check(compatibleRecipeHashes($profile, [...$preferences, 'allergies' => ['leche']])[1] !== $hashes[1], 'Changed allergy used old recipes.');
-$complete = ['title' => 'Avena', 'description' => 'Con fruta', 'ingredients' => ['40 g de avena'], ...$recipe, 'ingredientData' => [['foodId' => 0, 'name' => 'avena', 'quantity' => 40, 'unit' => 'g']]];
+$complete = ['recipe_title' => 'Avena', 'title' => 'Avena', 'description' => 'Con fruta', 'prep_time_minutes' => 15, 'calories' => 180, 'proteins_g' => 6, 'carbs_g' => 30, 'fats_g' => 4, 'ingredients' => ['40 g de avena'], ...$recipe, 'ingredientData' => [['foodId' => 0, 'name' => 'avena', 'quantity' => 40, 'unit' => 'g']]];
 check(count(validateGeneratedRecipeList(array_fill(0, 5, $complete))) === 5, 'Valid recipe rejected.');
 try { validateGeneratedRecipeList(array_fill(0, 5, ['title' => 'Incomplete'])); throw new LogicException('Invalid recipe accepted.'); } catch (RuntimeException $error) { check(!$error instanceof LogicException, 'Invalid recipe accepted.'); }
+try { validateGeneratedRecipeList(array_fill(0, 5, [...$complete, 'proteins_g' => 'unknown'])); throw new LogicException('Invalid nutrition accepted.'); } catch (RuntimeException $error) { check(!$error instanceof LogicException, 'Invalid nutrition accepted.'); }
 try { validateGeneratedRecipeList(array_fill(0, 5, [...$complete, 'servings' => 0])); throw new LogicException('Zero portions accepted.'); } catch (RuntimeException $error) { check(!$error instanceof LogicException, 'Zero portions accepted.'); }
 echo "Recipe generation rules passed: metadata, legacy JSON, schema and prompt.\n";

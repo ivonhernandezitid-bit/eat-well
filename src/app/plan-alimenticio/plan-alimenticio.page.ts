@@ -1,18 +1,38 @@
 import { Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActionSheetController, AlertController, Platform } from '@ionic/angular';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
-import { calculateMacroTargets, MacroTargets } from '../core/lifestyle-goals';
-import { IngredientSubstitute, RecipeIngredientData, RecipeMetadata, RecipeMealType, recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
+import { recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
+import type { IngredientSubstitute, RecipeIngredientData, RecipeMetadata, RecipeMealType } from '../core/recipe-meals';
 import { DailyMealPlan, dailyMealOptions, mealPlanDate } from '../core/daily-meal-plan';
 import { ClinicalHistoryData } from '../core/clinical-history';
 import { recipeCanScale, RecipePortionPreview } from '../core/recipe-portions';
+import { ConsumedMeal, readDailyDashboardLog, recordConsumedMeal } from '../core/daily-dashboard-log';
+
+interface PlanDayOption {
+  date: string;
+  label: string;
+  dayNumber: number;
+  isToday: boolean;
+}
+
+interface PlanMealSlot {
+  type: RecipeMealType;
+  label: string;
+  icon: string;
+  estimatedCalories: number;
+}
 
 interface MealCardView extends RecipeMetadata {
   id: string;
   title: string;
   description: string;
   imageUrl: string | null;
+  calories?: number | null;
+  proteinGrams?: number | null;
+  carbsGrams?: number | null;
+  fatGrams?: number | null;
   source: 'local' | 'ai' | 'favorite';
   favoriteId: string | null;
   ingredients: string[];
@@ -55,7 +75,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private substituteRequest = 0;
   selectedFilter: 'all' | 'favorites' | 'history' = 'all';
   scanHistory: FoodScanHistoryItem[] = [];
-  macroTargets: MacroTargets | null = null;
   clinicalPlanAlerts: string[] = [];
   clinicalHistoryLoadError = '';
   
@@ -66,6 +85,26 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   expandedMealType: RecipeMealType | null = null;
   readonly mealTypes = Object.keys(recipeMealLabels) as RecipeMealType[];
   dailyPlan: DailyMealPlan | null = null;
+  planDays = this.createPlanDays();
+  readonly planMealSlots: PlanMealSlot[] = [
+    { type: 'breakfast', label: 'Desayuno', icon: '🍳', estimatedCalories: 450 },
+    { type: 'morning_snack', label: 'Colación 1', icon: '🍎', estimatedCalories: 180 },
+    { type: 'lunch', label: 'Comida', icon: '🥗', estimatedCalories: 650 },
+    { type: 'afternoon_snack', label: 'Colación 2', icon: '🍇', estimatedCalories: 180 },
+    { type: 'dinner', label: 'Cena', icon: '🌙', estimatedCalories: 400 },
+  ];
+  selectedDate = mealPlanDate();
+  consumedMeals: ConsumedMeal[] = [];
+  planLoading = false;
+  planError = '';
+  isManualMealSheetOpen = false;
+  manualMealName = '';
+  manualMealCalories: number | string | null = null;
+  manualMealProtein: number | string | null = null;
+  manualMealCarbohydrates: number | string | null = null;
+  manualMealFat: number | string | null = null;
+  manualMealError = '';
+  private manualMealType: RecipeMealType | null = null;
   savingChoiceId: string | null = null;
   private optionsContext = '';
   private optionSets: Partial<Record<RecipeMealType, Recipe[]>> = {};
@@ -85,13 +124,24 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private activeUserId: string | null = null;
   private activeUserSubscription?: Subscription;
   private mealsLoadInFlight: { userId: string; promise: Promise<void> } | null = null;
+  private planRequest = 0;
+  private planCalendarTimer?: ReturnType<typeof setInterval>;
+  private planWarningsTimer?: ReturnType<typeof setTimeout>;
+  private planWarningsRemovalTimer?: ReturnType<typeof setTimeout>;
+  private planCalendarDate = mealPlanDate();
+  planWarningsRendered = true;
+  planWarningsVisible = true;
+  selectedPlanMealType: RecipeMealType | null = null;
 
   private readonly eatWellService = inject(EatWellService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly alertController = inject(AlertController);
   private readonly actionSheetController = inject(ActionSheetController);
   private readonly platform = inject(Platform);
 
   ngOnInit(): void {
+    this.planCalendarTimer = setInterval(() => this.refreshPlanCalendar(), 60_000);
     this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {
       this.user = user;
       const nextUserId = user?.id ?? null;
@@ -107,6 +157,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   ionViewWillEnter(): void {
+    this.showPlanWarningsForVisit();
+    this.refreshPlanCalendar();
     if (this.user) {
       void this.loadMealsForUser(this.user);
     }
@@ -115,11 +167,227 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.resetPortionPreview();
     this.activeUserSubscription?.unsubscribe();
+    if (this.planCalendarTimer) clearInterval(this.planCalendarTimer);
+    this.clearPlanWarningTimers();
     this.stopTimer();
+  }
+
+  private showPlanWarningsForVisit(): void {
+    this.clearPlanWarningTimers();
+    this.planWarningsRendered = true;
+    this.planWarningsVisible = true;
+    this.planWarningsTimer = setTimeout(() => {
+      this.planWarningsVisible = false;
+      this.planWarningsRemovalTimer = setTimeout(() => {
+        this.planWarningsRendered = false;
+      }, 450);
+    }, 5000);
+  }
+
+  private clearPlanWarningTimers(): void {
+    if (this.planWarningsTimer) clearTimeout(this.planWarningsTimer);
+    if (this.planWarningsRemovalTimer) clearTimeout(this.planWarningsRemovalTimer);
+    this.planWarningsTimer = undefined;
+    this.planWarningsRemovalTimer = undefined;
   }
 
   toggleViewMode(): void {
     this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+  }
+
+  get planMealCards(): Array<PlanMealSlot & { recipe: Recipe | null; consumedMeal: ConsumedMeal | null; isConsumed: boolean; calories: number }> {
+    const meals = Array.isArray(this.dailyPlan?.meals) ? this.dailyPlan.meals : [];
+    const choices = this.dailyPlan?.choices ?? {};
+    const consumedMeals = Array.isArray(this.consumedMeals) ? this.consumedMeals : [];
+    return this.planMealSlots.map(slot => {
+      const planMeal = meals.find(meal => meal.mealType === slot.type);
+      const recipe = planMeal?.recipe ?? choices[slot.type] ?? null;
+      const consumedMeal = consumedMeals.find(meal => meal.mealType === slot.type || (!!recipe && meal.id === recipe.id)) ?? null;
+      return {
+        ...slot,
+        recipe,
+        consumedMeal,
+        isConsumed: !!consumedMeal,
+        calories: consumedMeal?.calories ?? recipe?.calories ?? slot.estimatedCalories,
+      };
+    });
+  }
+
+  get selectedPlanDateLabel(): string {
+    return new Date(`${this.selectedDate}T00:00:00`).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
+  }
+
+  async selectPlanDay(day: PlanDayOption): Promise<void> {
+    const dateChanged = day.date !== this.selectedDate;
+    this.selectedDate = day.date;
+    if (dateChanged) this.dailyPlan = null;
+    this.planError = '';
+    this.consumedMeals = this.user ? readDailyDashboardLog(this.user.id, day.date).consumedMeals : [];
+    if (this.user) await this.loadPlanForDate(this.user, day.date);
+  }
+
+  private createPlanDays(): PlanDayOption[] {
+    const today = new Date();
+    const firstDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const labels = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const todayKey = mealPlanDate(today);
+    const todayWeekday = (today.getDay() + 6) % 7;
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(firstDate);
+      const daysUntil = (index - todayWeekday + 7) % 7;
+      date.setDate(firstDate.getDate() + daysUntil);
+      return {
+        date: mealPlanDate(date),
+        label: labels[date.getDay()],
+        dayNumber: date.getDate(),
+        isToday: mealPlanDate(date) === todayKey,
+      };
+    });
+  }
+
+  private refreshPlanCalendar(): void {
+    const today = mealPlanDate();
+    if (today === this.planCalendarDate) return;
+    this.planCalendarDate = today;
+    this.planDays = this.createPlanDays();
+
+    if (this.selectedDate < today) {
+      this.selectedDate = today;
+      this.dailyPlan = null;
+      this.consumedMeals = this.user ? readDailyDashboardLog(this.user.id, today).consumedMeals : [];
+      if (this.user) void this.loadPlanForDate(this.user, today);
+    }
+  }
+
+  private async loadPlanForDate(user: UserProfile, date: string): Promise<DailyMealPlan | null> {
+    const request = ++this.planRequest;
+    this.planLoading = true;
+    this.planError = '';
+    try {
+      const plan = await this.eatWellService.getDailyMealPlan(date);
+      if (request === this.planRequest && this.activeUserId === user.id && this.selectedDate === date) {
+        this.dailyPlan = plan;
+        return plan;
+      }
+      return null;
+    } catch (error) {
+      if (request === this.planRequest && this.activeUserId === user.id && this.selectedDate === date) {
+        this.planError = error instanceof Error ? error.message : 'No se pudo cargar el plan de este día.';
+      }
+      return null;
+    } finally {
+      if (request === this.planRequest) this.planLoading = false;
+    }
+  }
+
+  private toMealCard(recipe: Recipe): MealCardView {
+    return {
+      ...this.mealMetadata(recipe),
+      calories: recipe.calories,
+      proteinGrams: recipe.proteinGrams,
+      carbsGrams: recipe.carbsGrams,
+      fatGrams: recipe.fatGrams,
+      id: recipe.id,
+      title: recipe.title,
+      description: recipe.description,
+      imageUrl: null,
+      source: 'ai',
+      favoriteId: this.findFavoriteId(recipe.title),
+      ingredients: [...recipe.ingredients],
+      instructions: [...recipe.instructions],
+    };
+  }
+
+  private optionalNumber(value: number | string | null): number | null {
+    if (value === null || value === '') return null;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  async abrirSugerencias(tipoComida: RecipeMealType, kcal: number): Promise<void> {
+    if (!this.user) {
+      await this.showError('Inicia sesión para consultar y guardar tu plan alimenticio.');
+      return;
+    }
+
+    await this.router.navigate(['sugerencias', tipoComida, kcal], {
+      relativeTo: this.route,
+      queryParams: { date: this.selectedDate },
+    });
+  }
+
+  get selectedRecipeIsConsumed(): boolean {
+    if (!this.selectedRecipe) return false;
+    return this.consumedMeals.some(meal =>
+      this.selectedPlanMealType ? meal.mealType === this.selectedPlanMealType : meal.id === this.selectedRecipe?.id,
+    );
+  }
+
+  async markSelectedRecipeConsumed(): Promise<void> {
+    const recipe = this.selectedRecipe;
+    const userId = this.user?.id;
+    if (!recipe || !userId || !this.selectedPlanMealType || this.selectedRecipeIsConsumed) return;
+    const slot = this.planMealSlots.find(item => item.type === this.selectedPlanMealType);
+    const meal: ConsumedMeal = {
+      id: recipe.id,
+      title: recipe.title,
+      mealType: this.selectedPlanMealType,
+      calories: recipe.calories ?? slot?.estimatedCalories ?? null,
+      protein: recipe.proteinGrams ?? null,
+      carbohydrates: recipe.carbsGrams ?? null,
+      fat: recipe.fatGrams ?? null,
+      nutritionSource: recipe.nutrition?.source === 'BAM' ? 'BAM' : 'estimate',
+    };
+    try {
+      this.consumedMeals = recordConsumedMeal(userId, this.selectedDate, meal).consumedMeals;
+      this.closeRecipe();
+    } catch (error) {
+      await this.showError(error instanceof Error ? error.message : 'No se pudo registrar la comida consumida.');
+    }
+  }
+
+  openManualMealSheet(): void {
+    this.manualMealType = this.selectedPlanMealType;
+    this.closeRecipe();
+    this.manualMealName = '';
+    this.manualMealCalories = null;
+    this.manualMealProtein = null;
+    this.manualMealCarbohydrates = null;
+    this.manualMealFat = null;
+    this.manualMealError = '';
+    this.isManualMealSheetOpen = true;
+  }
+
+  saveManualMeal(): void {
+    const userId = this.user?.id;
+    const name = this.manualMealName.trim();
+    const calories = this.optionalNumber(this.manualMealCalories);
+    if (!userId || !name || calories === null) {
+      this.manualMealError = 'Escribe el nombre del platillo y sus calorías (un valor igual o mayor que cero).';
+      return;
+    }
+
+    const meal: ConsumedMeal = {
+      id: `manual-${Date.now()}`,
+      title: name,
+      ...(this.manualMealType ? { mealType: this.manualMealType } : {}),
+      calories,
+      protein: this.optionalNumber(this.manualMealProtein),
+      carbohydrates: this.optionalNumber(this.manualMealCarbohydrates),
+      fat: this.optionalNumber(this.manualMealFat),
+      nutritionSource: 'manual',
+    };
+    try {
+      this.consumedMeals = recordConsumedMeal(userId, this.selectedDate, meal).consumedMeals;
+      this.isManualMealSheetOpen = false;
+    } catch (error) {
+      this.manualMealError = error instanceof Error ? error.message : 'No se pudo guardar la comida.';
+    }
+  }
+
+  closeManualMealSheet(): void {
+    this.isManualMealSheetOpen = false;
+    this.manualMealError = '';
   }
 
   async toggleMealType(type: RecipeMealType): Promise<void> {
@@ -135,40 +403,42 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   chosenMealTitle(type: RecipeMealType): string {
-    return this.dailyPlan?.date === mealPlanDate() ? this.dailyPlan.choices[type]?.title ?? '' : '';
+    return this.dailyPlan?.date === this.selectedDate ? this.dailyPlan.choices[type]?.title ?? '' : '';
   }
 
   isMealChosen(recipe: MealCardView): boolean {
-    return this.dailyPlan?.date === mealPlanDate() && this.dailyPlan.choices[this.selectedMealType]?.id === recipe.id;
+    return this.dailyPlan?.date === this.selectedDate && this.dailyPlan.choices[this.selectedMealType]?.id === recipe.id;
   }
 
-  async chooseMeal(recipe: MealCardView): Promise<void> {
-    if (!this.user || this.savingChoiceId) return;
+  async chooseMeal(recipe: MealCardView): Promise<boolean> {
+    if (!this.user || this.savingChoiceId) return false;
     const userId = this.user.id;
     const type = this.selectedMealType;
-    const date = mealPlanDate();
+    const date = this.selectedDate;
     const remove = this.isMealChosen(recipe);
     this.savingChoiceId = recipe.id;
     try {
       const plan = remove
         ? await this.eatWellService.clearDailyMeal(type, date)
         : await this.eatWellService.chooseDailyMeal(type, recipe.id, date);
-      if (this.activeUserId === userId && plan.date === mealPlanDate()) this.dailyPlan = plan;
+      if (this.activeUserId === userId && plan.date === this.selectedDate) this.dailyPlan = plan;
+      return true;
     } catch (error) {
       if (this.activeUserId === userId) await this.showError(error instanceof Error ? error.message : 'No se pudo guardar tu eleccion.');
+      return false;
     } finally {
       if (this.activeUserId === userId) this.savingChoiceId = null;
     }
   }
 
-  private async loadMealOptions(user: UserProfile): Promise<void> {
+  private async loadMealOptions(user: UserProfile): Promise<Recipe[]> {
     const type = this.selectedMealType;
     const version = ++this.optionRequest;
     const context = this.optionsContext;
     this.recipes = this.optionSets[type] ?? [];
     this.personalizedError = '';
     this.isLoadingPersonalized = this.recipes.length === 0;
-    if (this.recipes.length) return;
+    if (this.recipes.length) return this.recipes;
     const key = `${user.id}:${context}:${type}`;
     let request = this.optionLoads.get(key);
     if (!request) {
@@ -179,8 +449,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       const recipes = await request;
       if (this.activeUserId === user.id && this.optionsContext === context) this.optionSets[type] = recipes;
       if (version === this.optionRequest && this.activeUserId === user.id) this.recipes = recipes;
+      return recipes;
     } catch (error) {
       if (version === this.optionRequest && this.activeUserId === user.id) this.personalizedError = error instanceof Error ? error.message : 'No se pudieron generar tus opciones. Vuelve a entrar al plan para reintentar.';
+      return [];
     } finally {
       if (this.optionLoads.get(key) === request) this.optionLoads.delete(key);
       if (version === this.optionRequest && this.activeUserId === user.id) this.isLoadingPersonalized = false;
@@ -347,6 +619,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     const term = this.searchTerm.trim().toLowerCase();
     const list: MealCardView[] = this.scanRecipes.map(recipe => ({
       ...this.mealMetadata(recipe),
+      calories: recipe.nutrition?.perServing.calories ?? null,
+      proteinGrams: recipe.nutrition?.perServing.proteinGrams ?? null,
+      carbsGrams: recipe.nutrition?.perServing.carbsGrams ?? null,
+      fatGrams: recipe.nutrition?.perServing.fatGrams ?? null,
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -370,9 +646,13 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   get aiMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const chosen = this.dailyPlan?.date === mealPlanDate() ? this.dailyPlan.choices[this.selectedMealType] : undefined;
+    const chosen = this.dailyPlan?.date === this.selectedDate ? this.dailyPlan.choices[this.selectedMealType] : undefined;
     const list: MealCardView[] = dailyMealOptions(this.recipes, chosen).map(recipe => ({
       ...this.mealMetadata(recipe),
+      calories: recipe.calories,
+      proteinGrams: recipe.proteinGrams,
+      carbsGrams: recipe.carbsGrams,
+      fatGrams: recipe.fatGrams,
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -398,6 +678,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     const term = this.searchTerm.trim().toLowerCase();
     const list: MealCardView[] = this.favoriteRecipes.map(recipe => ({
       ...this.mealMetadata(recipe),
+      calories: recipe.nutrition?.perServing.calories ?? null,
+      proteinGrams: recipe.nutrition?.perServing.proteinGrams ?? null,
+      carbsGrams: recipe.nutrition?.perServing.carbsGrams ?? null,
+      fatGrams: recipe.nutrition?.perServing.fatGrams ?? null,
       id: recipe.id,
       title: recipe.title,
       description: recipe.description,
@@ -425,6 +709,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       .filter(recipe => !this.favoriteRecipes.some(favorite => favorite.title === recipe.title))
       .map(recipe => ({
         ...this.mealMetadata(recipe),
+        calories: recipe.calories,
+        proteinGrams: recipe.proteinGrams,
+        carbsGrams: recipe.carbsGrams,
+        fatGrams: recipe.fatGrams,
         id: recipe.id,
         title: recipe.title,
         description: recipe.description,
@@ -581,11 +869,12 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     }
   }
 
-  async openRecipe(recipe: MealCardView): Promise<void> {
+  async openRecipe(recipe: MealCardView, planMealType: RecipeMealType | null = null): Promise<void> {
     if (this.loadingRecipeId) {
       return;
     }
 
+    this.selectedPlanMealType = planMealType;
     this.checkedIngredients.clear();
     this.resetPortionPreview();
     this.stopTimer();
@@ -609,6 +898,10 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       );
       this.selectedRecipe = {
         ...this.mealMetadata(details),
+        calories: details.nutrition?.perServing.calories ?? null,
+        proteinGrams: details.nutrition?.perServing.proteinGrams ?? null,
+        carbsGrams: details.nutrition?.perServing.carbsGrams ?? null,
+        fatGrams: details.nutrition?.perServing.fatGrams ?? null,
         id: details.id,
         title: details.title,
         description: details.description,
@@ -632,6 +925,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.isRecipeModalOpen = false;
     this.closeSubstitution();
     this.selectedRecipe = null;
+    this.selectedPlanMealType = null;
     this.stopTimer();
   }
 
@@ -653,6 +947,12 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   get displayedIngredients(): string[] {
     return this.portionPreview?.ingredients ?? this.selectedRecipe?.ingredients ?? [];
+  }
+
+  ingredientPortion(index: number, ingredient: string): string {
+    const data = this.portionPreview?.ingredientData?.[index] ?? this.selectedRecipe?.ingredientData?.[index];
+    if (data?.quantity != null && data.unit) return `Cantidad de receta: ${data.quantity} ${data.unit}`;
+    return this.getTextPortion(ingredient) || 'Porción no especificada';
   }
 
   async changeRecipeServings(change: number): Promise<void> {
@@ -711,6 +1011,14 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.preferencesCompleted = false;
     this.clinicalPlanAlerts = [];
     this.clinicalHistoryLoadError = '';
+    this.consumedMeals = [];
+    this.planError = '';
+    this.planLoading = false;
+    this.selectedDate = mealPlanDate();
+    this.selectedPlanMealType = null;
+    this.manualMealType = null;
+    this.isManualMealSheetOpen = false;
+    ++this.planRequest;
     this.stopTimer();
   }
 
@@ -733,7 +1041,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private async fetchMealsForUser(user: UserProfile): Promise<void> {
-    this.macroTargets = null;
     this.clinicalPlanAlerts = [];
     this.clinicalHistoryLoadError = '';
 
@@ -759,12 +1066,12 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       }
 
       this.preferencesCompleted = prefs?.completed ?? false;
-      this.macroTargets = lifestyle?.settings ? calculateMacroTargets(lifestyle.user ?? user, lifestyle.settings) : null;
       this.setClinicalPlanAlerts(clinicalHistory?.history ?? null, clinicalHistory !== null);
       this.generalRecipes = general;
       this.favoriteRecipes = favorites;
       this.scanHistory = scanHistory;
-      this.dailyPlan = dailyPlan.date === mealPlanDate() ? dailyPlan : null;
+      this.dailyPlan = dailyPlan.date === this.selectedDate ? dailyPlan : null;
+      this.consumedMeals = readDailyDashboardLog(user.id, this.selectedDate).consumedMeals;
       const context = JSON.stringify([user, prefs, lifestyle?.settings]);
       if (context !== this.optionsContext) { this.optionsContext = context; this.optionSets = {}; }
 
@@ -803,7 +1110,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     ].some(Boolean);
 
     if (!hasClinicalConditions) return;
-    this.clinicalPlanAlerts.push('Las condiciones registradas orientan la selección de ingredientes, pero el catálogo no permite verificar por completo sodio, azúcares añadidos, grasas saturadas, purinas, potasio, fósforo u oxalatos.');
     if (hasThyroidCondition) {
       this.clinicalPlanAlerts.push('Las calorías estimadas no se ajustan automáticamente por una condición tiroidea. Consulta con tu profesional de salud para una valoración individual.');
     }

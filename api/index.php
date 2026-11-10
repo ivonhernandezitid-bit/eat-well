@@ -213,6 +213,9 @@ try {
         ]);
     }
 } catch (PDOException $exception) {
+    if (in_array($_GET['action'] ?? '', ['plan.get', 'plan.options', 'plan.choose'], true)) {
+        sendJson(['error' => 'Error al consultar la base de datos de recetas.', 'code' => 'database_error'], 500);
+    }
     sendError('No se pudo conectar a MySQL. Revisa XAMPP y la base eatwell_db.', 500);
 }
 
@@ -647,6 +650,7 @@ function getRecipeRecommendations(PDO $pdo, int $userId, string $apiKey, string 
 
 function mapPersonalizedRecipe(array $recipe): array
 {
+    $metadata = readRecipeInstructions($recipe['instructions']);
     return [
         'id' => 'personalized-' . $recipe['id'],
         'title' => $recipe['title'],
@@ -656,7 +660,7 @@ function mapPersonalizedRecipe(array $recipe): array
         'carbsGrams' => 0,
         'fatGrams' => 0,
         'ingredients' => decodeJsonList($recipe['ingredients']),
-        ...readRecipeInstructions($recipe['instructions']),
+        ...$metadata,
         'goals' => [],
     ];
 }

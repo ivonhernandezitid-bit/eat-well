@@ -7,6 +7,12 @@ export interface RecipeMetadata {
   validationNotes?: string[];
   ingredientData?: RecipeIngredientData[];
   nutrition?: RecipeNutrition;
+  estimatedNutrition?: {
+    calories?: number;
+    proteinGrams?: number;
+    carbsGrams?: number;
+    fatGrams?: number;
+  };
 }
 
 export interface RecipeIngredientData {
@@ -32,7 +38,7 @@ export interface RecipeNutrition {
   method: string;
 }
 
-export const recipeMealLabels: Record<RecipeMealType, string> = {
+export const recipeMealLabels: Record<string, string> = {
   breakfast: 'Desayuno',
   morning_snack: 'Colación matutina',
   lunch: 'Comida',

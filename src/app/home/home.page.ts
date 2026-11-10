@@ -8,24 +8,7 @@ import { calculateMacroTargets, defaultLifestyleSettings, MacroTargets } from '.
 import { MealSchedule } from '../core/meal-schedule';
 import { RecipeMealType } from '../core/recipe-meals';
 import { nextPlannedMeal } from '../core/next-meal';
-
-interface ConsumedMeal {
-  id: string;
-  mealType?: RecipeMealType;
-  calories: number | null;
-  protein: number | null;
-  carbohydrates: number | null;
-  fat: number | null;
-  nutritionSource?: 'BAM';
-}
-
-interface DailyDashboardLog {
-  date: string;
-  consumedMeals: ConsumedMeal[];
-  waterGlasses: number;
-  exerciseMinutes: number;
-  steps: number;
-}
+import { createDailyDashboardLog, DailyDashboardLog, readDailyDashboardLog, saveDailyDashboardLog } from '../core/daily-dashboard-log';
 
 type ActivityMode = 'checking' | 'sensor' | 'permission' | 'manual';
 
@@ -56,7 +39,7 @@ export class HomePage implements OnInit, OnDestroy {
     if (!document.hidden) this.refreshMealClock();
   };
   macroTargets: MacroTargets = { calories: 2000, protein: 125, carbohydrates: 225, fat: 67 };
-  dailyLog: DailyDashboardLog = this.createEmptyDailyLog();
+  dailyLog: DailyDashboardLog = createDailyDashboardLog(this.localDateKey());
   activityMode: ActivityMode = 'checking';
   activityStatus = 'Comprobando el sensor de pasos';
   readonly waterGoalGlasses = 10;
@@ -86,7 +69,7 @@ export class HomePage implements OnInit, OnDestroy {
         this.mealChoices = {};
         this.choicesError = '';
         this.choicesLoading = false;
-        this.dailyLog=this.createEmptyDailyLog();
+        this.dailyLog=createDailyDashboardLog(this.localDateKey());
         this.scheduleError='';
         ++this.scheduleRequest;
         ++this.recipesRequest;
@@ -138,23 +121,23 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   get caloriesConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.nutritionSource === 'BAM' ? meal.calories ?? 0 : 0), 0);
+    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.calories ?? 0), 0);
   }
 
   get proteinConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.nutritionSource === 'BAM' ? meal.protein ?? 0 : 0), 0);
+    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.protein ?? 0), 0);
   }
 
   get carbohydratesConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.nutritionSource === 'BAM' ? meal.carbohydrates ?? 0 : 0), 0);
+    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.carbohydrates ?? 0), 0);
   }
 
   get fatConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.nutritionSource === 'BAM' ? meal.fat ?? 0 : 0), 0);
+    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.fat ?? 0), 0);
   }
 
   nutritionIncomplete(field: 'calories' | 'protein' | 'carbohydrates' | 'fat'): boolean {
-    return this.dailyLog.consumedMeals.some(meal => meal.nutritionSource !== 'BAM' || meal[field] == null);
+    return this.dailyLog.consumedMeals.some(meal => meal[field] == null);
   }
 
   get calorieProgress(): number {
@@ -258,10 +241,6 @@ export class HomePage implements OnInit, OnDestroy {
     return (this.dailyLog.waterGlasses * 0.25).toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   }
 
-  private createEmptyDailyLog(): DailyDashboardLog {
-    return { date: this.localDateKey(), consumedMeals: [], waterGlasses: 0, exerciseMinutes: 0, steps: 0 };
-  }
-
   private localDateKey(date = new Date()): string {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -269,34 +248,13 @@ export class HomePage implements OnInit, OnDestroy {
     return `${year}-${month}-${day}`;
   }
 
-  private dailyLogStorageKey(userId: string): string {
-    return `eat-well-home-${userId}-${this.localDateKey()}`;
-  }
-
   private loadDailyLog(userId: string): DailyDashboardLog {
-    try {
-      const stored = localStorage.getItem(this.dailyLogStorageKey(userId));
-      if (stored) {
-        const parsed = JSON.parse(stored) as Partial<DailyDashboardLog>;
-        return {
-          ...this.createEmptyDailyLog(),
-          ...parsed,
-          date: this.localDateKey(),
-          consumedMeals: Array.isArray(parsed.consumedMeals) ? parsed.consumedMeals : [],
-          waterGlasses: Math.max(0, Math.min(this.waterGoalGlasses, Number(parsed.waterGlasses) || 0)),
-          exerciseMinutes: Math.max(0, Number(parsed.exerciseMinutes) || 0),
-          steps: Math.max(0, Number(parsed.steps) || 0),
-        };
-      }
-    } catch {
-      localStorage.removeItem(this.dailyLogStorageKey(userId));
-    }
-    return this.createEmptyDailyLog();
+    return readDailyDashboardLog(userId, this.localDateKey(), this.waterGoalGlasses);
   }
 
   private saveDailyLog(): void {
     if (this.user) {
-      localStorage.setItem(this.dailyLogStorageKey(this.user.id), JSON.stringify(this.dailyLog));
+      saveDailyDashboardLog(this.user.id, this.dailyLog);
     }
   }
 

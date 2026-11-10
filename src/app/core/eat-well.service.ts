@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, firstValueFrom, Observable } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Observable, TimeoutError, timeout } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ClinicalHistoryData, ClinicalHistoryResponse } from './clinical-history';
 import { DietaryRecallData, DietaryRecallResponse } from './dietary-recall';
@@ -229,13 +229,17 @@ export class EatWellService {
 
   async getMealOptions(mealType: RecipeMealType): Promise<Recipe[]> {
     const user = this.getRequiredActiveUser();
-    const response = await this.get<RecipesResponse>('plan.options', { userId: user.id, mealType });
+    const response = await this.getPlanRequest<RecipesResponse>(
+      'plan.options',
+      { userId: user.id, mealType },
+      6_000,
+    );
     return response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT);
   }
 
   async getDailyMealPlan(date = mealPlanDate()): Promise<DailyMealPlan> {
     const user = this.getRequiredActiveUser();
-    return this.get('plan.get', { userId: user.id, date });
+    return this.getPlanRequest('plan.get', { userId: user.id, date }, 6_000);
   }
 
   async chooseDailyMeal(mealType: RecipeMealType, recipeId: string, date = mealPlanDate()): Promise<DailyMealPlan> {
@@ -470,6 +474,46 @@ export class EatWellService {
       return response.body;
     } catch (error) {
       this.saveMigratedAuthTokenFromError(error);
+      throw new Error(this.getApiErrorMessage(error));
+    }
+  }
+
+  private async getPlanRequest<T>(
+    action: string,
+    params: Record<string, string | number>,
+    timeoutMs?: number,
+  ): Promise<T> {
+    try {
+      let request = this.http.get<T>(
+        this.buildUrl(action, params),
+        { headers: this.authHeaders(), observe: 'response' },
+      );
+      if (timeoutMs !== undefined) request = request.pipe(timeout({ first: timeoutMs }));
+      const response = await firstValueFrom(request);
+      this.saveMigratedAuthToken(response.headers);
+      if (response.body === null) throw new Error('La respuesta del servidor está vacía.');
+      return response.body;
+    } catch (error) {
+      this.saveMigratedAuthTokenFromError(error);
+      if (error instanceof TimeoutError) {
+        throw new Error(action === 'plan.options'
+          ? 'No se pudo conectar con la Inteligencia Artificial. Inténtalo de nuevo.'
+          : 'No hay conexión con el backend/servidor. Verifica tu conexión o ngrok.');
+      }
+      if (error instanceof HttpErrorResponse) {
+        const code = error.error && typeof error.error === 'object' && 'code' in error.error
+          ? error.error.code
+          : null;
+        if (error.status === 0) {
+          throw new Error('No hay conexión con el backend/servidor. Verifica tu conexión o ngrok.');
+        }
+        if (code === 'database_error') {
+          throw new Error('Error al consultar la base de datos de recetas.');
+        }
+        if (action === 'plan.options' && [429, 502, 503, 504].includes(error.status)) {
+          throw new Error('No se pudo conectar con la Inteligencia Artificial. Inténtalo de nuevo.');
+        }
+      }
       throw new Error(this.getApiErrorMessage(error));
     }
   }

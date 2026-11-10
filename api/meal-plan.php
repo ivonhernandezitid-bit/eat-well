@@ -8,13 +8,12 @@ const MEAL_PLAN_OPTION_COUNT = 4;
 
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
-    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-options-v2:' . $mealType);
+    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-options-v3:' . $mealType);
 }
 
 function compatibleMealOptionHashes(array $user, array $preferences, string $mealType): array
 {
-    return [mealOptionHash($user,$preferences,$mealType),
-        hash('sha256', recipePreferenceHash($user,$preferences) . ':seven-options-v1:' . $mealType)];
+    return [mealOptionHash($user, $preferences, $mealType)];
 }
 
 function mealPlanClinicalConditions(PDO $pdo, int $userId): array
@@ -88,7 +87,9 @@ function validatePlanDate(mixed $date, ?string $today = null): string
     $parsed = DateTimeImmutable::createFromFormat('!Y-m-d', $date, new DateTimeZone('America/Mexico_City'));
     if (!$parsed || $parsed->format('Y-m-d') !== $date) throw new InvalidArgumentException('El dia del plan no existe.');
     $current = new DateTimeImmutable($today ?? 'today', new DateTimeZone('America/Mexico_City'));
-    if ($date < $current->modify('-1 day')->format('Y-m-d') || $date > $current->modify('+1 day')->format('Y-m-d')) throw new InvalidArgumentException('Selecciona las comidas del dia actual.');
+    $startDate = $current->format('Y-m-d');
+    $endDate = $current->modify('+6 days')->format('Y-m-d');
+    if ($date < $startDate || $date > $endDate) throw new InvalidArgumentException('Selecciona un dia entre hoy y los proximos seis dias.');
     return $date;
 }
 
@@ -155,14 +156,11 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
     $stmt->execute([$user['id'], $hash]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     if (count($rows) === MEAL_PLAN_OPTION_COUNT) return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
-    // Reuse four compatible options from the old cache instead of generating again.
-    $legacy = compatibleMealOptionHashes($user,$preferences,$type)[1];
-    $stmt->execute([$user['id'],$legacy]); $olderRows=$stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (count($olderRows) === MEAL_PLAN_OPTION_COUNT) return array_map(fn($row) => withRecipeNutrition($pdo,mapPersonalizedRecipe($row)),$olderRows);
     if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503);
     $labels = ['breakfast' => 'Desayuno', 'morning_snack' => 'Colacion matutina', 'lunch' => 'Comida', 'afternoon_snack' => 'Colacion vespertina', 'dinner' => 'Cena'];
     $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences), recipeClinicalGuidance($preferences['clinicalConditions'] ?? []))
         . "\nGenera exactamente cuatro opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no cuatro comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de cuatro recetas.";
+    error_log('[Paso 2] Solicitando receta a Gemini');
     $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), MEAL_PLAN_OPTION_COUNT, $type);
     $recipes = filterRecipesByPreferences($recipes, $preferences);
     $recipes = filterRecipesByClinicalConditions($recipes, $preferences['clinicalConditions'] ?? []);
@@ -186,8 +184,10 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
 function saveDailyMealChoice(PDO $pdo, array $user, array $preferences, string $date, string $type, mixed $recipeId): void
 {
     if (!is_string($recipeId) || !preg_match('/^personalized-([1-9]\d*)$/D', $recipeId, $matches)) throw new InvalidArgumentException('Selecciona una receta de las sugerencias de esta comida.');
-    $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE id=? AND user_id=? AND preference_hash IN (?,?)');
-    $stmt->execute([$matches[1], $user['id'], ...compatibleMealOptionHashes($user,$preferences,$type)]);
+    $compatibleHashes = compatibleMealOptionHashes($user,$preferences,$type);
+    $placeholders = implode(',', array_fill(0, count($compatibleHashes), '?'));
+    $stmt = $pdo->prepare("SELECT * FROM personalized_recipes WHERE id=? AND user_id=? AND preference_hash IN ($placeholders)");
+    $stmt->execute([$matches[1], $user['id'], ...$compatibleHashes]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$row || !in_array($type, readRecipeInstructions($row['instructions'])['mealTypes'], true)) throw new InvalidArgumentException('La receta no corresponde a tu cuenta, comida o preferencias actuales.');
     $recipe = mapPersonalizedRecipe($row);
@@ -207,20 +207,35 @@ function clearDailyMealChoice(PDO $pdo, int $userId, string $date, string $type)
 
 function handleMealPlan(PDO $pdo, string $action, array $input, string $apiKey, string $model): void
 {
-    $user = requireSessionUser($pdo);
-    if ((string)($input['userId'] ?? $_GET['userId'] ?? $user['id']) !== (string)$user['id']) sendError('No puedes acceder al plan de otra cuenta.', 403);
-    if ($_SERVER['REQUEST_METHOD'] !== ($action === 'plan.choose' ? 'POST' : 'GET')) sendError('Metodo no permitido.', 405);
-    $preferences = withLifestylePreferences($pdo, $user, mapFoodPreferences(getFoodPreferencesRecord($pdo, (int)$user['id'])));
-    $preferences['clinicalConditions'] = mealPlanClinicalConditions($pdo, (int)$user['id']);
+    $requestDetails = [
+        'action' => $action,
+        'mealType' => $input['mealType'] ?? $_GET['mealType'] ?? null,
+        'date' => $input['date'] ?? $_GET['date'] ?? null,
+    ];
+    error_log('[Paso 1] Petición recibida: ' . json_encode($requestDetails, JSON_UNESCAPED_UNICODE));
     try {
+        $user = requireSessionUser($pdo);
+        if ((string)($input['userId'] ?? $_GET['userId'] ?? $user['id']) !== (string)$user['id']) sendError('No puedes acceder al plan de otra cuenta.', 403);
+        if ($_SERVER['REQUEST_METHOD'] !== ($action === 'plan.choose' ? 'POST' : 'GET')) sendError('Metodo no permitido.', 405);
+        $preferences = withLifestylePreferences($pdo, $user, mapFoodPreferences(getFoodPreferencesRecord($pdo, (int)$user['id'])));
+        $preferences['clinicalConditions'] = mealPlanClinicalConditions($pdo, (int)$user['id']);
         $type = $input['mealType'] ?? $_GET['mealType'] ?? null;
         if ($action !== 'plan.get' && !in_array($type, RECIPE_MEAL_TYPES, true)) throw new InvalidArgumentException('Selecciona un tipo de comida valido.');
-        if ($action === 'plan.options') sendJson(['recipes' => readMealOptions($pdo, $user, $preferences, $type, $apiKey, $model)]);
+        if ($action === 'plan.options') {
+            $recipes = readMealOptions($pdo, $user, $preferences, $type, $apiKey, $model);
+            error_log('[Paso 3] Respuesta procesada');
+            sendJson(['recipes' => $recipes]);
+        }
         $date = validatePlanDate($input['date'] ?? $_GET['date'] ?? null);
         if ($action === 'plan.choose') {
             if (array_key_exists('recipeId', $input) && $input['recipeId'] === null) clearDailyMealChoice($pdo, (int)$user['id'], $date, $type);
             else saveDailyMealChoice($pdo, $user, $preferences, $date, $type, $input['recipeId'] ?? null);
         }
         sendJson(readDailyMealChoices($pdo, $user, $preferences, $date));
-    } catch (InvalidArgumentException $error) { sendError($error->getMessage(), 422); }
+    } catch (PDOException $error) {
+        error_log('[Plan alimenticio] Error de base de datos: ' . $error->getMessage());
+        sendJson(['error' => 'Error al consultar la base de datos de recetas.', 'code' => 'database_error'], 500);
+    } catch (InvalidArgumentException $error) {
+        sendError($error->getMessage(), 422);
+    }
 }

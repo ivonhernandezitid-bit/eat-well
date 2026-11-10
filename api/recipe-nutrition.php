@@ -122,5 +122,12 @@ function calculateRecipeNutrition(array $recipe, array $catalog): array
 function withRecipeNutrition(PDO $pdo, array $recipe): array
 {
     $nutrition = calculateRecipeNutrition($recipe, nutritionFoodCatalog($pdo));
-    return [...$recipe, ...$nutrition['perServing'], 'nutrition' => $nutrition];
+    $estimated = is_array($recipe['estimatedNutrition'] ?? null) ? $recipe['estimatedNutrition'] : [];
+    $perServing = $nutrition['perServing'];
+    foreach (['calories', 'proteinGrams', 'carbsGrams', 'fatGrams'] as $nutrient) {
+        if ($perServing[$nutrient] === null && isset($estimated[$nutrient])) {
+            $perServing[$nutrient] = $estimated[$nutrient];
+        }
+    }
+    return [...$recipe, ...$perServing, 'nutrition' => $nutrition];
 }
