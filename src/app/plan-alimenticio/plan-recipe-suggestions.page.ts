@@ -1,9 +1,9 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { AlertController } from '@ionic/angular';
-import { EatWellService, Recipe } from '../core';
-import { DailyMealPlan, dailyMealOptions, mealPlanDate } from '../core/daily-meal-plan';
-import { recipeMealLabels, RecipeMealType } from '../core/recipe-meals';
+import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
+import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
+import { recipeMealLabels, recipeMealTypes, RecipeMealType } from '../core/recipe-meals';
 
 @Component({
   selector: 'app-plan-recipe-suggestions',
@@ -21,6 +21,8 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   isLoading = true;
   isSaving = false;
   error = '';
+  favoriteIds = new Map<string, string>();
+  favoriteLoadingId: string | null = null;
 
   private readonly route = inject(ActivatedRoute);
   private readonly eatWellService = inject(EatWellService);
@@ -45,6 +47,8 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   }
 
   get mealLabel(): string {
+    if (this.mealType === 'morning_snack') return 'Colación 1';
+    if (this.mealType === 'afternoon_snack') return 'Colación 2';
     return recipeMealLabels[this.mealType];
   }
 
@@ -89,13 +93,19 @@ export class PlanRecipeSuggestionsPage implements OnInit {
           : 'No se pudo consultar la elección guardada para este día.';
         return null;
       });
-      const [plan, recipes] = await Promise.all([
+      const favoritesPromise = this.eatWellService.getFavoriteRecipes().catch(error => {
+        this.error = error instanceof Error ? error.message : 'No se pudieron cargar tus favoritos.';
+        return [];
+      });
+      const [plan, recipes, favorites] = await Promise.all([
         planPromise,
-        this.eatWellService.getMealOptions(this.mealType),
+        this.eatWellService.getMealOptions(this.mealType, this.selectedDate),
+        favoritesPromise,
       ]);
       this.dailyPlan = plan;
+      this.favoriteIds = new Map(favorites.map(favorite => [favorite.title, favorite.favoriteId]));
       const selected = plan?.choices[this.mealType];
-      this.recipes = dailyMealOptions(recipes, selected);
+      this.recipes = selected ? [selected] : recipes.slice(0, 1);
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'No se pudieron cargar las sugerencias de recetas.';
     } finally {
@@ -125,6 +135,38 @@ export class PlanRecipeSuggestionsPage implements OnInit {
       await alert.present();
     } finally {
       this.isSaving = false;
+    }
+  }
+
+  isFavorite(recipe: Recipe): boolean {
+    return this.favoriteIds.has(recipe.title);
+  }
+
+  async toggleFavorite(recipe: Recipe, event: Event): Promise<void> {
+    event.stopPropagation();
+    if (this.favoriteLoadingId) return;
+
+    this.favoriteLoadingId = recipe.id;
+    try {
+      const favoriteId = this.favoriteIds.get(recipe.title);
+      if (favoriteId) {
+        await this.eatWellService.removeFavoriteRecipe(favoriteId);
+        this.favoriteIds.delete(recipe.title);
+      } else {
+        const favorite = await this.eatWellService.addFavoriteRecipe({
+          ...recipe,
+          id: recipe.id,
+          imageUrl: '',
+          sourceUrl: '',
+          detailsLoaded: true,
+          mealTypes: recipeMealTypes(recipe),
+        } satisfies SuggestedFoodRecipe, 'plan');
+        this.favoriteIds.set(recipe.title, favorite.favoriteId);
+      }
+    } catch (error) {
+      this.error = error instanceof Error ? error.message : 'No se pudo actualizar favoritos.';
+    } finally {
+      this.favoriteLoadingId = null;
     }
   }
 }

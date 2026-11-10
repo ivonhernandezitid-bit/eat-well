@@ -34,8 +34,32 @@
       <section class="recipe-suggestions-list" *ngIf="!isLoading && recipes.length" aria-label="Sugerencias de recetas">
         <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes">
           <ion-card-header>
-            <ion-card-title>{{ recipe.title }}</ion-card-title>
-            <ion-card-subtitle>{{ recipe.calories || recipe.calorias || recipe.estimatedNutrition?.calories || '—' }} kcal por porción</ion-card-subtitle>
+            <div class="recipe-suggestion-heading">
+              <span class="recipe-suggestion-icon" aria-hidden="true">
+                <ion-icon name="restaurant-outline"></ion-icon>
+              </span>
+              <div class="recipe-suggestion-title">
+                <ion-card-title>{{ recipe.title }}</ion-card-title>
+                <div class="recipe-suggestion-tags">
+                  <span>{{ mealLabel }}</span>
+                </div>
+              </div>
+              <ion-button
+                fill="clear"
+                class="recipe-suggestion-favorite"
+                [attr.aria-label]="isFavorite(recipe) ? 'Quitar de favoritos' : 'Agregar a favoritos'"
+                [disabled]="favoriteLoadingId === recipe.id"
+                (click)="toggleFavorite(recipe, $event)">
+                <ion-spinner *ngIf="favoriteLoadingId === recipe.id; else favoriteIcon" name="crescent"></ion-spinner>
+                <ng-template #favoriteIcon>
+                  <ion-icon slot="icon-only" [name]="isFavorite(recipe) ? 'heart' : 'heart-outline'"></ion-icon>
+                </ng-template>
+              </ion-button>
+            </div>
+            <div class="recipe-suggestion-calories">
+              <strong>{{ recipe.nutrition?.perServing?.calories ?? recipe.calories ?? recipe.calorias ?? recipe.estimatedNutrition?.calories ?? '—' }}</strong>
+              <span>kcal por porción</span>
+            </div>
           </ion-card-header>
           <ion-card-content>
             <p class="recipe-suggestion-description">{{ recipe.description }}</p>
@@ -44,9 +68,9 @@
               <span>{{ recipe.preparationMinutes ? recipe.preparationMinutes + ' min de preparación' : 'Tiempo no disponible' }}</span>
             </div>
             <div class="recipe-suggestion-macros" aria-label="Macronutrientes por porción">
-              <div><strong>{{ recipe.proteinGrams || recipe.proteins_g || recipe.proteinas || recipe.estimatedNutrition?.proteinGrams || '—' }} g</strong><span>Proteínas</span></div>
-              <div><strong>{{ recipe.carbsGrams || recipe.carbs_g || recipe.carbohidratos || recipe.estimatedNutrition?.carbsGrams || '—' }} g</strong><span>Carbohidratos</span></div>
-              <div><strong>{{ recipe.fatGrams || recipe.fats_g || recipe.grasas || recipe.estimatedNutrition?.fatGrams || '—' }} g</strong><span>Grasas</span></div>
+              <div><strong>{{ recipe.nutrition?.perServing?.proteinGrams ?? recipe.proteinGrams ?? recipe.protein_grams ?? recipe.proteins_g ?? recipe.proteinas ?? recipe.estimatedNutrition?.proteinGrams ?? '—' }} g</strong><span>Proteínas</span></div>
+              <div><strong>{{ recipe.nutrition?.perServing?.carbsGrams ?? recipe.carbsGrams ?? recipe.carbs_grams ?? recipe.carbs_g ?? recipe.carbohidratos ?? recipe.estimatedNutrition?.carbsGrams ?? '—' }} g</strong><span>Carbohidratos</span></div>
+              <div><strong>{{ recipe.nutrition?.perServing?.fatGrams ?? recipe.fatGrams ?? recipe.fat_grams ?? recipe.fats_g ?? recipe.grasas ?? recipe.estimatedNutrition?.fatGrams ?? '—' }} g</strong><span>Grasas</span></div>
             </div>
             <p *ngIf="recipe.estimatedNutrition" class="recipe-suggestion-estimate-note" role="note">Valores nutricionales estimados por porción.</p>
             <p *ngIf="isFixture(recipe)" class="recipe-suggestion-fixture-note" role="note">

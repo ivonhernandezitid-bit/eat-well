@@ -1187,6 +1187,27 @@ function mapUser(array $user): array
     ];
 }
 
+function catalogRecipeMealTypes(array $recipe): array
+{
+    $text = mb_strtolower((string)($recipe['title'] ?? '') . ' ' . (string)($recipe['description'] ?? ''), 'UTF-8');
+    $text = strtr($text, ['á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ü' => 'u', 'ñ' => 'n']);
+    $mealTypes = [];
+
+    if (preg_match('/\b(avena|hotcakes|huevo|omelette|licuado)\b/u', $text)) {
+        $mealTypes[] = 'breakfast';
+    }
+    if (preg_match('/\b(licuado|yogur|yogurt|frutos rojos|snack|colacion)\b/u', $text)) {
+        $mealTypes[] = 'morning_snack';
+        $mealTypes[] = 'afternoon_snack';
+    }
+    if (preg_match('/\b(tostadas|tacos|pollo|pavo|wrap|salmon|pasta|bowl|ensalada|crema|sopa)\b/u', $text)) {
+        $mealTypes[] = 'lunch';
+        $mealTypes[] = 'dinner';
+    }
+
+    return $mealTypes ?: ['lunch', 'dinner'];
+}
+
 function mapRecipe(array $recipe): array
 {
     $recipe['min_imc'] = $recipe['min_bmi'] ?? $recipe['min_imc'] ?? null;
@@ -1199,6 +1220,7 @@ function mapRecipe(array $recipe): array
         'proteinGrams' => (float)$recipe['protein_grams'],
         'carbsGrams' => (float)$recipe['carbs_grams'],
         'fatGrams' => (float)$recipe['fat_grams'],
+        'mealTypes' => catalogRecipeMealTypes($recipe),
         'ingredients' => explode('|', $recipe['ingredients']),
         'instructions' => explode('|', $recipe['instructions']),
         'goals' => [$recipe['goal']],

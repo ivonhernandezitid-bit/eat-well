@@ -67,6 +67,9 @@ export interface Recipe extends RecipeMetadata {
   proteinGrams: number | null;
   carbsGrams: number | null;
   fatGrams: number | null;
+  protein_grams?: number | null;
+  carbs_grams?: number | null;
+  fat_grams?: number | null;
   calorias?: number | null;
   proteins_g?: number | null;
   proteinas?: number | null;

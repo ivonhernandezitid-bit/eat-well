@@ -107,7 +107,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private manualMealType: RecipeMealType | null = null;
   savingChoiceId: string | null = null;
   private optionsContext = '';
-  private optionSets: Partial<Record<RecipeMealType, Recipe[]>> = {};
+  private optionSets = new Map<string, Recipe[]>();
   private optionRequest = 0;
   private optionLoads = new Map<string, Promise<Recipe[]>>();
 
@@ -433,21 +433,22 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   private async loadMealOptions(user: UserProfile): Promise<Recipe[]> {
     const type = this.selectedMealType;
+    const date = this.selectedDate;
     const version = ++this.optionRequest;
     const context = this.optionsContext;
-    this.recipes = this.optionSets[type] ?? [];
+    const key = `${user.id}:${context}:${date}:${type}`;
+    this.recipes = this.optionSets.get(key) ?? [];
     this.personalizedError = '';
     this.isLoadingPersonalized = this.recipes.length === 0;
     if (this.recipes.length) return this.recipes;
-    const key = `${user.id}:${context}:${type}`;
     let request = this.optionLoads.get(key);
     if (!request) {
-      request = this.eatWellService.getMealOptions(type);
+      request = this.eatWellService.getMealOptions(type, date);
       this.optionLoads.set(key, request);
     }
     try {
       const recipes = await request;
-      if (this.activeUserId === user.id && this.optionsContext === context) this.optionSets[type] = recipes;
+      if (this.activeUserId === user.id && this.optionsContext === context) this.optionSets.set(key, recipes);
       if (version === this.optionRequest && this.activeUserId === user.id) this.recipes = recipes;
       return recipes;
     } catch (error) {
@@ -989,7 +990,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private resetMealState(): void {
     this.resetPortionPreview();
     ++this.optionRequest;
-    this.optionSets = {};
+    this.optionSets.clear();
     this.optionsContext = '';
     this.dailyPlan = null;
     this.savingChoiceId = null;
@@ -1073,7 +1074,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       this.dailyPlan = dailyPlan.date === this.selectedDate ? dailyPlan : null;
       this.consumedMeals = readDailyDashboardLog(user.id, this.selectedDate).consumedMeals;
       const context = JSON.stringify([user, prefs, lifestyle?.settings]);
-      if (context !== this.optionsContext) { this.optionsContext = context; this.optionSets = {}; }
+      if (context !== this.optionsContext) { this.optionsContext = context; this.optionSets.clear(); }
 
       if (this.preferencesCompleted && this.expandedMealType) {
         await this.loadMealOptions(user);

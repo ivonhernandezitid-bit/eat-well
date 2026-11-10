@@ -9,7 +9,7 @@ import { EatingHabitsResponse } from './eating-habits';
 import { MeasurementHistoryResponse } from './anthropometric-measurements';
 import { PortionRecipeSource, RecipePortionPreview } from './recipe-portions';
 import { DAILY_MEAL_OPTION_COUNT, DailyMealPlan, mealPlanDate } from './daily-meal-plan';
-import { IngredientSubstitute, RecipeMealType } from './recipe-meals';
+import { IngredientSubstitute, RecipeMealType, selectRecipeForMeal } from './recipe-meals';
 import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
 import {
   BodyZone,
@@ -33,6 +33,7 @@ const ACTIVE_USER_KEY = 'eat-well-active-user';
 const AUTH_TOKEN_KEY = 'eat-well-auth-token';
 const EXERCISE_CACHE_KEY = 'eat-well-generated-exercises';
 const EXERCISE_FAVORITES_KEY = 'eat-well-favorite-exercises';
+const GENERAL_RECIPE_CACHE_KEY = 'eat-well-general-recipes';
 const EXERCISE_CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
 
 interface ExerciseCacheEntry {
@@ -52,6 +53,17 @@ function isGeminiExercise(value: unknown): value is GeminiExercise {
     && 'repeticiones' in value && typeof value.repeticiones === 'string'
     && 'instrucciones' in value && Array.isArray(value.instrucciones)
     && value.instrucciones.every(step => typeof step === 'string');
+}
+
+function isRecipe(value: unknown): value is Recipe {
+  return typeof value === 'object'
+    && value !== null
+    && 'id' in value && typeof value.id === 'string'
+    && 'title' in value && typeof value.title === 'string'
+    && 'description' in value && typeof value.description === 'string'
+    && 'ingredients' in value && Array.isArray(value.ingredients)
+    && 'instructions' in value && Array.isArray(value.instructions)
+    && 'goals' in value && Array.isArray(value.goals);
 }
 
 interface UserResponse {
@@ -227,14 +239,38 @@ export class EatWellService {
     return response.recipes;
   }
 
-  async getMealOptions(mealType: RecipeMealType): Promise<Recipe[]> {
+  async getMealOptions(mealType: RecipeMealType, date = mealPlanDate()): Promise<Recipe[]> {
     const user = this.getRequiredActiveUser();
-    const response = await this.getPlanRequest<RecipesResponse>(
-      'plan.options',
-      { userId: user.id, mealType },
-      6_000,
-    );
-    return response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT);
+    try {
+      const response = await this.getPlanRequest<RecipesResponse>(
+        'plan.options',
+        { userId: user.id, mealType },
+        6_000,
+      );
+      const selected = selectRecipeForMeal(
+        response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT),
+        mealType,
+        date,
+      );
+      return selected ? [selected] : [];
+    } catch (error) {
+      const isConnectionError = error instanceof Error
+        && (error.message.includes('No hay conexión con el backend/servidor')
+          || error.message.includes('No se pudo conectar con la Inteligencia Artificial'));
+      if (!isConnectionError) throw error;
+
+      try {
+        const selected = selectRecipeForMeal(await this.getGeneralRecipes(), mealType, date);
+        if (selected) return [selected];
+      } catch (fallbackError) {
+        const fallbackMessage = fallbackError instanceof Error
+          ? fallbackError.message
+          : 'No se pudieron consultar las recetas de respaldo.';
+        throw new Error(`${error.message} ${fallbackMessage}`);
+      }
+
+      throw new Error(`${error.message} No hay recetas de respaldo para esta comida.`);
+    }
   }
 
   async getDailyMealPlan(date = mealPlanDate()): Promise<DailyMealPlan> {
@@ -381,10 +417,40 @@ export class EatWellService {
 
   async getGeneralRecipes(): Promise<Recipe[]> {
     const activeUser = this.getRequiredActiveUser();
-    const response = await this.get<{ recipes: Recipe[] }>('recipes.general', {
-      userId: activeUser.id,
-    });
-    return response.recipes;
+    try {
+      const response = await this.get<{ recipes: Recipe[] }>('recipes.general', {
+        userId: activeUser.id,
+      });
+      if (!Array.isArray(response.recipes) || !response.recipes.every(isRecipe)) {
+        throw new Error('El backend devolvió una lista de recetas con formato inválido.');
+      }
+      if (response.recipes.length > 0) {
+        localStorage.setItem(`${GENERAL_RECIPE_CACHE_KEY}:${activeUser.id}`, JSON.stringify(response.recipes));
+      }
+      return response.recipes;
+    } catch (error) {
+      const cachedRecipes = this.getCachedGeneralRecipes(activeUser.id);
+      if (cachedRecipes.length > 0) return cachedRecipes;
+      throw error;
+    }
+  }
+
+  private getCachedGeneralRecipes(userId: string): Recipe[] {
+    const stored = localStorage.getItem(`${GENERAL_RECIPE_CACHE_KEY}:${userId}`);
+    if (!stored) return [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stored);
+    } catch {
+      throw new Error('Las recetas de respaldo guardadas tienen un formato inválido.');
+    }
+
+    if (!Array.isArray(parsed) || !parsed.every(isRecipe)) {
+      throw new Error('Las recetas de respaldo guardadas tienen un formato inválido.');
+    }
+
+    return parsed;
   }
 
   async saveFoodPreferences(preferences: FoodPreferences, profileChanges?: Pick<UserProfile, 'goal' | 'activityLevel'>): Promise<FoodPreferences> {
