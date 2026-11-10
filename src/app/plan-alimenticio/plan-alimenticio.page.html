@@ -83,7 +83,7 @@
       </button>
     </nav>
 
-    <div class="plan-warning-stack" *ngIf="planWarningsRendered" [class.fading]="!planWarningsVisible" [attr.aria-hidden]="!planWarningsVisible">
+    <div class="plan-warning-stack" *ngIf="showDisclaimers || disclaimersFading" [class.fading]="disclaimersFading" [attr.aria-hidden]="disclaimersFading">
       <p class="medical-disclaimer" role="note">
         Eat Well adapta tus planes de alimentación según tus condiciones informadas para apoyar tu tratamiento. Esta aplicación no sustituye la consulta médica ni la prescripción de tus medicamentos.
       </p>

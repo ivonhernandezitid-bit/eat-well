@@ -126,11 +126,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private mealsLoadInFlight: { userId: string; promise: Promise<void> } | null = null;
   private planRequest = 0;
   private planCalendarTimer?: ReturnType<typeof setInterval>;
-  private planWarningsTimer?: ReturnType<typeof setTimeout>;
-  private planWarningsRemovalTimer?: ReturnType<typeof setTimeout>;
   private planCalendarDate = mealPlanDate();
-  planWarningsRendered = true;
-  planWarningsVisible = true;
+  showDisclaimers = true;
+  disclaimersFading = false;
+  private disclaimersTimer?: ReturnType<typeof setTimeout>;
+  private disclaimersRemovalTimer?: ReturnType<typeof setTimeout>;
   selectedPlanMealType: RecipeMealType | null = null;
 
   private readonly eatWellService = inject(EatWellService);
@@ -142,6 +142,13 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.planCalendarTimer = setInterval(() => this.refreshPlanCalendar(), 60_000);
+    this.disclaimersTimer = setTimeout(() => {
+      this.showDisclaimers = false;
+      this.disclaimersFading = true;
+      this.disclaimersRemovalTimer = setTimeout(() => {
+        this.disclaimersFading = false;
+      }, 450);
+    }, 10_000);
     this.activeUserSubscription = this.eatWellService.activeUser$.subscribe(user => {
       this.user = user;
       const nextUserId = user?.id ?? null;
@@ -157,7 +164,6 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   ionViewWillEnter(): void {
-    this.showPlanWarningsForVisit();
     this.refreshPlanCalendar();
     if (this.user) {
       void this.loadMealsForUser(this.user);
@@ -168,27 +174,9 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     this.resetPortionPreview();
     this.activeUserSubscription?.unsubscribe();
     if (this.planCalendarTimer) clearInterval(this.planCalendarTimer);
-    this.clearPlanWarningTimers();
+    if (this.disclaimersTimer) clearTimeout(this.disclaimersTimer);
+    if (this.disclaimersRemovalTimer) clearTimeout(this.disclaimersRemovalTimer);
     this.stopTimer();
-  }
-
-  private showPlanWarningsForVisit(): void {
-    this.clearPlanWarningTimers();
-    this.planWarningsRendered = true;
-    this.planWarningsVisible = true;
-    this.planWarningsTimer = setTimeout(() => {
-      this.planWarningsVisible = false;
-      this.planWarningsRemovalTimer = setTimeout(() => {
-        this.planWarningsRendered = false;
-      }, 450);
-    }, 5000);
-  }
-
-  private clearPlanWarningTimers(): void {
-    if (this.planWarningsTimer) clearTimeout(this.planWarningsTimer);
-    if (this.planWarningsRemovalTimer) clearTimeout(this.planWarningsRemovalTimer);
-    this.planWarningsTimer = undefined;
-    this.planWarningsRemovalTimer = undefined;
   }
 
   toggleViewMode(): void {
