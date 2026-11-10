@@ -1,9 +1,48 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
 import { recipeMealLabels, recipeMealTypes, RecipeMealType } from '../core/recipe-meals';
+
+const ingredientSubstituteGroups: Array<{ keywords: string[]; options: string[] }> = [
+  {
+    keywords: ['lechuga', 'espinaca', 'acelga', 'col', 'kale', 'berro'],
+    options: ['Espinaca baby', 'Acelga', 'Col'],
+  },
+  {
+    keywords: ['tomate', 'jitomate', 'pimiento', 'calabaza', 'calabacita', 'pepino', 'brocoli', 'coliflor', 'zanahoria'],
+    options: ['Calabacita', 'Pimiento', 'Brócoli'],
+  },
+  {
+    keywords: ['manzana', 'pera', 'platano', 'banana', 'naranja', 'fresa', 'frutos rojos', 'mango'],
+    options: ['Manzana', 'Pera', 'Naranja'],
+  },
+  {
+    keywords: ['arroz', 'avena', 'quinoa', 'maiz', 'tortilla', 'pasta', 'pan', 'cebada'],
+    options: ['Arroz integral', 'Quinoa', 'Avena'],
+  },
+  {
+    keywords: ['frijol', 'lenteja', 'garbanzo', 'haba'],
+    options: ['Lentejas', 'Garbanzos', 'Frijoles'],
+  },
+  {
+    keywords: ['pollo', 'pavo', 'res', 'carne', 'pescado', 'atun', 'salmon', 'huevo'],
+    options: ['Pollo', 'Pescado', 'Huevo'],
+  },
+  {
+    keywords: ['leche', 'yogur', 'yogurt', 'queso', 'requeson'],
+    options: ['Yogur natural', 'Queso panela', 'Leche'],
+  },
+  {
+    keywords: ['aguacate', 'aceite', 'nuez', 'almendra', 'semilla'],
+    options: ['Aguacate', 'Nueces', 'Semillas'],
+  },
+];
+
+function normalizeIngredient(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+}
 
 @Component({
   selector: 'app-plan-recipe-suggestions',
@@ -17,6 +56,12 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   targetCalories = 0;
   selectedDate = mealPlanDate();
   recipes: Recipe[] = [];
+  detailRecipe: Recipe | null = null;
+  activeIngredients: string[] = [];
+  isRecipeDetailOpen = false;
+  isSubstitutionSheetOpen = false;
+  selectedIngredientIndex: number | null = null;
+  substituteOptions: string[] = [];
   dailyPlan: DailyMealPlan | null = null;
   isLoading = true;
   isSaving = false;
@@ -25,6 +70,7 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   favoriteLoadingId: string | null = null;
 
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly eatWellService = inject(EatWellService);
   private readonly alertController = inject(AlertController);
 
@@ -66,6 +112,62 @@ export class PlanRecipeSuggestionsPage implements OnInit {
 
   isSelected(recipe: Recipe): boolean {
     return this.selectedRecipeId === recipe.id;
+  }
+
+  returnToPlan(): void {
+    void this.router.navigateByUrl('/tabs/plan-alimenticio');
+  }
+
+  openRecipeDetail(recipe: Recipe): void {
+    this.detailRecipe = { ...recipe };
+    this.activeIngredients = [...recipe.ingredients];
+    this.isRecipeDetailOpen = true;
+  }
+
+  closeRecipeDetail(): void {
+    this.closeSubstitutionSheet();
+    this.isRecipeDetailOpen = false;
+    this.detailRecipe = null;
+    this.activeIngredients = [];
+  }
+
+  openSubstitution(index: number): void {
+    const ingredient = this.activeIngredients[index];
+    if (!ingredient) return;
+
+    const normalized = normalizeIngredient(ingredient);
+    const group = ingredientSubstituteGroups.find(item =>
+      item.keywords.some(keyword => normalized.includes(keyword)),
+    );
+    this.selectedIngredientIndex = index;
+    this.substituteOptions = group
+      ? group.options.filter(option => !normalized.includes(normalizeIngredient(option)))
+      : [];
+    this.isSubstitutionSheetOpen = true;
+  }
+
+  replaceIngredient(substitute: string): void {
+    if (this.selectedIngredientIndex === null) return;
+
+    const index = this.selectedIngredientIndex;
+    const currentIngredient = this.activeIngredients[index];
+    if (!currentIngredient) return;
+
+    const quantityPrefix = currentIngredient.match(
+      /^(.+?\bde\s+)/i,
+    )?.[0];
+    this.activeIngredients = this.activeIngredients.map((ingredient, ingredientIndex) =>
+      ingredientIndex === index
+        ? `${quantityPrefix ?? ''}${substitute}`
+        : ingredient,
+    );
+    this.closeSubstitutionSheet();
+  }
+
+  closeSubstitutionSheet(): void {
+    this.isSubstitutionSheetOpen = false;
+    this.selectedIngredientIndex = null;
+    this.substituteOptions = [];
   }
 
   isFixture(recipe: Recipe): boolean {
