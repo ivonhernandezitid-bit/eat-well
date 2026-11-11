@@ -3,6 +3,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
+import { ConsumedMeal } from '../core/daily-dashboard-log';
 import {
   RecipeNutrientKey,
   ResolvedRecipeNutrition,
@@ -88,6 +89,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   substituteGroupLabel = '';
   substituteGroupIcon = 'swap-horizontal-outline';
   dailyPlan: DailyMealPlan | null = null;
+  consumedMeals: ConsumedMeal[] = [];
   isLoading = true;
   isSaving = false;
   error = '';
@@ -137,6 +139,25 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
 
   isSelected(recipe: Recipe): boolean {
     return this.selectedRecipeId === recipe.id;
+  }
+
+  isConsumed(recipe: Recipe): boolean {
+    return this.consumedMeals.some(meal => meal.id === recipe.id && (meal.mealType === this.mealType || !meal.mealType));
+  }
+
+  selectionButtonLabel(recipe: Recipe): string {
+    return this.isSelected(recipe) ? 'RECETA ACTUALMENTE SELECCIONADA'
+      : this.selectedRecipeId ? 'CAMBIAR A ESTA RECETA' : 'SELECCIONAR RECETA';
+  }
+
+  ionViewWillEnter(): void {
+    if (!this.isLoading) void this.loadSuggestions();
+  }
+
+  private pinSelectedRecipe(options: Recipe[]): void {
+    const selected = this.dailyPlan?.choices[this.mealType];
+    const ordered = selected ? [selected, ...options] : options;
+    this.recipes = ordered.filter((recipe, index) => ordered.findIndex(item => item.id === recipe.id) === index);
   }
 
   returnToPlan(): void {
@@ -391,7 +412,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
           ? 'las opciones guardadas requieren revisión'
         : 'el servicio no devolvió opciones seleccionables';
     const cache = context.cache === 'local' ? 'recuperada del dispositivo' : 'consultada en el catálogo';
-    return `Respaldo: receta ${cache} porque ${reason}. El plan solo acepta recetas personalizadas compatibles con tus preferencias.`;
+    return `Respaldo: receta ${cache} porque ${reason}. Al seleccionarla, se validará su compatibilidad con tus preferencias.`;
   }
 
   hasCatalogFallback(): boolean {
@@ -399,13 +420,18 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   canSelectRecipe(recipe: Recipe): boolean {
-    return !this.isFixture(recipe)
-      && recipeCanBeSelected(recipe);
+    if (this.isFixture(recipe)) return false;
+    if (/^[1-9]\d*$/.test(recipe.id)) {
+      return recipe.ingredients.length > 0 && recipe.instructions.length > 0
+        && recipeMealTypes(recipe).includes(this.mealType)
+        && Object.values(this.nutrition(recipe).values).every(value => value !== null);
+    }
+    return recipeCanBeSelected(recipe);
   }
 
   selectionLimitation(recipe: Recipe): string {
-    if (this.isCatalogFallback(recipe)) {
-      return 'Esta receta del catálogo no se puede guardar en el plan. Vuelve a generar opciones para obtener recetas personalizadas seleccionables.';
+    if (/^[1-9]\d*$/.test(recipe.id)) {
+      return 'Esta receta no tiene todos los datos necesarios o no corresponde a este tiempo de comida.';
     }
     if (!recipe.id.startsWith('personalized-')) {
       return 'Esta receta no pertenece a las opciones personalizadas que el plan permite guardar.';
@@ -417,6 +443,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = '';
     try {
+      if (this.eatWellService.getActiveUser()) {
+        this.consumedMeals = this.eatWellService.getDailyMealLog(this.selectedDate).consumedMeals;
+      }
       console.log('[Frontend] Enviando solicitud a backend...');
       const planPromise = this.eatWellService.getDailyMealPlan(this.selectedDate).catch(error => {
         this.error = error instanceof Error
@@ -430,13 +459,15 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
       });
       const [plan, recipes, favorites] = await Promise.all([
         planPromise,
-        this.eatWellService.getMealOptions(this.mealType, this.selectedDate, recoverCache),
+        this.eatWellService.getMealOptions(this.mealType, this.selectedDate, recoverCache, true).catch(error => {
+          this.error = error instanceof Error ? error.message : 'No se pudieron cargar las alternativas.';
+          return [];
+        }),
         favoritesPromise,
       ]);
       this.dailyPlan = plan;
       this.favoriteIds = new Map(favorites.map(favorite => [favorite.title, favorite.favoriteId]));
-      const selected = plan?.choices[this.mealType];
-      this.recipes = selected ? [selected] : recipes.slice(0, 1);
+      this.pinSelectedRecipe(recipes);
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'No se pudieron cargar las sugerencias de recetas.';
     } finally {
@@ -450,7 +481,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   async selectRecipe(recipe: Recipe): Promise<void> {
-    if (!this.canSelectRecipe(recipe) || this.isSaving || this.isSelected(recipe)) return;
+    if (!this.canSelectRecipe(recipe) || this.isSaving || this.isLoading || this.isSelected(recipe)) return;
 
     this.isSaving = true;
     this.error = '';
@@ -460,6 +491,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
         recipe.id,
         this.selectedDate,
       );
+      this.pinSelectedRecipe(this.recipes);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo guardar la receta.';
       this.error = message;

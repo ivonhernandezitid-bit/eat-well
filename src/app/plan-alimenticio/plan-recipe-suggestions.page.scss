@@ -211,6 +211,30 @@
   }
 }
 
+.recipe-suggestion-card.recipe-current-selection {
+  border-color: rgba(47, 125, 89, 0.45);
+  background: #f0f8ec;
+}
+
+.recipe-current-badge {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: #deefda;
+  color: var(--eatwell-green-900);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.recipe-current-status {
+  display: block;
+  margin-top: 5px;
+  color: var(--eatwell-green-700);
+  font-size: 0.75rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .recipe-suggestion-card {
     transition: none;

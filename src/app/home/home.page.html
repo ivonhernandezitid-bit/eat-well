@@ -71,6 +71,8 @@
       </div>
     </section>
 
+    <p *ngIf="includesCatalogNutrition" class="empty-meal-copy" role="note">El progreso incluye valores registrados del catálogo; su base por porción no está confirmada.</p>
+
     <section class="meal-card" aria-label="Siguiente comida del plan">
       <div class="section-heading">
         <div>
@@ -80,28 +82,31 @@
         <div class="meal-heading-icon"><ion-icon name="restaurant-outline"></ion-icon></div>
       </div>
 
-      <ng-container *ngIf="nextMeal as meal; else noMeal">
+      <ng-container *ngIf="nextMealCard as card; else noMeal">
+      <ng-container *ngIf="card.recipe as meal">
         <div class="meal-content">
           <div class="meal-copy">
             <h3>{{ meal.title }}</h3>
             <p>{{ meal.description }}</p>
           </div>
-          <div class="meal-calories" [attr.title]="meal.nutrition?.warnings?.join(' ') || 'Estimación BAM por porción'"><strong [style.font-size]="meal.calories == null ? '0.85rem' : null">{{ meal.calories == null ? 'Pendiente' : (meal.calories | number:'1.0-1') }}</strong><span>kcal / porción</span></div>
+          <div class="meal-calories" [attr.title]="meal.nutrition?.source === 'catalog' ? 'Valores registrados del catálogo; porción no confirmada' : (meal.nutrition?.warnings?.join(' ') || 'Estimación por porción')"><strong [style.font-size]="meal.calories == null ? '0.85rem' : null">{{ meal.calories == null ? 'Pendiente' : (meal.calories | number:'1.0-1') }}</strong><span>{{ meal.nutrition?.source === 'catalog' ? 'kcal · porción no confirmada' : 'kcal / porción' }}</span></div>
         </div>
         <div class="meal-macros">
           <span>{{ meal.proteinGrams == null ? 'Pendiente' : (meal.proteinGrams | number:'1.0-1') + ' g' }} proteína</span>
           <span>{{ meal.carbsGrams == null ? 'Pendiente' : (meal.carbsGrams | number:'1.0-1') + ' g' }} carbohidratos</span>
           <span>{{ meal.fatGrams == null ? 'Pendiente' : (meal.fatGrams | number:'1.0-1') + ' g' }} grasa</span>
         </div>
-        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal)" [disabled]="mealIsTomorrow">
+        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal, card.mealType)" [disabled]="mealIsTomorrow">
           <ion-icon name="checkmark-circle-outline"></ion-icon>
-          Marcar como consumida
+          Marcar como consumido
         </button>
+      </ng-container>
       </ng-container>
       <ng-template #noMeal>
         <p class="empty-meal-copy">{{ nextMealEmptyMessage }}</p>
         <a class="meal-confirm-button meal-link-button" routerLink="/tabs/plan-alimenticio">Abrir plan alimenticio</a>
       </ng-template>
+      <p *ngIf="mealConsumptionError" class="empty-meal-copy" role="alert">{{ mealConsumptionError }}</p>
     </section>
 
     <div class="daily-metrics-grid">

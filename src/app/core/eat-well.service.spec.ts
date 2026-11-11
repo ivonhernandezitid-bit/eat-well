@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { fakeAsync, flushMicrotasks, TestBed, tick } from '@angular/core/testing';
 import { EatWellService } from './eat-well.service';
 import { Recipe } from './models';
+import { DailyMealPlan, mealPlanDate } from './daily-meal-plan';
 
 describe('EatWellService meal option requests', () => {
   let service: EatWellService;
@@ -178,4 +179,61 @@ describe('EatWellService meal option requests', () => {
     flushMicrotasks();
     expect(result).toBeTruthy();
   }));
+
+  it('exposes all alternatives when requested while preserving the default single option', fakeAsync(() => {
+    const options = Array.from({ length: 4 }, (_, index) => ({ ...generatedRecipe, id: `personalized-${index + 1}` }));
+    let alternatives: Recipe[] = [];
+    void service.getMealOptions('breakfast', '2026-11-10', false, true).then(recipes => { alternatives = recipes; });
+    http.expectOne(request => request.urlWithParams.includes('action=plan.options')).flush({ recipes: options, source: 'cache' });
+    flushMicrotasks();
+    expect(new Set(alternatives.map(recipe => recipe.id)).size).toBe(4);
+    expect(alternatives.every(recipe => recipe.suggestionContext?.source === 'cache')).toBeTrue();
+    let defaultOptions: Recipe[] = [];
+    void service.getMealOptions('breakfast', '2026-11-10').then(recipes => { defaultOptions = recipes; });
+    http.expectOne(request => request.urlWithParams.includes('action=plan.options')).flush({ recipes: options });
+    flushMicrotasks();
+    expect(defaultOptions.length).toBe(1);
+  }));
+
+  it('saves a replacement using plan.choose and reads the selected recipe back through plan.get', fakeAsync(() => {
+    const plan: DailyMealPlan = {
+      date: mealPlanDate(), choices: { breakfast: generatedRecipe }, meals: [], scheduleCustomized: false,
+      summary: { totalMeals: 5, selectedMeals: 1, pendingMeals: 4, needsReviewMeals: 0, complete: false },
+    };
+    let selected: string | undefined;
+    void service.chooseDailyMeal('breakfast', generatedRecipe.id, plan.date).then(result => { selected = result.choices.breakfast?.id; });
+    const choose = http.expectOne(request => request.urlWithParams.includes('action=plan.choose'));
+    expect(choose.request.body).toEqual({ userId: 'test-user', date: plan.date, mealType: 'breakfast', recipeId: generatedRecipe.id });
+    choose.flush(plan);
+    flushMicrotasks();
+    expect(selected).toBe(generatedRecipe.id);
+    void service.getDailyMealPlan(plan.date).then(result => { selected = result.choices.breakfast?.id; });
+    http.expectOne(request => request.urlWithParams.includes('action=plan.get')).flush(plan);
+    flushMicrotasks();
+    expect(selected).toBe(generatedRecipe.id);
+  }));
+
+  it('persists per-serving consumption without duplicates, isolated by account and date', () => {
+    const recipe = { ...generatedRecipe, calories: null, proteinGrams: null, carbsGrams: null, fatGrams: null };
+    const first = service.markDailyMealConsumed(recipe, 'breakfast');
+    expect(first.consumedMeals[0]).toEqual(jasmine.objectContaining({
+      id: recipe.id, mealType: 'breakfast', calories: 0, protein: 5, carbohydrates: 20, fat: 4,
+    }));
+    expect(service.markDailyMealConsumed(recipe, 'breakfast').consumedMeals.length).toBe(1);
+    const restoredService = TestBed.runInInjectionContext(() => new EatWellService());
+    expect(restoredService.getDailyMealLog().consumedMeals).toEqual(first.consumedMeals);
+    expect(restoredService.getDailyMealLog('2020-01-01').consumedMeals).toEqual([]);
+    localStorage.setItem('eat-well-active-user', JSON.stringify({ id: 'different-user' }));
+    const otherService = TestBed.runInInjectionContext(() => new EatWellService());
+    expect(otherService.getDailyMealLog().consumedMeals).toEqual([]);
+  });
+
+  it('records catalog values with their original provenance instead of inventing a serving basis', () => {
+    const log = service.markDailyMealConsumed(catalogRecipe, 'breakfast');
+    expect(log.consumedMeals[0]).toEqual(jasmine.objectContaining({
+      id: '24', calories: 440, protein: 12, carbohydrates: 64, fat: 15, nutritionSource: 'catalog',
+    }));
+    expect(service.getDailyMealLog().consumedMeals).toEqual(log.consumedMeals);
+    expect(catalogRecipe.estimatedNutrition).toBeUndefined();
+  });
 });

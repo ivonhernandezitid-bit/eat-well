@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 // Plan nutricional: identifica cachés por contrato, permite recuperar las incompletas solo por reintento y marca elecciones archivadas para revisión sin borrarlas.
+// CAMBIO: permite elegir recetas reales del catálogo tras validar comida, preferencias y condiciones.
+// Usa una referencia privada en personalized_recipes para conservar la FK existente, sin migraciones ni mezclar la caché de IA.
+// Conserva el ID público del catálogo y su nutrición registrada; no inventa porciones ni convierte esos valores en estimaciones BAM.
+// Clasifica el catálogo en instalaciones antiguas de XAMPP que todavía no devuelven mealTypes, sin modificar index.php.
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/lifestyle-goals.php';
 require_once __DIR__ . '/clinical-history.php';
@@ -104,6 +108,20 @@ function readDailyMealChoices(PDO $pdo, array $user, array $preferences, string 
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $type = $row['chosen_meal_type'];
         if (!in_array($type, RECIPE_MEAL_TYPES, true)) continue;
+        // Las referencias del catálogo se releen y validan en servidor; no se confían datos enviados por el cliente.
+        $storedInstructions = json_decode((string)($row['instructions'] ?? ''), true);
+        $catalogId = $storedInstructions['catalogRecipeId'] ?? null;
+        if (is_int($catalogId) && $catalogId > 0) {
+            $valid = $row['id'] !== null && $row['chosen_preference_hash'] === $hash
+                && $row['preference_hash'] === catalogMealChoiceHash($user, $preferences, $type, $catalogId);
+            if ($valid) {
+                try { $recipe = catalogMealChoiceRecipe($pdo, $preferences, $type, $catalogId); }
+                catch (InvalidArgumentException) { $valid = false; }
+            }
+            if ($valid) $choices[$type] = $recipe;
+            else $needsReview[] = $type;
+            continue;
+        }
         $valid = !empty($preferences['completed']) && $row['id'] !== null
             && $row['chosen_preference_hash'] === $hash
             && in_array($row['preference_hash'], compatibleMealOptionHashes($user,$preferences,$type), true)
@@ -253,8 +271,86 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
     return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
 }
 
+// La referencia del catálogo se identifica aparte de los conjuntos generados para no invalidar ni regenerar la caché de IA.
+function catalogMealChoiceHash(array $user, array $preferences, string $type, int $catalogId): string
+{
+    return hash('sha256', recipePreferenceHash($user, $preferences) . ':catalog-choice-v1:' . $type . ':' . $catalogId);
+}
+
+// Solo admite recetas existentes y compatibles; recupera ingredientes y nutrición del catálogo, nunca del cuerpo de la petición.
+function catalogMealChoiceRecipe(PDO $pdo, array $preferences, string $type, int $catalogId): array
+{
+    if (empty($preferences['completed'])) throw new InvalidArgumentException('Completa tus preferencias antes de elegir una receta.');
+    $stmt = $pdo->prepare('SELECT * FROM recipes WHERE id=? LIMIT 1');
+    $stmt->execute([$catalogId]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) throw new InvalidArgumentException('La receta del catalogo ya no esta disponible.');
+    $recipe = withRecipeNutrition($pdo, mapRecipe($row));
+    // Compatibilidad localizada: la copia antigua de mapRecipe no entrega clasificación; se usan las mismas reglas del catálogo actual.
+    if (!is_array($recipe['mealTypes'] ?? null)) {
+        $text = strtr(mb_strtolower($recipe['title'] . ' ' . $recipe['description'], 'UTF-8'),
+            ['á'=>'a','é'=>'e','í'=>'i','ó'=>'o','ú'=>'u','ü'=>'u','ñ'=>'n']);
+        $types = [];
+        if (preg_match('/\b(avena|hotcakes|huevo|omelette|licuado)\b/u', $text)) $types[] = 'breakfast';
+        if (preg_match('/\b(licuado|yogur|yogurt|frutos rojos|snack|colacion)\b/u', $text)) {
+            $types[] = 'morning_snack'; $types[] = 'afternoon_snack';
+        }
+        if (preg_match('/\b(tostadas|tacos|pollo|pavo|wrap|salmon|pasta|bowl|ensalada|crema|sopa)\b/u', $text)) {
+            $types[] = 'lunch'; $types[] = 'dinner';
+        }
+        $recipe['mealTypes'] = $types ?: ['lunch', 'dinner'];
+    }
+    if (!in_array($type, $recipe['mealTypes'], true)) throw new InvalidArgumentException('La receta no corresponde a este tiempo de comida.');
+    if (!filterRecipesByPreferences([$recipe], $preferences)
+        || !filterRecipesByClinicalConditions([$recipe], $preferences['clinicalConditions'] ?? [])) {
+        throw new InvalidArgumentException('La receta no es compatible con tus preferencias o condiciones registradas.');
+    }
+    if (!$recipe['ingredients'] || !$recipe['instructions']
+        || in_array(null, $recipe['nutrition']['values'], true)) {
+        throw new InvalidArgumentException('La receta del catalogo no tiene todos los datos necesarios.');
+    }
+    return $recipe;
+}
+
+// Guarda referencia y elección de forma atómica, reutiliza la referencia de la cuenta y conserva el ID original al leer el plan.
+function saveCatalogMealChoice(PDO $pdo, array $user, array $preferences, string $date, string $type, int $catalogId): void
+{
+    $recipe = catalogMealChoiceRecipe($pdo, $preferences, $type, $catalogId);
+    $hash = catalogMealChoiceHash($user, $preferences, $type, $catalogId);
+    $pdo->beginTransaction();
+    try {
+        $lock = $pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
+        $lock->execute([$user['id']]);
+        $existing = $pdo->prepare('SELECT id FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT 1');
+        $existing->execute([$user['id'], $hash]);
+        $referenceId = $existing->fetchColumn();
+        if ($referenceId === false) {
+            // No promover calorías registradas a estimación por porción: se conservan como registeredNutrition.
+            $recipe['estimatedNutrition'] = normalizeRecipeNutrientValues(null);
+            $instructions = json_decode(encodeRecipeInstructions($recipe), true, 512, JSON_THROW_ON_ERROR);
+            $instructions['catalogRecipeId'] = $catalogId;
+            $insert = $pdo->prepare('INSERT INTO personalized_recipes (user_id,preference_hash,title,description,ingredients,instructions) VALUES (?,?,?,?,?,?)');
+            $insert->execute([$user['id'], $hash, cleanText($recipe['title'], 180), cleanText($recipe['description'], 255),
+                json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
+                json_encode($instructions, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)]);
+            $referenceId = $pdo->lastInsertId();
+        }
+        $save = $pdo->prepare('INSERT INTO daily_meal_choices (user_id,plan_date,meal_type,recipe_id,preference_hash) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE recipe_id=VALUES(recipe_id),preference_hash=VALUES(preference_hash)');
+        $save->execute([$user['id'], $date, $type, $referenceId, recipePreferenceHash($user, $preferences)]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    }
+}
+
 function saveDailyMealChoice(PDO $pdo, array $user, array $preferences, string $date, string $type, mixed $recipeId): void
 {
+    // La ruta numérica habilita únicamente el catálogo validado; la validación existente de recetas personalizadas permanece intacta.
+    if (is_string($recipeId) && preg_match('/^[1-9]\d*$/D', $recipeId)) {
+        saveCatalogMealChoice($pdo, $user, $preferences, $date, $type, (int)$recipeId);
+        return;
+    }
     if (!is_string($recipeId) || !preg_match('/^personalized-([1-9]\d*)$/D', $recipeId, $matches)) throw new InvalidArgumentException('Selecciona una receta de las sugerencias de esta comida.');
     $compatibleHashes = compatibleMealOptionHashes($user,$preferences,$type);
     $placeholders = implode(',', array_fill(0, count($compatibleHashes), '?'));

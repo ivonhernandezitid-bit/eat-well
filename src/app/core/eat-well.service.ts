@@ -9,7 +9,8 @@ import { EatingHabitsResponse } from './eating-habits';
 import { MeasurementHistoryResponse } from './anthropometric-measurements';
 import { PortionRecipeSource, RecipePortionPreview } from './recipe-portions';
 import { DAILY_MEAL_OPTION_COUNT, DailyMealPlan, mealPlanDate } from './daily-meal-plan';
-import { IngredientSubstitute, RecipeMealType, selectRecipeForMeal } from './recipe-meals';
+import { IngredientSubstitute, RecipeMealType, RecipeNutritionSource, resolveRecipeNutrition, selectRecipeForMeal } from './recipe-meals';
+import { DailyDashboardLog, readDailyDashboardLog, recordConsumedMeal } from './daily-dashboard-log';
 import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
 import {
   BodyZone,
@@ -261,7 +262,7 @@ export class EatWellService {
     return response.recipes;
   }
 
-  async getMealOptions(mealType: RecipeMealType, date = mealPlanDate(), recoverCache = false): Promise<Recipe[]> {
+  async getMealOptions(mealType: RecipeMealType, date = mealPlanDate(), recoverCache = false, includeAlternatives = false): Promise<Recipe[]> {
     const user = this.getRequiredActiveUser();
     try {
       const response = await this.getPlanRequest<RecipesResponse>(
@@ -274,13 +275,18 @@ export class EatWellService {
         mealType,
         date,
       );
-      return selected ? [{
-        ...selected,
+      const options = selected
+        ? includeAlternatives
+          ? [selected, ...response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT).filter(recipe => recipe.id !== selected.id)]
+          : [selected]
+        : [];
+      return options.map(recipe => ({
+        ...recipe,
         suggestionContext: {
           source: response.source === 'cache' ? 'cache' : 'generated',
           cache: response.source === 'cache' ? 'server' : 'none',
         },
-      }] : [];
+      }));
     } catch (error) {
       if (!(error instanceof PlanRequestError) || error.code === 'backend_error') throw error;
 
@@ -319,6 +325,34 @@ export class EatWellService {
   async clearDailyMeal(mealType: RecipeMealType, date = mealPlanDate()): Promise<DailyMealPlan> {
     const user = this.getRequiredActiveUser();
     return this.post('plan.choose', { userId: user.id, date, mealType, recipeId: null });
+  }
+
+  getDailyMealLog(date = mealPlanDate()): DailyDashboardLog {
+    return readDailyDashboardLog(this.getRequiredActiveUser().id, date);
+  }
+
+  markDailyMealConsumed(recipe: Recipe, mealType?: RecipeMealType): DailyDashboardLog {
+    const user = this.getRequiredActiveUser();
+    const date = mealPlanDate();
+    const current = readDailyDashboardLog(user.id, date);
+    if (current.consumedMeals.some(meal => meal.id === recipe.id
+      && (mealType ? meal.mealType === mealType || !meal.mealType : !meal.mealType))) return current;
+    const nutrition = resolveRecipeNutrition(recipe);
+    // El catálogo aporta valores registrados con base no confirmada; Inicio conserva y muestra esa procedencia.
+    const values = /^[1-9]\d*$/.test(recipe.id) ? nutrition.values : nutrition.perServingValues;
+    const sources = [...new Set(Object.values(nutrition.sources).filter(source => source !== null))];
+    const nutritionSource: RecipeNutritionSource = sources.length === 1 ? sources[0] : sources.length ? 'mixed' : 'unavailable';
+    // Comparte el registro por cuenta y día con Inicio y el plan; no cambia la receta elegida en PHP.
+    return recordConsumedMeal(user.id, date, {
+      id: recipe.id,
+      title: recipe.title,
+      mealType,
+      calories: values.calories,
+      protein: values.proteinGrams,
+      carbohydrates: values.carbsGrams,
+      fat: values.fatGrams,
+      nutritionSource,
+    });
   }
 
   async getExercisesByBodyZone(bodyZone: BodyZone): Promise<Exercise[]> {

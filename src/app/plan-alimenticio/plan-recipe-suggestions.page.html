@@ -37,7 +37,7 @@
       </div>
 
       <section class="recipe-suggestions-list" *ngIf="recipes.length" aria-label="Sugerencias de recetas">
-        <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes">
+        <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes" [class.recipe-current-selection]="isSelected(recipe)">
           <button
             type="button"
             class="recipe-card-open"
@@ -54,6 +54,10 @@
                 <div class="recipe-suggestion-tags">
                   <span>{{ mealLabel }}</span>
                 </div>
+                <div *ngIf="isSelected(recipe)" class="recipe-current-badge" role="status">
+                  RECETA ACTUALMENTE SELECCIONADA
+                </div>
+                <small *ngIf="isSelected(recipe)" class="recipe-current-status">{{ isConsumed(recipe) ? 'Consumido' : 'Pendiente' }}</small>
               </div>
               <ion-button
                 fill="clear"
@@ -189,10 +193,10 @@
         <div class="recipe-detail-actions">
           <ion-button
             class="recipe-suggestion-select"
-            [disabled]="!detailRecipe || isSaving || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
+            [disabled]="!detailRecipe || isSaving || isLoading || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
             (click)="detailRecipe && selectRecipe(detailRecipe)">
             <ion-spinner *ngIf="isSaving && detailRecipe && !isSelected(detailRecipe)" name="crescent"></ion-spinner>
-            <span>{{ detailRecipe && isSelected(detailRecipe) ? 'RECETA SELECCIONADA' : 'SELECCIONAR RECETA' }}</span>
+            <span>{{ detailRecipe ? selectionButtonLabel(detailRecipe) : 'SELECCIONAR RECETA' }}</span>
           </ion-button>
         </div>
         <p *ngIf="isLoading" class="recipe-detail-feedback" role="status">Buscando opciones para tu plan...</p>

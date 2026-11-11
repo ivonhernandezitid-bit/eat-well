@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 // Regresión del plan: validar caché, calendario y elecciones guardadas contra fixtures aislados sin invocar IA; EATWELL_API_ROOT permite repetirla contra la instalación XAMPP.
+// CAMBIO: cubre elecciones del catálogo, validación de preferencias/comida, persistencia y ausencia de nutrición inventada en una base temporal.
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 $apiRoot = getenv('EATWELL_API_ROOT') ?: dirname(__DIR__);
 require_once $apiRoot . '/meal-plan.php';
@@ -18,7 +19,8 @@ function extractFunctions(string $source): array {
     }return $result;
 }
 $functions=extractFunctions(file_get_contents($apiRoot.'/index.php'));
-foreach(['getUserById','getFoodPreferencesRecord','mapFoodPreferences','decodeJsonList','cleanStringList','cleanText','mapPersonalizedRecipe','mapFavoriteRecipe','addFavoriteRecipe','filterRecipesByPreferences'] as $name)eval($functions[$name]);
+foreach(['getUserById','getFoodPreferencesRecord','mapFoodPreferences','decodeJsonList','cleanStringList','cleanText','mapPersonalizedRecipe','mapFavoriteRecipe','addFavoriteRecipe','filterRecipesByPreferences','mapRecipe'] as $name)eval($functions[$name]);
+if (isset($functions['catalogRecipeMealTypes'])) eval($functions['catalogRecipeMealTypes']);
 class ApiResponse extends RuntimeException { public function __construct(public array $body, public int $status) {} }
 function sendJson(array $body,int $status=200):void{throw new ApiResponse($body,$status);}
 function sendError(string $message,int $status=400,?string $code=null):void{throw new ApiResponse($code===null?['error'=>$message]:['error'=>$message,'code'=>$code],$status);}
@@ -157,6 +159,38 @@ try{
         && $recoveredPlan['meals'][4]['recipe']===null,'Archived selection was not retained as needing review.');
     $source=null;readMealOptions($pdo,$user,$preferences,'dinner','fake','fake',$source);
     check($source==='cache' && $generationCalls===$generationCountBeforeReview+1,'Recovered cache repeated generation or returned another review conflict.');
+    // Fixtures del catálogo: nada se escribe en las recetas o elecciones reales del paciente.
+    $catalogInsert=$pdo->prepare('INSERT INTO recipes(id,title,description,calories,protein_grams,carbs_grams,fat_grams,ingredients,instructions,goal) VALUES(?,?,?,?,?,?,?,?,?,?)');
+    $catalogInsert->execute([96001,'Avena del catalogo','Desayuno',440,12,64,15,'1 taza de avena','Cocina y sirve.','maintain']);
+    $catalogInsert->execute([96002,'Tostadas de atun','Cena',320,28,22,8,'2 latas de atun|3 tostadas','Mezcla y sirve.','maintain']);
+    $catalogInsert->execute([96003,'Avena con azucar','Desayuno',500,12,70,15,'1 taza de avena|2 cucharadas de azucar','Cocina y sirve.','maintain']);
+    $_SERVER['REQUEST_METHOD']='POST';
+    $catalogSaved=capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>'96001'],'fake','fake'));
+    check($catalogSaved['choices']->breakfast['id']==='96001','Catalog choice lost its public ID.');
+    check($catalogSaved['choices']->breakfast['nutrition']['sources']['calories']==='catalog'
+        && $catalogSaved['choices']->breakfast['nutrition']['perServing']['calories']===null,'Catalog nutrition was relabeled as verified per serving.');
+    $catalogHash=catalogMealChoiceHash($user,$preferences,'breakfast',96001);
+    capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>'96001'],'fake','fake'));
+    $references=$pdo->prepare('SELECT COUNT(*) FROM personalized_recipes WHERE user_id=? AND preference_hash=?');
+    $references->execute([92001,$catalogHash]);check((int)$references->fetchColumn()===1,'Repeated catalog choice created duplicate references.');
+    capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>'96002'],'fake','fake'),422);
+    capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>'96003'],'fake','fake'),422);
+    $allergic=[...$preferences,'allergies'=>['avena']];
+    invalid(fn()=>saveDailyMealChoice($pdo,$user,$allergic,$today,'breakfast','96001'));
+    invalid(fn()=>saveDailyMealChoice($pdo,$user,[...$preferences,'completed'=>false],$today,'breakfast','96001'));
+    check(!isset(((array)readDailyMealChoices($pdo,$user,$allergic,$today)['choices'])['breakfast']),'Changed preferences retained an incompatible catalog choice.');
+    $_SERVER['REQUEST_METHOD']='GET';
+    $catalogRead=capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'));
+    check($catalogRead['choices']->breakfast['id']==='96001' && $catalogRead['choices']->breakfast['calories']===440.0,'Reload lost catalog selection or registered values.');
+    check(!isset(((array)readDailyMealChoices($pdo,$user,$preferences,$tomorrow)['choices'])['breakfast']),'Catalog choice leaked to another day.');
+    check(count((array)readDailyMealChoices($pdo,getUserById($pdo,92002),$preferences,$today)['choices'])===0,'Catalog choice leaked to another account.');
+    $_SERVER['REQUEST_METHOD']='POST';
+    $catalogDinner=capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'dinner','recipeId'=>'96002'],'fake','fake'));
+    check($catalogDinner['choices']->dinner['id']==='96002','Catalog dinner could not be selected.');
+    $personalizedAgain=capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$breakfast[0]['id']],'fake','fake'));
+    check($personalizedAgain['choices']->breakfast['id']===$breakfast[0]['id'],'Switching from catalog to personalized recipe failed.');
+    $source=null;readMealOptions($pdo,$user,$preferences,'breakfast','fake','fake',$source);
+    check($source==='cache' && $generationCalls===$generationCountBeforeReview+1,'Catalog references invalidated the AI option cache.');
 }finally{
     $pdo->exec("DROP DATABASE `$database`");
 }

@@ -230,4 +230,153 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     expect(reopened.activeIngredients[2]).toBe('Sal');
     reopenedFixture.destroy();
   });
+
+  it('pins the saved selection, replaces it persistently and keeps it when alternatives fail', async () => {
+    const alternative: Recipe = { ...generatedRecipe, id: 'personalized-2', title: 'Otra receta' };
+    let savedPlan: DailyMealPlan = { ...emptyPlan, choices: { breakfast: generatedRecipe } };
+    const service = jasmine.createSpyObj<EatWellService>('EatWellService', [
+      'getDailyMealPlan', 'getFavoriteRecipes', 'getMealOptions', 'getActiveUser', 'getDailyMealLog', 'chooseDailyMeal',
+    ]);
+    service.getActiveUser.and.returnValue({ id: 'selection-test-user' } as UserProfile);
+    service.getDailyMealLog.and.returnValue({
+      date: emptyPlan.date, consumedMeals: [{ id: generatedRecipe.id, mealType: 'breakfast', calories: 320, protein: 12, carbohydrates: 44, fat: 8 }],
+      waterGlasses: 0, exerciseMinutes: 0, steps: 0,
+    });
+    service.getDailyMealPlan.and.callFake(async () => savedPlan);
+    service.getFavoriteRecipes.and.resolveTo([]);
+    service.getMealOptions.and.resolveTo([alternative, generatedRecipe, alternative]);
+    service.chooseDailyMeal.and.callFake(async (type, id) => {
+      savedPlan = { ...savedPlan, choices: { [type]: [generatedRecipe, alternative].find(recipe => recipe.id === id)! } };
+      return savedPlan;
+    });
+    const alert = jasmine.createSpyObj('alert', ['present']);
+    alert.present.and.resolveTo();
+    const alertController = jasmine.createSpyObj<AlertController>('AlertController', ['create']);
+    alertController.create.and.resolveTo(alert);
+    await TestBed.configureTestingModule({
+      declarations: [PlanRecipeSuggestionsPage], imports: [CommonModule, IonicModule.forRoot({ animated: false })],
+      providers: [
+        { provide: EatWellService, useValue: service }, { provide: AlertController, useValue: alertController },
+        { provide: Router, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: {
+          paramMap: { get: (name: string) => name === 'mealType' ? 'breakfast' : '450' },
+          queryParamMap: { get: () => emptyPlan.date },
+        } } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PlanRecipeSuggestionsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(page.recipes.map(recipe => recipe.id)).toEqual([generatedRecipe.id, alternative.id]);
+    const selectedCard = root.querySelector('.recipe-suggestion-card') as HTMLElement;
+    expect(selectedCard.classList.contains('recipe-current-selection')).toBeTrue();
+    expect(selectedCard.querySelector('.recipe-current-badge')?.textContent).toContain('RECETA ACTUALMENTE SELECCIONADA');
+    expect(selectedCard.querySelector('.recipe-current-status')?.textContent).toBe('Consumido');
+    expect(root.querySelector('.recipe-change-button')).toBeNull();
+    const modal = root.querySelector('.suggested-recipe-detail-modal') as HTMLIonModalElement;
+    await modal.componentOnReady();
+    const presented = new Promise<Event>(resolve => modal.addEventListener('ionModalDidPresent', resolve, { once: true }));
+    (root.querySelectorAll('.recipe-card-open')[1] as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await presented;
+    const change = modal.querySelector('.recipe-detail-actions .recipe-suggestion-select') as HTMLIonButtonElement;
+    expect(change.textContent).toContain('CAMBIAR A ESTA RECETA');
+    expect(change.disabled).toBeFalse();
+    change.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(service.chooseDailyMeal).toHaveBeenCalledWith('breakfast', alternative.id, emptyPlan.date);
+    expect(page.recipes[0].id).toBe(alternative.id);
+    expect(root.querySelector('.recipe-current-status')?.textContent).toBe('Pendiente');
+    expect(change.textContent).toContain('RECETA ACTUALMENTE SELECCIONADA');
+    const dismissed = modal.onDidDismiss();
+    page.closeRecipeDetail();
+    fixture.detectChanges();
+    await dismissed;
+
+    const restored = TestBed.createComponent(PlanRecipeSuggestionsPage);
+    restored.detectChanges();
+    await restored.whenStable();
+    restored.detectChanges();
+    expect(restored.componentInstance.recipes.map(recipe => recipe.id)).toEqual([alternative.id, generatedRecipe.id]);
+    restored.destroy();
+
+    service.chooseDailyMeal.and.rejectWith(new Error('No se pudo guardar'));
+    await page.selectRecipe(generatedRecipe);
+    expect(page.selectedRecipeId).toBe(alternative.id);
+    expect(page.recipes[0].id).toBe(alternative.id);
+    expect(page.error).toBe('No se pudo guardar');
+    service.getMealOptions.and.rejectWith(new Error('No hay conexión'));
+    await page.loadSuggestions();
+    expect(page.recipes.map(recipe => recipe.id)).toEqual([alternative.id]);
+    expect(page.error).toBe('No hay conexión');
+    fixture.destroy();
+  });
+
+  it('selects a catalog recipe only from its detail, independently of the ingredient checklist', async () => {
+    let savedPlan = { ...emptyPlan };
+    const service = jasmine.createSpyObj<EatWellService>('EatWellService', [
+      'getDailyMealPlan', 'getFavoriteRecipes', 'getMealOptions', 'getActiveUser', 'chooseDailyMeal',
+    ]);
+    service.getActiveUser.and.returnValue(null);
+    service.getDailyMealPlan.and.callFake(async () => savedPlan);
+    service.getFavoriteRecipes.and.resolveTo([]);
+    service.getMealOptions.and.resolveTo([fallbackRecipe]);
+    service.chooseDailyMeal.and.callFake(async () => {
+      savedPlan = { ...savedPlan, choices: { breakfast: { ...fallbackRecipe, suggestionContext: undefined } } };
+      return savedPlan;
+    });
+    await TestBed.configureTestingModule({
+      declarations: [PlanRecipeSuggestionsPage], imports: [CommonModule, IonicModule.forRoot({ animated: false })],
+      providers: [
+        { provide: EatWellService, useValue: service }, { provide: AlertController, useValue: {} },
+        { provide: Router, useValue: {} },
+        { provide: ActivatedRoute, useValue: { snapshot: {
+          paramMap: { get: (name: string) => name === 'mealType' ? 'breakfast' : '450' },
+          queryParamMap: { get: () => emptyPlan.date },
+        } } },
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(PlanRecipeSuggestionsPage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.recipe-suggestion-card .recipe-suggestion-select')).toBeNull();
+    const modal = root.querySelector('.suggested-recipe-detail-modal') as HTMLIonModalElement;
+    await modal.componentOnReady();
+    const presented = new Promise<Event>(resolve => modal.addEventListener('ionModalDidPresent', resolve, { once: true }));
+    (root.querySelector('.recipe-card-open') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await presented;
+    const select = modal.querySelector('.recipe-detail-actions .recipe-suggestion-select') as HTMLIonButtonElement;
+    expect(select.disabled).toBeFalse();
+    expect(page.checkedIngredients.size).toBe(0);
+    (modal.querySelector('input[type="checkbox"]') as HTMLInputElement).click();
+    fixture.detectChanges();
+    expect(page.checkedIngredients.size).toBe(1);
+    expect(select.disabled).toBeFalse();
+    select.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(service.chooseDailyMeal).toHaveBeenCalledWith('breakfast', '24', emptyPlan.date);
+    expect(select.textContent).toContain('RECETA ACTUALMENTE SELECCIONADA');
+    expect(page.selectedRecipeId).toBe('24');
+    const dismissed = modal.onDidDismiss();
+    page.closeRecipeDetail();
+    fixture.detectChanges();
+    await dismissed;
+    fixture.destroy();
+    const restored = TestBed.createComponent(PlanRecipeSuggestionsPage);
+    restored.detectChanges();
+    await restored.whenStable();
+    restored.detectChanges();
+    expect(restored.componentInstance.selectedRecipeId).toBe('24');
+    expect((restored.nativeElement as HTMLElement).querySelector('.recipe-current-badge')).toBeTruthy();
+    restored.destroy();
+  });
 });
