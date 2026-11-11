@@ -8,10 +8,16 @@ export interface RecipeMetadata {
   ingredientData?: RecipeIngredientData[];
   nutrition?: RecipeNutrition;
   estimatedNutrition?: {
-    calories?: number;
-    proteinGrams?: number;
-    carbsGrams?: number;
-    fatGrams?: number;
+    calories?: number | null;
+    proteinGrams?: number | null;
+    carbsGrams?: number | null;
+    fatGrams?: number | null;
+  };
+  registeredNutrition?: RecipeNutrientValues;
+  suggestionContext?: {
+    source: 'generated' | 'cache' | 'catalog-fallback';
+    cache: 'server' | 'local' | 'none';
+    failureCode?: 'timeout' | 'network_error' | 'provider_error' | 'options_cache_review';
   };
 }
 
@@ -25,17 +31,155 @@ export interface RecipeIngredientData {
 export type IngredientSubstitute = RecipeIngredientData;
 
 export interface RecipeNutrition {
-  source: 'BAM';
+  source: RecipeNutritionSource;
   status: 'complete' | 'partial' | 'unavailable';
-  perServing: {
-    calories: number | null;
-    proteinGrams: number | null;
-    carbsGrams: number | null;
-    fatGrams: number | null;
-    fiberGrams: number | null;
+  values?: RecipeNutrientValues;
+  perServing: RecipeNutrientValues & { fiberGrams: number | null };
+  sources?: Partial<Record<RecipeNutrientKey, RecipeNutrientSource>>;
+  portionBases?: Partial<Record<RecipeNutrientKey, 'per_serving' | 'unknown' | null>>;
+  calculation?: {
+    source: 'BAM';
+    status: 'complete' | 'partial' | 'unavailable';
+    perServing: RecipeNutrientValues & { fiberGrams: number | null };
+    warnings: string[];
+    method: string;
   };
-  warnings: string[];
-  method: string;
+  warnings?: string[];
+  method?: string;
+}
+
+export type RecipeNutrientKey = 'calories' | 'proteinGrams' | 'carbsGrams' | 'fatGrams';
+export type RecipeNutrientSource = 'BAM' | 'estimate' | 'catalog' | null;
+export type RecipeNutritionSource = Exclude<RecipeNutrientSource, null> | 'mixed' | 'unavailable';
+export type RecipeNutrientValues = Record<RecipeNutrientKey, number | null>;
+
+export interface ResolvedRecipeNutrition {
+  values: RecipeNutrientValues;
+  perServingValues: RecipeNutrientValues;
+  sources: Record<RecipeNutrientKey, RecipeNutrientSource>;
+  portionBases: Record<RecipeNutrientKey, 'per_serving' | 'unknown' | null>;
+  sourceLabel: string;
+  calorieUnitLabel: string;
+  isCompletePerServing: boolean;
+  hasAnyValues: boolean;
+}
+
+export interface RecipeNutritionInput extends RecipeMetadata {
+  id: string;
+  calories?: unknown;
+  proteinGrams?: unknown;
+  carbsGrams?: unknown;
+  fatGrams?: unknown;
+  proteins_g?: unknown;
+  protein_grams?: unknown;
+  proteinas?: unknown;
+  carbs_g?: unknown;
+  carbs_grams?: unknown;
+  carbohidratos?: unknown;
+  fats_g?: unknown;
+  fat_grams?: unknown;
+  grasas?: unknown;
+}
+
+const nutritionNutrients: Array<[RecipeNutrientKey, string]> = [
+  ['calories', 'calorías'],
+  ['proteinGrams', 'proteínas'],
+  ['carbsGrams', 'carbohidratos'],
+  ['fatGrams', 'grasas'],
+];
+
+function usableNutrient(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+}
+
+export function resolveRecipeNutrition(recipe: RecipeNutritionInput): ResolvedRecipeNutrition {
+  const nutrition = recipe.nutrition;
+  const values = {} as RecipeNutrientValues;
+  const perServingValues = {} as RecipeNutrientValues;
+  const sources = {} as Record<RecipeNutrientKey, RecipeNutrientSource>;
+  const portionBases = {} as Record<RecipeNutrientKey, 'per_serving' | 'unknown' | null>;
+  const catalogRecipe = /^\d+$/.test(recipe.id);
+
+  for (const [nutrient] of nutritionNutrients) {
+    const explicitValue = nutrition?.values?.[nutrient];
+    const explicitSource = nutrition?.sources?.[nutrient];
+    const explicitBasis = nutrition?.portionBases?.[nutrient];
+    const calculated = nutrition?.perServing?.[nutrient];
+    const estimate = recipe.estimatedNutrition?.[nutrient];
+    const registered = recipe.registeredNutrition?.[nutrient];
+
+    if (usableNutrient(calculated)) {
+      perServingValues[nutrient] = calculated;
+      values[nutrient] = calculated;
+      sources[nutrient] = explicitSource === 'estimate' || explicitSource === 'BAM'
+        ? explicitSource
+        : usableNutrient(estimate) && estimate === calculated ? 'estimate' : 'BAM';
+      portionBases[nutrient] = 'per_serving';
+    } else if (usableNutrient(explicitValue)
+      && (explicitBasis === 'per_serving' || explicitBasis === 'unknown')
+      && (explicitSource === 'BAM' || explicitSource === 'estimate' || explicitSource === 'catalog')) {
+      values[nutrient] = explicitValue;
+      perServingValues[nutrient] = explicitBasis === 'per_serving' ? explicitValue : null;
+      sources[nutrient] = explicitSource;
+      portionBases[nutrient] = explicitBasis;
+    } else if (usableNutrient(estimate)) {
+      values[nutrient] = estimate;
+      perServingValues[nutrient] = estimate;
+      sources[nutrient] = 'estimate';
+      portionBases[nutrient] = 'per_serving';
+    } else {
+      const rootValue = nutrient === 'proteinGrams'
+        ? recipe.proteinGrams ?? recipe.protein_grams ?? recipe.proteins_g ?? recipe.proteinas
+        : nutrient === 'carbsGrams'
+          ? recipe.carbsGrams ?? recipe.carbs_grams ?? recipe.carbs_g ?? recipe.carbohidratos
+          : nutrient === 'fatGrams'
+            ? recipe.fatGrams ?? recipe.fat_grams ?? recipe.fats_g ?? recipe.grasas
+            : recipe.calories;
+      const catalogValue = usableNutrient(registered) ? registered : catalogRecipe ? rootValue : null;
+      if (usableNutrient(catalogValue)) {
+        values[nutrient] = catalogValue;
+        perServingValues[nutrient] = null;
+        sources[nutrient] = 'catalog';
+        portionBases[nutrient] = 'unknown';
+      } else {
+        values[nutrient] = null;
+        perServingValues[nutrient] = null;
+        sources[nutrient] = null;
+        portionBases[nutrient] = null;
+      }
+    }
+  }
+
+  const availableSources = [...new Set(Object.values(sources).filter((source): source is Exclude<RecipeNutrientSource, null> => source !== null))];
+  const hasCatalogValue = Object.values(sources).includes('catalog');
+  const hasPerServingValue = Object.values(portionBases).includes('per_serving');
+  const sourceLabel = hasCatalogValue && !hasPerServingValue
+    ? 'Valores registrados en el catálogo; la base de porción no está confirmada.'
+    : availableSources.length === 0
+      ? 'Datos nutricionales no disponibles.'
+      : `${hasCatalogValue ? 'Procedencia por nutriente; los valores del catálogo no tienen base de porción confirmada' : 'Por porción. Procedencia'}: ${nutritionNutrients
+        .filter(([nutrient]) => sources[nutrient] !== null)
+        .map(([nutrient, label]) => `${label}: ${sources[nutrient] === 'BAM' ? 'BAM' : sources[nutrient] === 'estimate' ? 'estimación' : 'catálogo (base no confirmada)'}`)
+        .join('; ')}.`;
+  const isCompletePerServing = nutritionNutrients.every(([nutrient]) =>
+    usableNutrient(perServingValues[nutrient]) && portionBases[nutrient] === 'per_serving',
+  );
+  const hasAnyValues = nutritionNutrients.some(([nutrient]) => usableNutrient(values[nutrient]));
+
+  return {
+    values,
+    perServingValues,
+    sources,
+    portionBases,
+    sourceLabel,
+    calorieUnitLabel: portionBases.calories === 'per_serving' ? 'kcal por porción' : 'kcal · porción no confirmada',
+    isCompletePerServing,
+    hasAnyValues,
+  };
+}
+
+export function recipeCanBeSelected(recipe: RecipeNutritionInput): boolean {
+  return recipe.id.startsWith('personalized-') && resolveRecipeNutrition(recipe).isCompletePerServing;
 }
 
 const mealTypeRotationOffset: Record<RecipeMealType, number> = {

@@ -33,8 +33,24 @@ const ACTIVE_USER_KEY = 'eat-well-active-user';
 const AUTH_TOKEN_KEY = 'eat-well-auth-token';
 const EXERCISE_CACHE_KEY = 'eat-well-generated-exercises';
 const EXERCISE_FAVORITES_KEY = 'eat-well-favorite-exercises';
-const GENERAL_RECIPE_CACHE_KEY = 'eat-well-general-recipes';
+const GENERAL_RECIPE_CACHE_KEY = 'eat-well-general-recipes-v2';
 const EXERCISE_CACHE_DURATION_MS = 24 * 60 * 60 * 1000;
+// plan.options can spend five 75-second provider attempts plus retry delays; plan.get remains a quick read.
+const PLAN_READ_TIMEOUT_MS = 8_000;
+const PLAN_GENERATION_TIMEOUT_MS = 390_000;
+
+export type PlanRequestFailureCode = 'timeout' | 'network_error' | 'provider_error' | 'options_cache_review' | 'backend_error';
+
+export class PlanRequestError extends Error {
+  constructor(
+    readonly code: PlanRequestFailureCode,
+    message: string,
+    readonly status?: number,
+  ) {
+    super(message);
+    this.name = 'PlanRequestError';
+  }
+}
 
 interface ExerciseCacheEntry {
   expiresAt: number;
@@ -73,6 +89,12 @@ interface UserResponse {
 
 interface RecipesResponse {
   recipes: Recipe[];
+  source?: 'generated' | 'cache';
+}
+
+interface GeneralRecipesResult {
+  recipes: Recipe[];
+  cache: 'server' | 'local';
 }
 
 interface ExercisesResponse {
@@ -239,29 +261,40 @@ export class EatWellService {
     return response.recipes;
   }
 
-  async getMealOptions(mealType: RecipeMealType, date = mealPlanDate()): Promise<Recipe[]> {
+  async getMealOptions(mealType: RecipeMealType, date = mealPlanDate(), recoverCache = false): Promise<Recipe[]> {
     const user = this.getRequiredActiveUser();
     try {
       const response = await this.getPlanRequest<RecipesResponse>(
         'plan.options',
-        { userId: user.id, mealType },
-        6_000,
+        { userId: user.id, mealType, ...(recoverCache ? { recoverCache: 1 } : {}) },
+        PLAN_GENERATION_TIMEOUT_MS,
       );
       const selected = selectRecipeForMeal(
         response.recipes.slice(0, DAILY_MEAL_OPTION_COUNT),
         mealType,
         date,
       );
-      return selected ? [selected] : [];
+      return selected ? [{
+        ...selected,
+        suggestionContext: {
+          source: response.source === 'cache' ? 'cache' : 'generated',
+          cache: response.source === 'cache' ? 'server' : 'none',
+        },
+      }] : [];
     } catch (error) {
-      const isConnectionError = error instanceof Error
-        && (error.message.includes('No hay conexión con el backend/servidor')
-          || error.message.includes('No se pudo conectar con la Inteligencia Artificial'));
-      if (!isConnectionError) throw error;
+      if (!(error instanceof PlanRequestError) || error.code === 'backend_error') throw error;
 
       try {
-        const selected = selectRecipeForMeal(await this.getGeneralRecipes(), mealType, date);
-        if (selected) return [selected];
+        const fallback = await this.getGeneralRecipesWithContext();
+        const selected = selectRecipeForMeal(fallback.recipes, mealType, date);
+        if (selected) return [{
+          ...selected,
+          suggestionContext: {
+            source: 'catalog-fallback',
+            cache: fallback.cache,
+            failureCode: error.code,
+          },
+        }];
       } catch (fallbackError) {
         const fallbackMessage = fallbackError instanceof Error
           ? fallbackError.message
@@ -275,7 +308,7 @@ export class EatWellService {
 
   async getDailyMealPlan(date = mealPlanDate()): Promise<DailyMealPlan> {
     const user = this.getRequiredActiveUser();
-    return this.getPlanRequest('plan.get', { userId: user.id, date }, 6_000);
+    return this.getPlanRequest('plan.get', { userId: user.id, date }, PLAN_READ_TIMEOUT_MS);
   }
 
   async chooseDailyMeal(mealType: RecipeMealType, recipeId: string, date = mealPlanDate()): Promise<DailyMealPlan> {
@@ -416,21 +449,27 @@ export class EatWellService {
   }
 
   async getGeneralRecipes(): Promise<Recipe[]> {
+    return (await this.getGeneralRecipesWithContext()).recipes;
+  }
+
+  private async getGeneralRecipesWithContext(): Promise<GeneralRecipesResult> {
     const activeUser = this.getRequiredActiveUser();
     try {
-      const response = await this.get<{ recipes: Recipe[] }>('recipes.general', {
-        userId: activeUser.id,
-      });
+      const response = await this.getPlanRequest<{ recipes: Recipe[] }>(
+        'recipes.general',
+        { userId: activeUser.id },
+        PLAN_READ_TIMEOUT_MS,
+      );
       if (!Array.isArray(response.recipes) || !response.recipes.every(isRecipe)) {
         throw new Error('El backend devolvió una lista de recetas con formato inválido.');
       }
       if (response.recipes.length > 0) {
         localStorage.setItem(`${GENERAL_RECIPE_CACHE_KEY}:${activeUser.id}`, JSON.stringify(response.recipes));
       }
-      return response.recipes;
+      return { recipes: response.recipes, cache: 'server' };
     } catch (error) {
       const cachedRecipes = this.getCachedGeneralRecipes(activeUser.id);
-      if (cachedRecipes.length > 0) return cachedRecipes;
+      if (cachedRecipes.length > 0) return { recipes: cachedRecipes, cache: 'local' };
       throw error;
     }
   }
@@ -503,6 +542,8 @@ export class EatWellService {
       preparationMinutes: recipe.preparationMinutes,
       validationNotes: recipe.validationNotes,
       ingredientData: recipe.ingredientData,
+      estimatedNutrition: recipe.estimatedNutrition,
+      recipeId: recipe.id,
       sourceType,
     });
     return response.recipe;
@@ -562,25 +603,40 @@ export class EatWellService {
     } catch (error) {
       this.saveMigratedAuthTokenFromError(error);
       if (error instanceof TimeoutError) {
-        throw new Error(action === 'plan.options'
-          ? 'No se pudo conectar con la Inteligencia Artificial. Inténtalo de nuevo.'
-          : 'No hay conexión con el backend/servidor. Verifica tu conexión o ngrok.');
+        throw new PlanRequestError(
+          'timeout',
+          action === 'plan.options'
+            ? 'La generación tardó más de lo esperado. Puedes reintentar o usar la receta de respaldo.'
+            : 'La consulta del plan tardó más de lo esperado.',
+        );
       }
       if (error instanceof HttpErrorResponse) {
         const code = error.error && typeof error.error === 'object' && 'code' in error.error
           ? error.error.code
           : null;
         if (error.status === 0) {
-          throw new Error('No hay conexión con el backend/servidor. Verifica tu conexión o ngrok.');
+          throw new PlanRequestError('network_error', 'No hay conexión con el servidor. Verifica tu conexión.', error.status);
         }
         if (code === 'database_error') {
-          throw new Error('Error al consultar la base de datos de recetas.');
+          throw new PlanRequestError('backend_error', 'Error al consultar la base de datos de recetas.', error.status);
         }
-        if (action === 'plan.options' && [429, 502, 503, 504].includes(error.status)) {
-          throw new Error('No se pudo conectar con la Inteligencia Artificial. Inténtalo de nuevo.');
+        if (code === 'options_cache_review') {
+          throw new PlanRequestError(
+            'options_cache_review',
+            'Las opciones guardadas requieren revisión. Reintenta para generar un conjunto actualizado.',
+            error.status,
+          );
         }
+        if (code === 'provider_network_error') {
+          throw new PlanRequestError('network_error', this.getApiErrorMessage(error), error.status);
+        }
+        if (code === 'provider_error' || code === 'provider_response_error'
+          || (action === 'plan.options' && [429, 502, 504].includes(error.status))) {
+          throw new PlanRequestError('provider_error', this.getApiErrorMessage(error), error.status);
+        }
+        throw new PlanRequestError('backend_error', this.getApiErrorMessage(error), error.status);
       }
-      throw new Error(this.getApiErrorMessage(error));
+      throw new PlanRequestError('backend_error', this.getApiErrorMessage(error));
     }
   }
 

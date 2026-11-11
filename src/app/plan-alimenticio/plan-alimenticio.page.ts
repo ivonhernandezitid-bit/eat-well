@@ -3,7 +3,7 @@ import { ActionSheetController, AlertController, Platform } from '@ionic/angular
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { EatWellService, FavoriteRecipe, FoodScanResult, Recipe, SuggestedFoodRecipe, UserProfile, FoodScanHistoryItem } from '../core';
-import { recipeMealLabels, recipeMealTypes } from '../core/recipe-meals';
+import { recipeMealLabels, recipeMealTypes, resolveRecipeNutrition } from '../core/recipe-meals';
 import type { IngredientSubstitute, RecipeIngredientData, RecipeMetadata, RecipeMealType } from '../core/recipe-meals';
 import { DailyMealPlan, dailyMealOptions, mealPlanDate } from '../core/daily-meal-plan';
 import { ClinicalHistoryData } from '../core/clinical-history';
@@ -33,6 +33,8 @@ interface MealCardView extends RecipeMetadata {
   proteinGrams?: number | null;
   carbsGrams?: number | null;
   fatGrams?: number | null;
+  nutritionSourceLabel?: string;
+  nutritionPerServingConfirmed?: boolean;
   source: 'local' | 'ai' | 'favorite';
   favoriteId: string | null;
   ingredients: string[];
@@ -324,7 +326,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       protein: recipe.proteinGrams ?? null,
       carbohydrates: recipe.carbsGrams ?? null,
       fat: recipe.fatGrams ?? null,
-      nutritionSource: recipe.nutrition?.source === 'BAM' ? 'BAM' : 'estimate',
+      nutritionSource: recipe.nutrition?.source,
     };
     try {
       this.consumedMeals = recordConsumedMeal(userId, this.selectedDate, meal).consumedMeals;
@@ -665,21 +667,26 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   get favoriteMeals(): MealCardView[] {
     const term = this.searchTerm.trim().toLowerCase();
-    const list: MealCardView[] = this.favoriteRecipes.map(recipe => ({
-      ...this.mealMetadata(recipe),
-      calories: recipe.nutrition?.perServing.calories ?? null,
-      proteinGrams: recipe.nutrition?.perServing.proteinGrams ?? null,
-      carbsGrams: recipe.nutrition?.perServing.carbsGrams ?? null,
-      fatGrams: recipe.nutrition?.perServing.fatGrams ?? null,
-      id: recipe.id,
-      title: recipe.title,
-      description: recipe.description,
-      imageUrl: recipe.imageUrl || null,
-      source: 'favorite' as const,
-      favoriteId: recipe.favoriteId,
-      ingredients: recipe.ingredients,
-      instructions: recipe.instructions,
-    }));
+    const list: MealCardView[] = this.favoriteRecipes.map(recipe => {
+      const nutrition = resolveRecipeNutrition(recipe);
+      return {
+        ...this.mealMetadata(recipe),
+        calories: nutrition.values.calories,
+        proteinGrams: nutrition.values.proteinGrams,
+        carbsGrams: nutrition.values.carbsGrams,
+        fatGrams: nutrition.values.fatGrams,
+        nutritionSourceLabel: nutrition.sourceLabel,
+        nutritionPerServingConfirmed: nutrition.isCompletePerServing,
+        id: recipe.id,
+        title: recipe.title,
+        description: recipe.description,
+        imageUrl: recipe.imageUrl || null,
+        source: 'favorite' as const,
+        favoriteId: recipe.favoriteId,
+        ingredients: recipe.ingredients,
+        instructions: recipe.instructions,
+      };
+    });
 
     if (!term) {
       return list;
@@ -919,7 +926,17 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   }
 
   private mealMetadata(recipe: RecipeMetadata & { title: string; description: string }): RecipeMetadata {
-    return { mealTypes: recipeMealTypes(recipe), servings: recipe.servings, preparationMinutes: recipe.preparationMinutes, validationNotes: recipe.validationNotes, ingredientData: recipe.ingredientData, nutrition: recipe.nutrition };
+    return {
+      mealTypes: recipeMealTypes(recipe),
+      servings: recipe.servings,
+      preparationMinutes: recipe.preparationMinutes,
+      validationNotes: recipe.validationNotes,
+      ingredientData: recipe.ingredientData,
+      nutrition: recipe.nutrition,
+      estimatedNutrition: recipe.estimatedNutrition,
+      registeredNutrition: recipe.registeredNutrition,
+      suggestionContext: recipe.suggestionContext,
+    };
   }
 
   get canAdjustPortions(): boolean {

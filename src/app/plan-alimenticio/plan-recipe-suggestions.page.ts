@@ -3,7 +3,15 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
 import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
-import { recipeMealLabels, recipeMealTypes, RecipeMealType } from '../core/recipe-meals';
+import {
+  RecipeNutrientKey,
+  ResolvedRecipeNutrition,
+  recipeMealLabels,
+  recipeMealTypes,
+  recipeCanBeSelected,
+  RecipeMealType,
+  resolveRecipeNutrition,
+} from '../core/recipe-meals';
 
 const ingredientSubstituteGroups: Array<{ keywords: string[]; options: string[] }> = [
   {
@@ -174,17 +182,55 @@ export class PlanRecipeSuggestionsPage implements OnInit {
     return recipe.id.startsWith('fixture-');
   }
 
-  hasAiNutrition(recipe: Recipe): boolean {
-    const nutrition = recipe.estimatedNutrition;
-    return !!nutrition && [
-      nutrition.calories,
-      nutrition.proteinGrams,
-      nutrition.carbsGrams,
-      nutrition.fatGrams,
-    ].every(value => typeof value === 'number' && Number.isFinite(value) && value >= 0);
+  nutrition(recipe: Recipe): ResolvedRecipeNutrition {
+    return resolveRecipeNutrition(recipe);
   }
 
-  async loadSuggestions(): Promise<void> {
+  nutritionValue(recipe: Recipe, nutrient: RecipeNutrientKey): string {
+    const value = this.nutrition(recipe).values[nutrient];
+    if (value === null) return '—';
+    const maximumFractionDigits = nutrient === 'calories' ? 0 : 1;
+    return new Intl.NumberFormat('es-MX', { maximumFractionDigits }).format(value);
+  }
+
+  isCatalogFallback(recipe: Recipe): boolean {
+    return recipe.suggestionContext?.source === 'catalog-fallback';
+  }
+
+  fallbackStatus(recipe: Recipe): string {
+    const context = recipe.suggestionContext;
+    if (!context || context.source !== 'catalog-fallback') return '';
+    const reason = context.failureCode === 'timeout'
+      ? 'la generación superó el tiempo de espera'
+      : context.failureCode === 'network_error'
+        ? 'no hubo conexión con el servicio'
+        : context.failureCode === 'options_cache_review'
+          ? 'las opciones guardadas requieren revisión'
+        : 'el servicio no devolvió opciones seleccionables';
+    const cache = context.cache === 'local' ? 'recuperada del dispositivo' : 'consultada en el catálogo';
+    return `Respaldo: receta ${cache} porque ${reason}. El plan solo acepta recetas personalizadas compatibles con tus preferencias.`;
+  }
+
+  hasCatalogFallback(): boolean {
+    return this.recipes.some(recipe => this.isCatalogFallback(recipe));
+  }
+
+  canSelectRecipe(recipe: Recipe): boolean {
+    return !this.isFixture(recipe)
+      && recipeCanBeSelected(recipe);
+  }
+
+  selectionLimitation(recipe: Recipe): string {
+    if (this.isCatalogFallback(recipe)) {
+      return 'Esta receta del catálogo no se puede guardar en el plan. Vuelve a generar opciones para obtener recetas personalizadas seleccionables.';
+    }
+    if (!recipe.id.startsWith('personalized-')) {
+      return 'Esta receta no pertenece a las opciones personalizadas que el plan permite guardar.';
+    }
+    return 'No están disponibles los cuatro valores nutricionales por porción; esta receta no se puede agregar al plan todavía.';
+  }
+
+  async loadSuggestions(recoverCache = false): Promise<void> {
     this.isLoading = true;
     this.error = '';
     try {
@@ -201,7 +247,7 @@ export class PlanRecipeSuggestionsPage implements OnInit {
       });
       const [plan, recipes, favorites] = await Promise.all([
         planPromise,
-        this.eatWellService.getMealOptions(this.mealType, this.selectedDate),
+        this.eatWellService.getMealOptions(this.mealType, this.selectedDate, recoverCache),
         favoritesPromise,
       ]);
       this.dailyPlan = plan;
@@ -215,8 +261,13 @@ export class PlanRecipeSuggestionsPage implements OnInit {
     }
   }
 
+  async retryGeneration(): Promise<void> {
+    await this.loadSuggestions(true);
+    if (!this.error && !this.hasCatalogFallback()) this.closeRecipeDetail();
+  }
+
   async selectRecipe(recipe: Recipe): Promise<void> {
-    if (this.isFixture(recipe) || !this.hasAiNutrition(recipe) || this.isSaving || this.isSelected(recipe)) return;
+    if (!this.canSelectRecipe(recipe) || this.isSaving || this.isSelected(recipe)) return;
 
     this.isSaving = true;
     this.error = '';

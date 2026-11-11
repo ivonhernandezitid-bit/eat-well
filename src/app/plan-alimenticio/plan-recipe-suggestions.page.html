@@ -28,13 +28,15 @@
       <p *ngIf="error" class="recipe-suggestions-error" role="alert">{{ error }}</p>
       <div class="recipe-suggestions-loading" *ngIf="isLoading" role="status">
         <ion-spinner name="crescent"></ion-spinner>
-        <span>Cargando recetas...</span>
+        <span>Buscando opciones para tu plan...</span>
       </div>
-      <div class="recipe-suggestions-retry" *ngIf="error && !isLoading && recipes.length === 0">
-        <ion-button expand="block" fill="outline" (click)="loadSuggestions()">Reintentar</ion-button>
+      <div class="recipe-suggestions-retry" *ngIf="!isLoading && (error || hasCatalogFallback())">
+        <ion-button expand="block" class="recipe-suggestion-action recipe-suggestion-button" (click)="retryGeneration()">
+          {{ hasCatalogFallback() ? 'Obtener opciones seleccionables' : 'Reintentar' }}
+        </ion-button>
       </div>
 
-      <section class="recipe-suggestions-list" *ngIf="!isLoading && recipes.length" aria-label="Sugerencias de recetas">
+      <section class="recipe-suggestions-list" *ngIf="recipes.length" aria-label="Sugerencias de recetas">
         <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes">
           <ion-card-header>
             <div class="recipe-suggestion-heading">
@@ -60,8 +62,8 @@
               </ion-button>
             </div>
             <div class="recipe-suggestion-calories">
-              <strong>{{ recipe.nutrition?.perServing?.calories ?? recipe.calories ?? recipe.calorias ?? recipe.estimatedNutrition?.calories ?? '—' }}</strong>
-              <span>kcal por porción</span>
+              <strong>{{ nutritionValue(recipe, 'calories') }}</strong>
+              <span>{{ nutrition(recipe).calorieUnitLabel }}</span>
             </div>
           </ion-card-header>
           <ion-card-content>
@@ -70,21 +72,30 @@
               <ion-icon name="time-outline" aria-hidden="true"></ion-icon>
               <span>{{ recipe.preparationMinutes ? recipe.preparationMinutes + ' min de preparación' : 'Tiempo no disponible' }}</span>
             </div>
-            <div class="recipe-suggestion-macros" aria-label="Macronutrientes por porción">
-              <div><strong>{{ recipe.nutrition?.perServing?.proteinGrams ?? recipe.proteinGrams ?? recipe.protein_grams ?? recipe.proteins_g ?? recipe.proteinas ?? recipe.estimatedNutrition?.proteinGrams ?? '—' }} g</strong><span>Proteínas</span></div>
-              <div><strong>{{ recipe.nutrition?.perServing?.carbsGrams ?? recipe.carbsGrams ?? recipe.carbs_grams ?? recipe.carbs_g ?? recipe.carbohidratos ?? recipe.estimatedNutrition?.carbsGrams ?? '—' }} g</strong><span>Carbohidratos</span></div>
-              <div><strong>{{ recipe.nutrition?.perServing?.fatGrams ?? recipe.fatGrams ?? recipe.fat_grams ?? recipe.fats_g ?? recipe.grasas ?? recipe.estimatedNutrition?.fatGrams ?? '—' }} g</strong><span>Grasas</span></div>
+            <div class="recipe-suggestion-macros" [attr.aria-label]="nutrition(recipe).isCompletePerServing ? 'Macronutrientes por porción' : 'Macronutrientes; porción no confirmada'">
+              <div><strong>{{ nutritionValue(recipe, 'proteinGrams') }} g</strong><span>Proteínas</span></div>
+              <div><strong>{{ nutritionValue(recipe, 'carbsGrams') }} g</strong><span>Carbohidratos</span></div>
+              <div><strong>{{ nutritionValue(recipe, 'fatGrams') }} g</strong><span>Grasas</span></div>
             </div>
-            <p *ngIf="recipe.estimatedNutrition" class="recipe-suggestion-estimate-note" role="note">Valores nutricionales estimados por porción.</p>
+            <p class="recipe-suggestion-estimate-note" role="note">{{ nutrition(recipe).sourceLabel }}</p>
+            <p *ngIf="recipe.suggestionContext?.source === 'cache'" class="recipe-suggestion-estimate-note" role="status">
+              Opciones personalizadas recuperadas de la caché del servidor.
+            </p>
             <p *ngIf="isFixture(recipe)" class="recipe-suggestion-fixture-note" role="note">
               Receta de respaldo: no se puede guardar en el plan.
             </p>
-            <p *ngIf="!isFixture(recipe) && !hasAiNutrition(recipe)" class="recipe-suggestion-fixture-note" role="note">
-              Faltan los datos nutricionales de la IA; esta receta no se puede seleccionar.
+            <p *ngIf="isCatalogFallback(recipe)" class="recipe-suggestion-fixture-note" role="status">
+              {{ fallbackStatus(recipe) }}
             </p>
+            <p *ngIf="!canSelectRecipe(recipe) && !isFixture(recipe)" class="recipe-suggestion-fixture-note" role="note">
+              {{ selectionLimitation(recipe) }}
+            </p>
+            <ion-button *ngIf="isCatalogFallback(recipe)" expand="block" class="recipe-suggestion-action recipe-suggestion-button" [disabled]="isLoading" (click)="retryGeneration()">
+              Obtener opciones seleccionables
+            </ion-button>
             <ion-button
               expand="block"
-              class="recipe-suggestion-view"
+              class="recipe-suggestion-view recipe-suggestion-button"
               (click)="openRecipeDetail(recipe)">
               VER INGREDIENTES Y PREPARACIÓN
             </ion-button>
@@ -118,26 +129,33 @@
     <ion-content class="suggested-recipe-detail-content">
       <main class="suggested-recipe-detail">
         <p class="suggested-recipe-description">{{ detailRecipe?.description }}</p>
-        <section class="recipe-suggestion-macros" aria-label="Calorías y macronutrientes por porción">
+        <section *ngIf="detailRecipe as detail" class="recipe-suggestion-macros" [attr.aria-label]="nutrition(detail).isCompletePerServing ? 'Calorías y macronutrientes por porción' : 'Calorías y macronutrientes; porción no confirmada'">
           <div>
-            <strong>{{ detailRecipe?.nutrition?.perServing?.calories ?? detailRecipe?.calories ?? detailRecipe?.calorias ?? detailRecipe?.estimatedNutrition?.calories ?? '—' }}</strong>
-            <span>kcal</span>
+            <strong>{{ nutritionValue(detail, 'calories') }}</strong>
+            <span>{{ nutrition(detail).calorieUnitLabel }}</span>
           </div>
           <div>
-            <strong>{{ detailRecipe?.nutrition?.perServing?.proteinGrams ?? detailRecipe?.proteinGrams ?? detailRecipe?.protein_grams ?? detailRecipe?.proteins_g ?? detailRecipe?.proteinas ?? detailRecipe?.estimatedNutrition?.proteinGrams ?? '—' }} g</strong>
+            <strong>{{ nutritionValue(detail, 'proteinGrams') }} g</strong>
             <span>Proteínas</span>
           </div>
           <div>
-            <strong>{{ detailRecipe?.nutrition?.perServing?.carbsGrams ?? detailRecipe?.carbsGrams ?? detailRecipe?.carbs_grams ?? detailRecipe?.carbs_g ?? detailRecipe?.carbohidratos ?? detailRecipe?.estimatedNutrition?.carbsGrams ?? '—' }} g</strong>
+            <strong>{{ nutritionValue(detail, 'carbsGrams') }} g</strong>
             <span>Carbohidratos</span>
           </div>
           <div>
-            <strong>{{ detailRecipe?.nutrition?.perServing?.fatGrams ?? detailRecipe?.fatGrams ?? detailRecipe?.fat_grams ?? detailRecipe?.fats_g ?? detailRecipe?.grasas ?? detailRecipe?.estimatedNutrition?.fatGrams ?? '—' }} g</strong>
+            <strong>{{ nutritionValue(detail, 'fatGrams') }} g</strong>
             <span>Grasas</span>
           </div>
         </section>
-        <p *ngIf="detailRecipe?.estimatedNutrition" class="recipe-suggestion-estimate-note" role="note">
-          Valores nutricionales estimados por porción.
+        <p *ngIf="detailRecipe" class="recipe-suggestion-estimate-note" role="note">{{ nutrition(detailRecipe).sourceLabel }}</p>
+        <p *ngIf="detailRecipe?.suggestionContext?.source === 'cache'" class="recipe-suggestion-estimate-note" role="status">
+          Opciones personalizadas recuperadas de la caché del servidor.
+        </p>
+        <p *ngIf="detailRecipe && isCatalogFallback(detailRecipe)" class="recipe-suggestion-fixture-note" role="status">
+          {{ fallbackStatus(detailRecipe) }}
+        </p>
+        <p *ngIf="detailRecipe && !canSelectRecipe(detailRecipe) && !isFixture(detailRecipe)" class="recipe-suggestion-fixture-note" role="note">
+          {{ selectionLimitation(detailRecipe) }}
         </p>
 
         <section class="recipe-detail-section">
@@ -178,10 +196,18 @@
         <ion-button
           expand="block"
           class="recipe-suggestion-select"
-          [disabled]="!detailRecipe || isSaving || isFixture(detailRecipe) || !hasAiNutrition(detailRecipe) || isSelected(detailRecipe)"
+          [disabled]="!detailRecipe || isSaving || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
           (click)="detailRecipe && selectRecipe(detailRecipe)">
           <ion-spinner *ngIf="isSaving && detailRecipe && !isSelected(detailRecipe)" name="crescent"></ion-spinner>
           <span>{{ detailRecipe && isSelected(detailRecipe) ? 'RECETA SELECCIONADA' : 'SELECCIONAR RECETA' }}</span>
+        </ion-button>
+        <ion-button
+          *ngIf="detailRecipe && isCatalogFallback(detailRecipe)"
+          expand="block"
+          class="recipe-suggestion-action recipe-suggestion-button"
+          [disabled]="isLoading"
+          (click)="retryGeneration()">
+          Obtener opciones seleccionables
         </ion-button>
       </ion-toolbar>
     </ion-footer>

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+// Recetas: normalizar y persistir las estimaciones como estimaciones por porción; era necesario para evitar que un cálculo BAM incompleto pierda datos aceptados.
 require_once __DIR__ . '/recipe-nutrition.php';
 
 const RECIPE_PROMPT_VERSION = 'eatwell-meals-bam-clinical-v3';
@@ -142,10 +143,8 @@ function recipeMetadata(array $recipe): array
             'carbsGrams' => $recipe['carbs_g'] ?? null,
             'fatGrams' => $recipe['fats_g'] ?? null,
         ];
-    $estimatedNutrition = array_intersect_key($estimatedNutrition, array_flip(['calories', 'proteinGrams', 'carbsGrams', 'fatGrams']));
-    foreach ($estimatedNutrition as $key => $value) {
-        if (!is_numeric($value) || !is_finite((float)$value) || $value < 0) unset($estimatedNutrition[$key]);
-    }
+    // Los cuatro valores conservan cero y convierten entradas inválidas o ausentes en null, sin implicar verificación BAM.
+    $estimatedNutrition = normalizeRecipeNutrientValues($estimatedNutrition);
     return [
         'mealTypes' => $types,
         'servings' => $positiveInt($recipe['servings'] ?? null, 12),
@@ -153,6 +152,7 @@ function recipeMetadata(array $recipe): array
         'validationNotes' => cleanStringList($recipe['validationNotes'] ?? [], 30),
         'ingredientData' => cleanRecipeIngredientData($recipe['ingredientData'] ?? []),
         'estimatedNutrition' => $estimatedNutrition,
+        'registeredNutrition' => normalizeRecipeNutrientValues($recipe['registeredNutrition'] ?? null),
     ];
 }
 
@@ -199,7 +199,7 @@ function validateGeneratedRecipeList(mixed $recipes, int $expectedCount = 5, ?st
     return array_values($recipes);
 }
 
-// Preserve metadata in the existing JSON field while accepting older arrays of steps.
+// El campo JSON existente conserva estimaciones y procedencia sin requerir migración de columnas.
 function encodeRecipeInstructions(array $recipe): string
 {
     return json_encode(['steps' => cleanStringList($recipe['instructions'] ?? [], 20), 'metadata' => recipeMetadata($recipe)], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+// Regresión nutricional: verifica fuentes y bases por nutriente para impedir que cálculos incompletos borren datos registrados.
 require_once __DIR__ . '/../recipe-nutrition.php';
 function check(bool $condition, string $message): void { if (!$condition) throw new RuntimeException($message); }
 $foods = [
@@ -44,4 +45,37 @@ check($calculate($legacy, $zero)['perServing']['calories'] === 0.0, 'True zero l
 check($calculate($recipe, [])['status'] === 'unavailable', 'Empty catalog accepted.');
 $negative = $recipe; $negative['ingredientData'][0]['quantity'] = -1;
 check($calculate($negative, $foods)['status'] === 'unavailable', 'Negative quantity accepted.');
+
+// Los valores registrados sobreviven al fallo de BAM, pero nunca se convierten en valores por porción.
+$catalogNutrition = ['calories' => 440, 'proteinGrams' => 12, 'carbsGrams' => 64, 'fatGrams' => 15];
+$catalogRecipe = ['registeredNutrition' => $catalogNutrition, 'ingredients' => ['Una taza de avena']];
+$catalogResult = mergeRecipeNutrition($catalogRecipe, $calculate($catalogRecipe, []));
+check($catalogResult['calories'] === 440.0 && $catalogResult['proteinGrams'] === 12.0, 'Catalog values were discarded.');
+check($catalogResult['nutrition']['perServing']['calories'] === null, 'Unknown catalog portion basis was presented per serving.');
+check($catalogResult['nutrition']['sources']['calories'] === 'catalog'
+    && $catalogResult['nutrition']['portionBases']['calories'] === 'unknown', 'Catalog provenance or portion basis was lost.');
+
+// BAM completo basta por sí mismo; la disponibilidad no depende de estimaciones de IA.
+$bamOnly = mergeRecipeNutrition($recipe, $result);
+check($bamOnly['nutrition']['status'] === 'complete'
+    && $bamOnly['nutrition']['sources']['calories'] === 'BAM', 'Complete BAM nutrition requires an AI estimate.');
+
+// Las estimaciones ya están expresadas por porción y no se dividen otra vez cuando hay varias porciones.
+$multiServingEstimate = [
+    'servings' => 2,
+    'estimatedNutrition' => ['calories' => '150', 'proteinGrams' => 5, 'carbsGrams' => 20, 'fatGrams' => 4],
+];
+$estimatedResult = mergeRecipeNutrition($multiServingEstimate, $calculate(['ingredients' => []], []));
+check($estimatedResult['nutrition']['perServing'] === ['calories' => 150.0, 'proteinGrams' => 5.0, 'carbsGrams' => 20.0, 'fatGrams' => 4.0, 'fiberGrams' => null], 'Per-serving estimates were altered for a multi-serving recipe.');
+check($estimatedResult['nutrition']['sources']['calories'] === 'estimate', 'Estimate was mislabeled as BAM.');
+
+// Cero es un dato válido; null, negativos, infinitos y campos parciales siguen siendo desconocidos.
+$normalized = normalizeRecipeNutrientValues(['calories' => '0', 'proteinGrams' => null, 'carbsGrams' => -2, 'fatGrams' => INF]);
+check($normalized === ['calories' => 0.0, 'proteinGrams' => null, 'carbsGrams' => null, 'fatGrams' => null], 'Nutrient values were not normalized safely.');
+$partialSources = mergeRecipeNutrition(
+    ['estimatedNutrition' => ['calories' => 0, 'proteinGrams' => -1]],
+    $calculate(['ingredients' => []], []),
+);
+check($partialSources['nutrition']['values'] === ['calories' => 0.0, 'proteinGrams' => null, 'carbsGrams' => null, 'fatGrams' => null], 'Zero, invalid, and missing values were conflated.');
+
 echo "BAM nutrition passed: portions, reference quantity, missing nutrients, units, food identity, legacy quantities and true zero.\n";

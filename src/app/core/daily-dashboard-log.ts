@@ -1,4 +1,4 @@
-import { RecipeMealType } from './recipe-meals';
+import { RecipeMealType, RecipeNutritionSource } from './recipe-meals';
 
 export interface ConsumedMeal {
   id: string;
@@ -8,7 +8,7 @@ export interface ConsumedMeal {
   protein: number | null;
   carbohydrates: number | null;
   fat: number | null;
-  nutritionSource?: 'BAM' | 'estimate' | 'manual';
+  nutritionSource?: RecipeNutritionSource | 'manual';
 }
 
 export interface DailyDashboardLog {

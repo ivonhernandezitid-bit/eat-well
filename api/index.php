@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+// API: conservar valores registrados y su procedencia, además de devolver errores de generación tipados para que la interfaz pueda respaldarse sin depender de textos.
 
 require_once __DIR__ . '/auth-session.php';
 require_once __DIR__ . '/clinical-history.php';
@@ -655,10 +656,11 @@ function mapPersonalizedRecipe(array $recipe): array
         'id' => 'personalized-' . $recipe['id'],
         'title' => $recipe['title'],
         'description' => $recipe['description'],
-        'calories' => 0,
-        'proteinGrams' => 0,
-        'carbsGrams' => 0,
-        'fatGrams' => 0,
+        // Los ceros anteriores eran provisionales y se confundían con valores reales.
+        'calories' => null,
+        'proteinGrams' => null,
+        'carbsGrams' => null,
+        'fatGrams' => null,
         'ingredients' => decodeJsonList($recipe['ingredients']),
         ...$metadata,
         'goals' => [],
@@ -685,6 +687,18 @@ function addFavoriteRecipe(PDO $pdo, array $input): void
         sendError('La receta no es valida.', 422);
     }
 
+    // Solo se aceptan como registradas las cantidades recuperadas del catálogo en servidor; los valores del cliente permanecen como estimaciones.
+    $favoriteRecipe = $input;
+    $favoriteRecipe['estimatedNutrition'] = normalizeRecipeNutrientValues($input['estimatedNutrition'] ?? null);
+    $favoriteRecipe['registeredNutrition'] = null;
+    $recipeId = $input['recipeId'] ?? null;
+    if (is_string($recipeId) && ctype_digit($recipeId) && (int)$recipeId > 0) {
+        $catalogRecipe = $pdo->prepare('SELECT * FROM recipes WHERE id = ? LIMIT 1');
+        $catalogRecipe->execute([(int)$recipeId]);
+        $catalogRow = $catalogRecipe->fetch(PDO::FETCH_ASSOC);
+        if ($catalogRow) $favoriteRecipe['registeredNutrition'] = mapRecipe($catalogRow)['registeredNutrition'];
+    }
+
     $statement = $pdo->prepare(
         'INSERT INTO favorite_recipes
          (user_id, title, description, image_url, ingredients, instructions, source_type)
@@ -702,7 +716,7 @@ function addFavoriteRecipe(PDO $pdo, array $input): void
         cleanText($input['description'] ?? '', 255),
         cleanText($input['imageUrl'] ?? '', 2000) ?: null,
         json_encode(cleanStringList($input['ingredients'] ?? [], 30), JSON_UNESCAPED_UNICODE),
-        encodeRecipeInstructions($input),
+        encodeRecipeInstructions($favoriteRecipe),
         cleanText($input['sourceType'] ?? 'generated', 30),
     ]);
     $select = $pdo->prepare('SELECT * FROM favorite_recipes WHERE user_id = ? AND title = ? LIMIT 1');
@@ -1141,7 +1155,7 @@ function requestGeminiFoodAnalysis(
     $result = json_decode(trim($jsonText), true);
 
     if (!is_array($result)) {
-        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar.', 502);
+        sendError('Google AI Studio devolvio una respuesta que no se pudo interpretar.', 502, 'provider_response_error');
     }
 
     return $result;
@@ -1212,14 +1226,19 @@ function mapRecipe(array $recipe): array
 {
     $recipe['min_imc'] = $recipe['min_bmi'] ?? $recipe['min_imc'] ?? null;
     $recipe['max_imc'] = $recipe['max_bmi'] ?? $recipe['max_imc'] ?? null;
+    // Los datos raíz del catálogo son registrados; no se les asigna una base por porción ausente.
+    $registeredNutrition = normalizeRecipeNutrientValues([
+        'calories' => $recipe['calories'] ?? null,
+        'proteinGrams' => $recipe['protein_grams'] ?? null,
+        'carbsGrams' => $recipe['carbs_grams'] ?? null,
+        'fatGrams' => $recipe['fat_grams'] ?? null,
+    ]);
     return [
         'id' => (string)$recipe['id'],
         'title' => $recipe['title'],
         'description' => $recipe['description'],
-        'calories' => (int)$recipe['calories'],
-        'proteinGrams' => (float)$recipe['protein_grams'],
-        'carbsGrams' => (float)$recipe['carbs_grams'],
-        'fatGrams' => (float)$recipe['fat_grams'],
+        ...$registeredNutrition,
+        'registeredNutrition' => $registeredNutrition,
         'mealTypes' => catalogRecipeMealTypes($recipe),
         'ingredients' => explode('|', $recipe['ingredients']),
         'instructions' => explode('|', $recipe['instructions']),
@@ -1256,9 +1275,10 @@ function sendJson(array $data, int $statusCode = 200): void
     exit;
 }
 
-function sendError(string $message, int $statusCode = 400): void
+function sendError(string $message, int $statusCode = 400, ?string $code = null): void
 {
-    sendJson(['error' => $message], $statusCode);
+    // Un código estable permite distinguir errores de proveedor, conexión y validación sin analizar mensajes traducidos.
+    sendJson($code === null ? ['error' => $message] : ['error' => $message, 'code' => $code], $statusCode);
 }
 
 function generateExercises(PDO $pdo, array $input, string $apiKey, string $model): void
@@ -1553,14 +1573,14 @@ function requestGeminiText(
         if ($allowFailure) {
             return [];
         }
-        sendError('No se pudo conectar con el servicio de generacion: ' . $curlError, 502);
+        sendError('No se pudo conectar con el servicio de generacion: ' . $curlError, 502, 'provider_network_error');
     }
 
     if ($statusCode === 429) {
         if ($allowFailure) {
             return [];
         }
-        sendError('El servicio de generacion esta ocupado. Intenta de nuevo en un momento.', 429);
+        sendError('El servicio de generacion esta ocupado. Intenta de nuevo en un momento.', 429, 'provider_error');
     }
 
     if ($statusCode === 400 || $statusCode === 401 || $statusCode === 403) {
@@ -1568,7 +1588,7 @@ function requestGeminiText(
             return [];
         }
         $apiMessage = cleanText($response['error']['message'] ?? 'Revisa la clave y el modelo configurado.', 300);
-        sendError('No se pudo usar el servicio de generacion: ' . $apiMessage, 502);
+        sendError('No se pudo usar el servicio de generacion: ' . $apiMessage, 502, 'provider_error');
     }
 
     if ($statusCode < 200 || $statusCode >= 300) {
@@ -1576,7 +1596,7 @@ function requestGeminiText(
             return [];
         }
         $apiMessage = cleanText($response['error']['message'] ?? 'No se pudo generar el contenido.', 300);
-        sendError('No se pudo generar el contenido: ' . $apiMessage, 502);
+        sendError('No se pudo generar el contenido: ' . $apiMessage, 502, 'provider_error');
     }
 
     $parts = $response['candidates'][0]['content']['parts'] ?? [];

@@ -1,10 +1,23 @@
 <?php
 declare(strict_types=1);
+// Nutrición: separar el cálculo BAM, las estimaciones y los valores registrados del catálogo; el recálculo incompleto no debe borrar datos ni inventar una porción.
 
 const RECIPE_NUTRIENT_COLUMNS = [
     'calories' => 'energy_kcal', 'proteinGrams' => 'protein_g',
     'carbsGrams' => 'carbohydrates_g', 'fatGrams' => 'total_fat_g', 'fiberGrams' => 'dietary_fiber_g',
 ];
+
+function normalizeRecipeNutrientValues(mixed $values): array
+{
+    $result = [];
+    foreach (['calories', 'proteinGrams', 'carbsGrams', 'fatGrams'] as $nutrient) {
+        $value = is_array($values) ? ($values[$nutrient] ?? null) : null;
+        $result[$nutrient] = is_numeric($value) && is_finite((float)$value) && (float)$value >= 0
+            ? (float)$value
+            : null;
+    }
+    return $result;
+}
 
 function normalizeFoodName(string $name): string
 {
@@ -121,13 +134,54 @@ function calculateRecipeNutrition(array $recipe, array $catalog): array
 
 function withRecipeNutrition(PDO $pdo, array $recipe): array
 {
-    $nutrition = calculateRecipeNutrition($recipe, nutritionFoodCatalog($pdo));
-    $estimated = is_array($recipe['estimatedNutrition'] ?? null) ? $recipe['estimatedNutrition'] : [];
-    $perServing = $nutrition['perServing'];
+    return mergeRecipeNutrition($recipe, calculateRecipeNutrition($recipe, nutritionFoodCatalog($pdo)));
+}
+
+function mergeRecipeNutrition(array $recipe, array $calculation): array
+{
+    // La salida mantiene el cálculo BAM intacto y combina solo valores con procedencia y base explícitas.
+    $estimated = normalizeRecipeNutrientValues($recipe['estimatedNutrition'] ?? null);
+    $registered = normalizeRecipeNutrientValues($recipe['registeredNutrition'] ?? null);
+    $perServing = [];
+    $values = [];
+    $sources = [];
+    $portionBases = [];
     foreach (['calories', 'proteinGrams', 'carbsGrams', 'fatGrams'] as $nutrient) {
-        if ($perServing[$nutrient] === null && isset($estimated[$nutrient])) {
+        $bamValue = $calculation['perServing'][$nutrient];
+        if ($bamValue !== null) {
+            $perServing[$nutrient] = $bamValue;
+            $values[$nutrient] = $bamValue;
+            $sources[$nutrient] = 'BAM';
+            $portionBases[$nutrient] = 'per_serving';
+        } elseif ($estimated[$nutrient] !== null) {
             $perServing[$nutrient] = $estimated[$nutrient];
+            $values[$nutrient] = $estimated[$nutrient];
+            $sources[$nutrient] = 'estimate';
+            $portionBases[$nutrient] = 'per_serving';
+        } elseif ($registered[$nutrient] !== null) {
+            $perServing[$nutrient] = null;
+            $values[$nutrient] = $registered[$nutrient];
+            $sources[$nutrient] = 'catalog';
+            $portionBases[$nutrient] = 'unknown';
+        } else {
+            $perServing[$nutrient] = null;
+            $values[$nutrient] = null;
+            $sources[$nutrient] = null;
+            $portionBases[$nutrient] = null;
         }
     }
-    return [...$recipe, ...$perServing, 'nutrition' => $nutrition];
+    $sourceKinds = array_values(array_unique(array_filter($sources)));
+    $available = count(array_filter($values, static fn($value) => $value !== null));
+    $nutrition = [
+        'source' => count($sourceKinds) > 1 ? 'mixed' : ($sourceKinds[0] ?? 'unavailable'),
+        'status' => $available === count($values) ? 'complete' : ($available ? 'partial' : 'unavailable'),
+        'values' => $values,
+        'perServing' => [...$perServing, 'fiberGrams' => $calculation['perServing']['fiberGrams']],
+        'sources' => $sources,
+        'portionBases' => $portionBases,
+        'calculation' => $calculation,
+        'warnings' => $calculation['warnings'],
+        'method' => $calculation['method'],
+    ];
+    return [...$recipe, ...$values, 'nutrition' => $nutrition];
 }

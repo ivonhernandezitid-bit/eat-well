@@ -1,15 +1,23 @@
 <?php
 declare(strict_types=1);
+// Regresión de recetas: verificar que estimaciones validadas sobrevivan guardado y lectura sin convertirse en cálculos BAM.
 require_once __DIR__ . '/../recipe-generation.php';
 function cleanStringList(mixed $value, int $limit): array {
     return is_array($value) ? array_values(array_filter(array_slice($value, 0, $limit), static fn($item) => is_string($item) && trim($item) !== '')) : [];
 }
 function check(bool $condition, string $message): void { if (!$condition) throw new RuntimeException($message); }
-$recipe = ['instructions' => ['Cocina la avena.', 'Sirve.'], 'mealTypes' => ['breakfast', 'breakfast', 'invalid'], 'servings' => 2, 'preparationMinutes' => 15, 'validationNotes' => ['Ingrediente pendiente de validacion.']];
+$recipe = ['instructions' => ['Cocina la avena.', 'Sirve.'], 'mealTypes' => ['breakfast', 'breakfast', 'invalid'], 'servings' => 2, 'preparationMinutes' => 15, 'validationNotes' => ['Ingrediente pendiente de validacion.'], 'calories' => 180, 'proteins_g' => 6, 'carbs_g' => 30, 'fats_g' => 4];
 $saved = readRecipeInstructions(encodeRecipeInstructions($recipe));
 check($saved['instructions'] === $recipe['instructions'], 'Steps changed.');
 check($saved['mealTypes'] === ['breakfast'] && $saved['servings'] === 2 && $saved['preparationMinutes'] === 15, 'Metadata lost.');
 check($saved['validationNotes'] === $recipe['validationNotes'], 'Validation notes lost.');
+// La normalización persiste números finitos, conserva cero y representa campos inválidos como null.
+check($saved['estimatedNutrition'] === ['calories' => 180.0, 'proteinGrams' => 6.0, 'carbsGrams' => 30.0, 'fatGrams' => 4.0], 'Estimated nutrition was not persisted as numbers.');
+$zeroAndPartial = readRecipeInstructions(encodeRecipeInstructions([
+    'instructions' => ['Sirve.'],
+    'estimatedNutrition' => ['calories' => '0', 'proteinGrams' => null, 'carbsGrams' => -2, 'fatGrams' => 4],
+]));
+check($zeroAndPartial['estimatedNutrition'] === ['calories' => 0.0, 'proteinGrams' => null, 'carbsGrams' => null, 'fatGrams' => 4.0], 'Zero, null, and invalid estimated values were not distinguished.');
 check(readRecipeInstructions('["Paso anterior"]')['instructions'] === ['Paso anterior'], 'Legacy steps broken.');
 check(readRecipeInstructions('invalid')['instructions'] === [], 'Invalid JSON accepted.');
 check(recipeMetadata(['mealTypes' => 'bad', 'servings' => -1, 'preparationMinutes' => 1.2])['mealTypes'] === [], 'Invalid categories accepted.');

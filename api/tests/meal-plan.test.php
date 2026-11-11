@@ -1,8 +1,10 @@
 <?php
 declare(strict_types=1);
+// Regresión del plan: validar caché, calendario y elecciones guardadas contra fixtures aislados sin invocar IA; EATWELL_API_ROOT permite repetirla contra la instalación XAMPP.
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
-require_once dirname(__DIR__) . '/meal-plan.php';
-require_once dirname(__DIR__) . '/auth-session.php';
+$apiRoot = getenv('EATWELL_API_ROOT') ?: dirname(__DIR__);
+require_once $apiRoot . '/meal-plan.php';
+require_once $apiRoot . '/auth-session.php';
 function extractFunctions(string $source): array {
     $tokens=token_get_all($source);$offsets=[];$offset=0;$result=[];
     foreach($tokens as $token){$offsets[]=$offset;$offset+=strlen(is_array($token)?$token[1]:$token);}
@@ -15,11 +17,11 @@ function extractFunctions(string $source): array {
         $result[$name]=substr($source,$offsets[$i],$offsets[$j]+1-$offsets[$i]);
     }return $result;
 }
-$functions=extractFunctions(file_get_contents(dirname(__DIR__).'/index.php'));
-foreach(['getUserById','getFoodPreferencesRecord','mapFoodPreferences','decodeJsonList','cleanStringList','cleanText','mapPersonalizedRecipe','filterRecipesByPreferences'] as $name)eval($functions[$name]);
+$functions=extractFunctions(file_get_contents($apiRoot.'/index.php'));
+foreach(['getUserById','getFoodPreferencesRecord','mapFoodPreferences','decodeJsonList','cleanStringList','cleanText','mapPersonalizedRecipe','mapFavoriteRecipe','addFavoriteRecipe','filterRecipesByPreferences'] as $name)eval($functions[$name]);
 class ApiResponse extends RuntimeException { public function __construct(public array $body, public int $status) {} }
 function sendJson(array $body,int $status=200):void{throw new ApiResponse($body,$status);}
-function sendError(string $message,int $status=400):void{throw new ApiResponse(['error'=>$message],$status);}
+function sendError(string $message,int $status=400,?string $code=null):void{throw new ApiResponse($code===null?['error'=>$message]:['error'=>$message,'code'=>$code],$status);}
 function capture(callable $call,int $status=200):array{try{$call();}catch(ApiResponse $r){if($r->status!==$status)throw new RuntimeException('Unexpected response '.$r->status);return $r->body;}throw new RuntimeException('Missing response.');}
 function check(bool $value,string $message):void{if(!$value)throw new RuntimeException($message);}
 function invalid(callable $call):void{try{$call();}catch(InvalidArgumentException){return;}throw new RuntimeException('Invalid data accepted.');}
@@ -39,7 +41,7 @@ invalid(fn()=>validatePlanDate('2026-10-18','2026-10-11'));
 check(validatePlanDate('2026-10-11','2026-10-11')==='2026-10-11','Start of rolling calendar rejected.');
 check(validatePlanDate('2026-10-17','2026-10-11')==='2026-10-17','End of rolling calendar rejected.');
 $pdo=new PDO('mysql:host=127.0.0.1;dbname=eatwell_db;charset=utf8mb4','root','',[PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION,PDO::ATTR_DEFAULT_FETCH_MODE=>PDO::FETCH_ASSOC]);
-$schemas=[];foreach(['users','food_preferences','personalized_recipes','daily_meal_choices','dietary_recalls','meal_schedules','lifestyle_goals','clinical_histories'] as $table)$schemas[]=$pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM)[1];
+$schemas=[];foreach(['users','food_preferences','recipes','favorite_recipes','personalized_recipes','daily_meal_choices','dietary_recalls','meal_schedules','lifestyle_goals','clinical_histories'] as $table)$schemas[]=$pdo->query("SHOW CREATE TABLE `$table`")->fetch(PDO::FETCH_NUM)[1];
 $database='eatwell_meal_plan_check_'.bin2hex(random_bytes(6));$tokens=[];
 $pdo->exec("CREATE DATABASE `$database` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
 try{
@@ -48,6 +50,16 @@ try{
     $noPreferenceCategories=json_encode(['fruits','vegetables','proteins','carbohydrates','legumes','dairy','fats','allergies','dislikedFoods'],JSON_THROW_ON_ERROR);
     $preferencesStatement=$pdo->prepare('INSERT INTO food_preferences(user_id,no_preference_categories,completed_at) VALUES(?,?,NOW()),(?,?,NOW())');
     $preferencesStatement->execute([92001,$noPreferenceCategories,92002,$noPreferenceCategories]);
+    // Los favoritos guardan estimaciones validadas, pero un valor registrado enviado por el cliente nunca se eleva a dato del catálogo.
+    $favorite=capture(fn()=>addFavoriteRecipe($pdo,[
+        'userId'=>92001,'title'=>'Favorite nutrition fixture','description'=>'Synthetic','recipeId'=>'999',
+        'ingredients'=>[],'instructions'=>['Sirve.'],
+        'estimatedNutrition'=>['calories'=>'0','proteinGrams'=>5,'carbsGrams'=>20,'fatGrams'=>4],
+        'registeredNutrition'=>['calories'=>9999,'proteinGrams'=>9999,'carbsGrams'=>9999,'fatGrams'=>9999],
+    ]),201)['recipe'];
+    check($favorite['estimatedNutrition']===['calories'=>0.0,'proteinGrams'=>5.0,'carbsGrams'=>20.0,'fatGrams'=>4.0],'Favorite estimates did not survive saving and reading.');
+    check($favorite['nutrition']['sources']['calories']==='estimate'
+        && $favorite['registeredNutrition']['calories']===null,'Client-supplied values were trusted as catalog nutrition.');
     $_GET=[];$_SERVER['REQUEST_METHOD']='GET';$today=(new DateTimeImmutable('today',new DateTimeZone('America/Mexico_City')))->format('Y-m-d');
     capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'),401);
     $tokens[]=issueAuthToken($pdo,92001);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[0];
@@ -73,18 +85,41 @@ try{
     capture(fn()=>handleMealPlan($pdo,'plan.options',['mealType'=>'invalid'],'fake','fake'),422);
     $_GET=['mealType'=>'breakfast'];capture(fn()=>handleMealPlan($pdo,'plan.options',['userId'=>92002],'fake','fake'),403);$_GET=[];
     $user=getUserById($pdo,92001);$preferences=mapFoodPreferences(getFoodPreferencesRecord($pdo,92001));$preferences['clinicalConditions']=$conditions;
+    $previousCacheHash=hash('sha256',recipePreferenceHash($user,$preferences).':'.MEAL_PLAN_OPTION_COUNT.'-options-v3:breakfast');
+    check(mealOptionHash($user,$preferences,'breakfast')!==$previousCacheHash,'Incomplete v3 nutrition caches are still reusable.');
+    $legacyCacheHash=hash('sha256',recipePreferenceHash($user,$preferences).':'.MEAL_PLAN_OPTION_COUNT.'-options-v4:breakfast');
+    $legacyInsert=$pdo->prepare('INSERT INTO personalized_recipes (user_id,preference_hash,title,description,ingredients,instructions) VALUES (?,?,?,?,?,?)');
+    $legacyIds=[];
+    for($i=0;$i<MEAL_PLAN_OPTION_COUNT;++$i){$legacyInsert->execute([92001,$legacyCacheHash,'Legacy '.$i,'Old cache','["40 g de AVENA CRUDA"]','["Sin metadata de nutricion"]']);$legacyIds[]=(int)$pdo->lastInsertId();}
+    check(mealOptionHash($user,$preferences,'breakfast')!==$legacyCacheHash,'Incomplete v4 nutrition caches are still reusable.');
     check(count(compatibleMealOptionHashes($user,$preferences,'breakfast'))===1,'Outdated recipe option caches are still treated as selectable.');
-    $breakfast=readMealOptions($pdo,$user,$preferences,'breakfast','fake','fake');check(count($breakfast)===MEAL_PLAN_OPTION_COUNT,'Unexpected number of breakfast options.');
-    check($breakfast[0]['estimatedNutrition']===['calories'=>150,'proteinGrams'=>5,'carbsGrams'=>20,'fatGrams'=>4],'Generated breakfast nutrition estimates were not preserved in the option cache.');
-    check($breakfast[0]['proteinGrams']===5 && $breakfast[0]['carbsGrams']===20 && $breakfast[0]['fatGrams']===4,'Generated breakfast macros were not returned when verified nutrition was unavailable.');
+    // Las elecciones antiguas se conservan en almacenamiento y se exponen como pendientes de revisión.
+    $oldChoice=$pdo->prepare('INSERT INTO daily_meal_choices (user_id,plan_date,meal_type,recipe_id,preference_hash) VALUES (?,?,?,?,?)');
+    $oldChoice->execute([92001,$today,'breakfast',$legacyIds[0],recipePreferenceHash($user,$preferences)]);
+    $reviewPlan=readDailyMealChoices($pdo,$user,$preferences,$today);
+    check(!isset($reviewPlan['choices']->breakfast)
+        && $reviewPlan['meals'][0]['selectionStatus']==='needs_review','Old selected recipe was not clearly marked for review.');
+    $source=null;$breakfast=readMealOptions($pdo,$user,$preferences,'breakfast','fake','fake',$source);check(count($breakfast)===MEAL_PLAN_OPTION_COUNT,'Unexpected number of breakfast options.');
+    check($source==='generated','New options did not report their generation source.');
+    check($breakfast[0]['estimatedNutrition']===['calories'=>150.0,'proteinGrams'=>5.0,'carbsGrams'=>20.0,'fatGrams'=>4.0],'Generated breakfast nutrition estimates were not preserved in the option cache.');
+    check($breakfast[0]['proteinGrams']===5.0 && $breakfast[0]['carbsGrams']===20.0 && $breakfast[0]['fatGrams']===4.0,'Generated breakfast macros were not returned when verified nutrition was unavailable.');
     check(str_contains($lastPrompt,'Diabetes o resistencia a la insulina'),'Clinical guidance was not passed to recipe generation.');
-    $again=readMealOptions($pdo,$user,$preferences,'breakfast','fake','fake');check($generationCalls===1 && $again[0]['id']===$breakfast[0]['id'],'Cache called generator again.');
+    $source=null;$again=readMealOptions($pdo,$user,$preferences,'breakfast','fake','fake',$source);check($generationCalls===1 && $again[0]['id']===$breakfast[0]['id'] && $source==='cache','Cache called generator again or lost its source.');
     $lunch=readMealOptions($pdo,$user,$preferences,'lunch','fake','fake');check($generationCalls===2,'Different category not generated.');
-    check((int)$pdo->query('SELECT COUNT(*) FROM personalized_recipes')->fetchColumn()===MEAL_PLAN_OPTION_COUNT*2,'Category cache erased other options.');
+    check((int)$pdo->query('SELECT COUNT(*) FROM personalized_recipes')->fetchColumn()===MEAL_PLAN_OPTION_COUNT*3,'Category cache erased legacy rows or other options.');
     $_SERVER['REQUEST_METHOD']='POST';capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$breakfast[0]['id']],'fake','fake'));
+    capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>'24'],'fake','fake'),422);
     capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$lunch[0]['id']],'fake','fake'),422);
     $saved=capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$breakfast[3]['id']],'fake','fake'));
     check($saved['choices']->breakfast['id']===$breakfast[3]['id'],'Replacement not saved.');
+    // La lectura del plan devuelve el contrato de calendario completo y mantiene la elección persistida.
+    $_SERVER['REQUEST_METHOD']='GET';
+    $calendar=capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'));
+    check($calendar['date']===$today && count($calendar['meals'])===5
+        && $calendar['summary']['selectedMeals']===1
+        && $calendar['meals'][0]['selectionStatus']==='selected'
+        && $calendar['meals'][0]['recipe']['id']===$breakfast[3]['id'],'Calendar read lost its date, plan structure, or saved choice.');
+    $_SERVER['REQUEST_METHOD']='POST';
     check((int)$pdo->query('SELECT COUNT(*) FROM daily_meal_choices')->fetchColumn()===1,'Duplicate daily choice.');
     $tomorrow=(new DateTimeImmutable($today))->modify('+1 day')->format('Y-m-d');check(count((array)readDailyMealChoices($pdo,$user,$preferences,$tomorrow)['choices'])===0,'Selection leaked to another date.');
     $tokens[]=issueAuthToken($pdo,92002);$_SERVER['HTTP_AUTHORIZATION']='Bearer '.$tokens[1];
@@ -100,9 +135,28 @@ try{
     capture(fn()=>handleMealPlan($pdo,'plan.choose',['date'=>$today,'mealType'=>'breakfast','recipeId'=>$breakfast[3]['id']],'fake','fake'));
     $changed=[...$preferences,'allergies'=>['avena']];check(count((array)readDailyMealChoices($pdo,$user,$changed,$today)['choices'])===0,'Old preference selection retained.');
     try{readMealOptions($pdo,$user,$changed,'breakfast','fake','fake');throw new LogicException('Incompatible recipe saved.');}catch(RuntimeException $error){check(!$error instanceof LogicException,'Incompatible recipe saved.');}
-    check((int)$pdo->query('SELECT COUNT(*) FROM personalized_recipes')->fetchColumn()===MEAL_PLAN_OPTION_COUNT*2,'Invalid generation changed cache.');
+    check((int)$pdo->query('SELECT COUNT(*) FROM personalized_recipes')->fetchColumn()===MEAL_PLAN_OPTION_COUNT*3,'Invalid generation changed or discarded cache rows.');
     $bad=array_fill(0,MEAL_PLAN_OPTION_COUNT,['title'=>'Duplicate','description'=>'Test','ingredients'=>['1 g de Test'],'ingredientData'=>[['foodId'=>0,'name'=>'Test','quantity'=>1,'unit'=>'g']],'instructions'=>['Serve'],'servings'=>1,'preparationMinutes'=>1,'mealTypes'=>['breakfast']]);
     try{validateGeneratedRecipeList($bad,MEAL_PLAN_OPTION_COUNT,'breakfast');throw new LogicException('Duplicate options accepted.');}catch(RuntimeException $error){check(!$error instanceof LogicException,'Duplicate options accepted.');}
+    // Un conjunto completo en cantidad pero sin nutrición no se recicla ni provoca regeneración automática repetida.
+    $incompleteHash=mealOptionHash($user,$preferences,'dinner');$incompleteIds=[];
+    for($i=0;$i<MEAL_PLAN_OPTION_COUNT;++$i){$legacyInsert->execute([92001,$incompleteHash,'Incomplete '.$i,'Old cache','[]','["Legacy"]']);$incompleteIds[]=(int)$pdo->lastInsertId();}
+    $oldDinnerChoice=$pdo->prepare('INSERT INTO daily_meal_choices (user_id,plan_date,meal_type,recipe_id,preference_hash) VALUES (?,?,?,?,?)');
+    $oldDinnerChoice->execute([92001,$today,'dinner',$incompleteIds[0],recipePreferenceHash($user,$preferences)]);
+    $generationCountBeforeReview=$generationCalls;
+    try{readMealOptions($pdo,$user,$preferences,'dinner','fake','fake');throw new LogicException('Incomplete current cache was reused.');}
+    catch(ApiResponse $response){check($response->status===409 && ($response->body['code']??null)==='options_cache_review','Incomplete cache did not request controlled review.');}
+    check($generationCalls===$generationCountBeforeReview,'Incomplete cache triggered an automatic regeneration loop.');
+    // El reintento explícito archiva el conjunto defectuoso sin borrar elecciones y deja una caché reutilizable.
+    $source=null;$recovered=readMealOptions($pdo,$user,$preferences,'dinner','fake','fake',$source,true);
+    check(count($recovered)===MEAL_PLAN_OPTION_COUNT && $source==='generated'
+        && $generationCalls===$generationCountBeforeReview+1,'Explicit recovery did not generate a fresh option set.');
+    check((int)$pdo->query('SELECT COUNT(*) FROM daily_meal_choices WHERE user_id=92001 AND plan_date='.$pdo->quote($today).' AND meal_type=\'dinner\'')->fetchColumn()===1,'Cache recovery deleted the saved choice.');
+    $_SERVER['REQUEST_METHOD']='GET';$recoveredPlan=capture(fn()=>handleMealPlan($pdo,'plan.get',['date'=>$today],'fake','fake'));
+    check($recoveredPlan['meals'][4]['selectionStatus']==='needs_review'
+        && $recoveredPlan['meals'][4]['recipe']===null,'Archived selection was not retained as needing review.');
+    $source=null;readMealOptions($pdo,$user,$preferences,'dinner','fake','fake',$source);
+    check($source==='cache' && $generationCalls===$generationCountBeforeReview+1,'Recovered cache repeated generation or returned another review conflict.');
 }finally{
     $pdo->exec("DROP DATABASE `$database`");
 }

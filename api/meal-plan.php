@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+// Plan nutricional: identifica cachés por contrato, permite recuperar las incompletas solo por reintento y marca elecciones archivadas para revisión sin borrarlas.
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/lifestyle-goals.php';
 require_once __DIR__ . '/clinical-history.php';
@@ -8,7 +9,8 @@ const MEAL_PLAN_OPTION_COUNT = 4;
 
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
-    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-options-v3:' . $mealType);
+    // La versión identifica el contrato nutricional y evita reutilizar filas antiguas sin estimaciones persistidas.
+    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-nutrition-provenance-v1:' . $mealType);
 }
 
 function compatibleMealOptionHashes(array $user, array $preferences, string $mealType): array
@@ -148,36 +150,106 @@ function structureDailyMealPlan(string $date, array $choices, array $needsReview
             'needsReviewMeals'=>$reviewCount, 'complete'=>$selected===5]];
 }
 
-function readMealOptions(PDO $pdo, array $user, array $preferences, string $type, string $apiKey, string $model): array
+function mealOptionSetHasCompleteNutrition(PDO $pdo, array $rows, string $type): bool
+{
+    if (count($rows) !== MEAL_PLAN_OPTION_COUNT) return false;
+    foreach ($rows as $row) {
+        $recipe = mapPersonalizedRecipe($row);
+        $metadata = recipeMetadata($recipe);
+        if (!in_array($type, $metadata['mealTypes'], true) || !$metadata['servings']) return false;
+        $recipe = withRecipeNutrition($pdo, $recipe);
+        foreach (['calories', 'proteinGrams', 'carbsGrams', 'fatGrams'] as $nutrient) {
+            if ($recipe['nutrition']['values'][$nutrient] === null
+                || $recipe['nutrition']['portionBases'][$nutrient] !== 'per_serving') return false;
+        }
+    }
+    return true;
+}
+
+function archiveIncompleteMealOptions(PDO $pdo, int $userId, string $hash, string $type): bool
+{
+    // Archivar sin borrar filas conserva las referencias de elecciones y permite marcarlas para revisión.
+    $pdo->beginTransaction();
+    try {
+        $lock = $pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE');
+        $lock->execute([$userId]);
+        $query = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT ' . MEAL_PLAN_OPTION_COUNT);
+        $query->execute([$userId, $hash]);
+        $rows = $query->fetchAll(PDO::FETCH_ASSOC);
+        if (!$rows || mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+            $pdo->commit();
+            return false;
+        }
+        $archivedHash = hash('sha256', $hash . ':review:' . bin2hex(random_bytes(12)));
+        $archive = $pdo->prepare('UPDATE personalized_recipes SET preference_hash=? WHERE user_id=? AND preference_hash=?');
+        $archive->execute([$archivedHash, $userId, $hash]);
+        $pdo->commit();
+        return true;
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    }
+}
+
+function readMealOptions(PDO $pdo, array $user, array $preferences, string $type, string $apiKey, string $model, ?string &$source = null, bool $recoverCache = false): array
 {
     if (!$preferences['completed']) throw new InvalidArgumentException('Completa tus preferencias alimentarias antes de elegir tus recetas.');
     $hash = mealOptionHash($user, $preferences, $type);
     $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT ' . MEAL_PLAN_OPTION_COUNT);
     $stmt->execute([$user['id'], $hash]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    if (count($rows) === MEAL_PLAN_OPTION_COUNT) return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
-    if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503);
+    // Cualquier conjunto guardado incompleto requiere una acción explícita; solo esa acción lo archiva y genera su reemplazo.
+    if ($rows && !mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+        if (!$recoverCache) sendError('El conjunto guardado de recetas requiere revisión antes de reutilizarse.', 409, 'options_cache_review');
+        if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503, 'generation_not_configured');
+        archiveIncompleteMealOptions($pdo, (int)$user['id'], $hash, $type);
+        $stmt->execute([$user['id'], $hash]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if ($rows && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+            $source = 'cache';
+            return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
+        }
+        if ($rows) sendError('El conjunto guardado de recetas requiere revisión antes de reutilizarse.', 409, 'options_cache_review');
+    }
+    // No se considera válida una caché solo porque tenga el número esperado de filas.
+    if (count($rows) === MEAL_PLAN_OPTION_COUNT && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+        $source = 'cache';
+        return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
+    }
+    if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503, 'generation_not_configured');
     $labels = ['breakfast' => 'Desayuno', 'morning_snack' => 'Colacion matutina', 'lunch' => 'Comida', 'afternoon_snack' => 'Colacion vespertina', 'dinner' => 'Cena'];
     $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences), recipeClinicalGuidance($preferences['clinicalConditions'] ?? []))
         . "\nGenera exactamente cuatro opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no cuatro comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de cuatro recetas.";
     error_log('[Paso 2] Solicitando receta a Gemini');
-    $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), MEAL_PLAN_OPTION_COUNT, $type);
+    try {
+        $recipes = validateGeneratedRecipeList(requestGeminiText($apiKey, $model, $prompt, ['type' => 'ARRAY', 'items' => recipeGenerationSchema()]), MEAL_PLAN_OPTION_COUNT, $type);
+    } catch (RuntimeException $error) {
+        // Las respuestas inválidas del proveedor tienen un código estable; no se atribuyen a una clave o modelo sin evidencia.
+        sendError($error->getMessage(), 502, 'provider_response_error');
+    }
     $recipes = filterRecipesByPreferences($recipes, $preferences);
     $recipes = filterRecipesByClinicalConditions($recipes, $preferences['clinicalConditions'] ?? []);
     if (count($recipes) !== MEAL_PLAN_OPTION_COUNT) throw new RuntimeException('Una o más recetas no cumplieron con las restricciones registradas. Vuelve a generar las opciones.');
+    $reused = false;
     $pdo->beginTransaction();
     try {
         // Lock this account so concurrent requests reuse a single completed option set.
         $lock = $pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE'); $lock->execute([$user['id']]);
         $stmt->execute([$user['id'], $hash]); $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if (count($rows) !== MEAL_PLAN_OPTION_COUNT) {
-            if ($rows) throw new RuntimeException('El conjunto de recetas esta incompleto. Requiere revision.');
+        if (count($rows) === MEAL_PLAN_OPTION_COUNT && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+            $reused = true;
+        } else {
+            if ($rows) {
+                $pdo->rollBack();
+                sendError('El conjunto guardado de recetas requiere revisión antes de reutilizarse.', 409, 'options_cache_review');
+            }
             $insert = $pdo->prepare('INSERT INTO personalized_recipes (user_id,preference_hash,title,description,ingredients,instructions) VALUES (?,?,?,?,?,?)');
             foreach ($recipes as $recipe) $insert->execute([$user['id'], $hash, cleanText($recipe['title'], 180), cleanText($recipe['description'], 255), json_encode($recipe['ingredients'], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR), encodeRecipeInstructions($recipe)]);
             $stmt->execute([$user['id'], $hash]); $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         }
         $pdo->commit();
     } catch (Throwable $error) { if ($pdo->inTransaction()) $pdo->rollBack(); throw $error; }
+    $source = $reused ? 'cache' : 'generated';
     return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
 }
 
@@ -222,9 +294,13 @@ function handleMealPlan(PDO $pdo, string $action, array $input, string $apiKey, 
         $type = $input['mealType'] ?? $_GET['mealType'] ?? null;
         if ($action !== 'plan.get' && !in_array($type, RECIPE_MEAL_TYPES, true)) throw new InvalidArgumentException('Selecciona un tipo de comida valido.');
         if ($action === 'plan.options') {
-            $recipes = readMealOptions($pdo, $user, $preferences, $type, $apiKey, $model);
+            $source = null;
+            // Solo la solicitud explícita de reintento puede archivar un conjunto antiguo para regenerarlo.
+            $recoverCache = in_array($input['recoverCache'] ?? $_GET['recoverCache'] ?? null, [true, 1, '1'], true);
+            $recipes = readMealOptions($pdo, $user, $preferences, $type, $apiKey, $model, $source, $recoverCache);
             error_log('[Paso 3] Respuesta procesada');
-            sendJson(['recipes' => $recipes]);
+            // El frontend necesita distinguir las opciones generadas de las reutilizadas para explicar el respaldo correctamente.
+            sendJson(['recipes' => $recipes, 'source' => $source]);
         }
         $date = validatePlanDate($input['date'] ?? $_GET['date'] ?? null);
         if ($action === 'plan.choose') {

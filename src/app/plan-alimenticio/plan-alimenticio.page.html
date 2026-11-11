@@ -290,12 +290,13 @@
         <p *ngIf="portionError" class="recipe-description" role="alert">{{ portionError }}</p>
         <p *ngIf="portionPreview?.instructionQuantitiesUnchanged" class="recipe-description" role="status">Las cantidades escritas en los pasos conservan el valor original; las cantidades ajustadas están en Ingredientes.</p>
         <p class="recipe-description">{{ selectedRecipe?.description }}</p>
-        <section class="recipe-nutrition" aria-label="Información nutricional por porción">
+        <section class="recipe-nutrition" [attr.aria-label]="selectedRecipe?.nutritionPerServingConfirmed === false ? 'Información nutricional; porción no confirmada' : 'Información nutricional por porción'">
           <div><strong>{{ selectedRecipe?.calories ?? '—' }}</strong><span>kcal</span></div>
           <div><strong>{{ selectedRecipe?.proteinGrams ?? '—' }} g</strong><span>Proteína</span></div>
           <div><strong>{{ selectedRecipe?.carbsGrams ?? '—' }} g</strong><span>Carbohidratos</span></div>
           <div><strong>{{ selectedRecipe?.fatGrams ?? '—' }} g</strong><span>Grasas</span></div>
         </section>
+        <p *ngIf="selectedRecipe?.nutritionSourceLabel" class="recipe-description" role="note">{{ selectedRecipe?.nutritionSourceLabel }}</p>
 
         <!-- Lista de Ingredientes Interactiva -->
         <section class="recipe-section">
