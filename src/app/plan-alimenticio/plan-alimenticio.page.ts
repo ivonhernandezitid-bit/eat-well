@@ -113,7 +113,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
   private optionRequest = 0;
   private optionLoads = new Map<string, Promise<Recipe[]>>();
 
-  viewMode: 'list' | 'grid' = 'list';
+  viewMode: 'list' | 'grid' = this.readViewMode();
   readonly recipeMealLabels = recipeMealLabels;
   checkedIngredients = new Set<string>();
 
@@ -183,6 +183,17 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
   toggleViewMode(): void {
     this.viewMode = this.viewMode === 'list' ? 'grid' : 'list';
+    try {
+      localStorage.setItem('eat-well-plan-view-mode', this.viewMode);
+    } catch { /* La vista puede cambiar aunque el navegador bloquee el almacenamiento. */ }
+  }
+
+  private readViewMode(): 'list' | 'grid' {
+    try {
+      return localStorage.getItem('eat-well-plan-view-mode') === 'grid' ? 'grid' : 'list';
+    } catch {
+      return 'list';
+    }
   }
 
   get planMealCards(): Array<PlanMealSlot & { recipe: Recipe | null; consumedMeal: ConsumedMeal | null; isConsumed: boolean; calories: number }> {

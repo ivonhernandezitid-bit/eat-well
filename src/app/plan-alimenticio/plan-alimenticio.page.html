@@ -18,7 +18,9 @@
         </div>
 
         <div class="topbar-buttons">
-          <button class="icon-toggle-btn" aria-label="Cambiar diseño" (click)="toggleViewMode()">
+          <button type="button" class="icon-toggle-btn"
+            [attr.aria-label]="viewMode === 'list' ? 'Cambiar a vista de cuadrícula' : 'Cambiar a vista de lista'"
+            [attr.aria-pressed]="viewMode === 'grid'" (click)="toggleViewMode()">
             <ion-icon [name]="viewMode === 'list' ? 'grid-outline' : 'list-outline'"></ion-icon>
           </button>
 
@@ -106,7 +108,7 @@
         <ion-spinner *ngIf="planLoading" name="crescent" aria-label="Cargando plan"></ion-spinner>
       </div>
       <p *ngIf="planError" class="plan-load-error" role="alert">{{ planError }}</p>
-      <div class="planned-meal-list">
+      <div class="planned-meal-list" [class.grid-mode]="viewMode === 'grid'">
         <button
           type="button"
           class="planned-meal-card"
@@ -220,7 +222,7 @@
         <ion-icon name="time-outline"></ion-icon>
         Historial de escaneos
       </h2>
-      <div class="history-list" *ngIf="scanHistory.length > 0; else noHistory">
+      <div class="history-list" [class.grid-mode]="viewMode === 'grid'" *ngIf="scanHistory.length > 0; else noHistory">
         <article class="history-card" *ngFor="let scan of scanHistory" (click)="openScanHistoryItem(scan)">
           <div class="history-icon-box">
             <ion-icon name="camera-outline"></ion-icon>
