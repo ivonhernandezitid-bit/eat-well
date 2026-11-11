@@ -13,36 +13,44 @@ import {
   resolveRecipeNutrition,
 } from '../core/recipe-meals';
 
-const ingredientSubstituteGroups: Array<{ keywords: string[]; options: string[] }> = [
+const ingredientSubstituteGroups: Array<{ label: string; icon: string; keywords: string[]; options: string[] }> = [
   {
+    label: 'Verduras', icon: 'leaf-outline',
     keywords: ['lechuga', 'espinaca', 'acelga', 'col', 'kale', 'berro'],
     options: ['Espinaca baby', 'Acelga', 'Col'],
   },
   {
+    label: 'Verduras', icon: 'leaf-outline',
     keywords: ['tomate', 'jitomate', 'pimiento', 'calabaza', 'calabacita', 'pepino', 'brocoli', 'coliflor', 'zanahoria'],
     options: ['Calabacita', 'Pimiento', 'Brócoli'],
   },
   {
+    label: 'Frutas', icon: 'nutrition-outline',
     keywords: ['manzana', 'pera', 'platano', 'banana', 'naranja', 'fresa', 'frutos rojos', 'mango'],
     options: ['Manzana', 'Pera', 'Naranja'],
   },
   {
+    label: 'Cereales', icon: 'restaurant-outline',
     keywords: ['arroz', 'avena', 'quinoa', 'maiz', 'tortilla', 'pasta', 'pan', 'cebada'],
     options: ['Arroz integral', 'Quinoa', 'Avena'],
   },
   {
+    label: 'Leguminosas', icon: 'leaf-outline',
     keywords: ['frijol', 'lenteja', 'garbanzo', 'haba'],
     options: ['Lentejas', 'Garbanzos', 'Frijoles'],
   },
   {
+    label: 'Alimentos de origen animal', icon: 'restaurant-outline',
     keywords: ['pollo', 'pavo', 'res', 'carne', 'pescado', 'atun', 'salmon', 'huevo'],
     options: ['Pollo', 'Pescado', 'Huevo'],
   },
   {
+    label: 'Lácteos y alternativas', icon: 'cafe-outline',
     keywords: ['leche', 'yogur', 'yogurt', 'queso', 'requeson'],
     options: ['Yogur natural', 'Queso panela', 'Leche'],
   },
   {
+    label: 'Grasas y semillas', icon: 'nutrition-outline',
     keywords: ['aguacate', 'aceite', 'nuez', 'almendra', 'semilla'],
     options: ['Aguacate', 'Nueces', 'Semillas'],
   },
@@ -76,6 +84,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   isSubstitutionSheetOpen = false;
   selectedIngredientIndex: number | null = null;
   substituteOptions: string[] = [];
+  substituteSearchTerm = '';
+  substituteGroupLabel = '';
+  substituteGroupIcon = 'swap-horizontal-outline';
   dailyPlan: DailyMealPlan | null = null;
   isLoading = true;
   isSaving = false;
@@ -286,6 +297,23 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     } catch { /* Una entrada local antigua o inválida no debe impedir abrir la receta. */ }
   }
 
+  get selectedIngredientName(): string {
+    return this.selectedIngredientIndex === null ? '' : this.activeIngredients[this.selectedIngredientIndex] ?? '';
+  }
+
+  get substitutionPortion(): string {
+    return this.selectedIngredientName.match(/^(.+?)\s+de\s+/i)?.[1] ?? '';
+  }
+
+  get filteredSubstituteOptions(): string[] {
+    const term = normalizeIngredient(this.substituteSearchTerm.trim());
+    return term ? this.substituteOptions.filter(option => normalizeIngredient(option).includes(term)) : this.substituteOptions;
+  }
+
+  updateSubstituteSearch(event: Event): void {
+    this.substituteSearchTerm = (event.target as HTMLInputElement).value;
+  }
+
   openSubstitution(index: number): void {
     const ingredient = this.activeIngredients[index];
     if (!ingredient) return;
@@ -295,6 +323,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
       item.keywords.some(keyword => normalized.includes(keyword)),
     );
     this.selectedIngredientIndex = index;
+    this.substituteSearchTerm = '';
+    this.substituteGroupLabel = group?.label ?? '';
+    this.substituteGroupIcon = group?.icon ?? 'swap-horizontal-outline';
     this.substituteOptions = group
       ? group.options.filter(option => !normalized.includes(normalizeIngredient(option)))
       : [];
@@ -302,7 +333,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   replaceIngredient(substitute: string): void {
-    if (this.selectedIngredientIndex === null) return;
+    if (this.selectedIngredientIndex === null || !this.substituteOptions.includes(substitute)) return;
 
     const index = this.selectedIngredientIndex;
     const currentIngredient = this.activeIngredients[index];
@@ -325,6 +356,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     this.isSubstitutionSheetOpen = false;
     this.selectedIngredientIndex = null;
     this.substituteOptions = [];
+    this.substituteSearchTerm = '';
+    this.substituteGroupLabel = '';
+    this.substituteGroupIcon = 'swap-horizontal-outline';
   }
 
   isFixture(recipe: Recipe): boolean {

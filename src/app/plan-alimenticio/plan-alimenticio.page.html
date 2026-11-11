@@ -68,6 +68,7 @@
       </ion-button>
     </section>
 
+    <ng-container *ngIf="selectedFilter !== 'favorites'">
     <h1 class="screen-title">PLAN ALIMENTICIO</h1>
 
     <nav class="plan-day-selector" aria-label="Seleccionar día del plan">
@@ -129,6 +130,7 @@
         </button>
       </div>
     </section>
+    </ng-container>
 
     <!-- Sección de Recetas del Alimento Escaneado (solo visible si se escaneó algo) -->
     <div *ngIf="selectedFilter === 'all' && scanRecipes.length > 0" class="section-container scan-recipes-section">

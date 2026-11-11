@@ -447,6 +447,61 @@ ion-modal.suggested-recipe-detail-modal {
   --background: #f7fff4;
 }
 
+.recipe-detail-header-toolbar {
+  --padding-start: 0;
+  --padding-end: 0;
+}
+
+.recipe-detail-heading {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 8px;
+  width: min(100% - 32px, var(--eatwell-content-width, 620px));
+  margin: 0 auto;
+
+  h1 {
+    min-width: 0;
+    margin: 0;
+    padding: 12px 0;
+    color: var(--eatwell-green-900);
+    font-size: 1.2rem;
+    font-weight: 500;
+    line-height: 1.3;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+}
+
+.recipe-detail-back {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 3px;
+  width: fit-content;
+  min-height: 30px;
+  margin: 0 0 0 -5px;
+  padding: 0 5px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 750;
+  text-transform: none;
+  cursor: pointer;
+
+  ion-icon {
+    font-size: 1rem;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--eatwell-green-700);
+    outline-offset: 1px;
+  }
+}
+
 .suggested-recipe-detail {
   display: grid;
   gap: 20px;
@@ -604,7 +659,8 @@ ion-modal.suggested-recipe-detail-modal {
   padding: 4px 0;
 
   ion-button {
-    flex: 0 1 290px;
+    flex: 1 1 100%;
+    width: 100%;
     min-width: 0;
     max-width: 100%;
     min-height: 46px;
@@ -667,13 +723,19 @@ ion-modal.ingredient-substitution-sheet {
   margin: 0 auto;
 }
 
+.ingredient-substitution-content {
+  --background: #f7fff4;
+}
+
 .ingredient-substitution-panel {
   padding: 22px 20px max(24px, env(safe-area-inset-bottom));
 
   h2 {
-    margin: 0 0 8px;
+    margin: 0;
     color: var(--eatwell-green-900);
     font-size: 1.2rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
   }
 
   > p {
@@ -684,26 +746,155 @@ ion-modal.ingredient-substitution-sheet {
   }
 }
 
-.ingredient-substitution-options {
-  display: grid;
-  gap: 8px;
+.ingredient-substitution-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
 
-  button {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 14px;
-    border: 1px solid rgba(47, 125, 89, 0.14);
-    border-radius: 14px;
-    background: #fff;
+  .close-substitution-button {
+    display: grid;
+    place-items: center;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
+    margin-top: -4px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--eatwell-green-900);
+    font-size: 1.25rem;
+    cursor: pointer;
+  }
+}
+
+.ingredient-substitution-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 0 12px;
+  border: 1px solid rgba(47, 125, 89, 0.2);
+  border-radius: 12px;
+  background: #fff;
+
+  input {
+    width: 100%;
+    min-width: 0;
+    min-height: 46px;
+    padding: 10px 0;
+    border: 0;
+    background: transparent;
     color: var(--eatwell-ink);
     font: inherit;
-    text-align: left;
+    font-size: 0.85rem;
+    outline: none;
+  }
+
+  &:focus-within {
+    outline: 2px solid var(--eatwell-green-700);
+    outline-offset: 2px;
   }
 
   ion-icon {
+    flex: 0 0 auto;
     color: var(--eatwell-green-700);
     font-size: 1.2rem;
+  }
+}
+
+.ingredient-substitution-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ingredient-substitution-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid rgba(47, 125, 89, 0.25);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--eatwell-ink);
+  overflow-wrap: anywhere;
+
+  p {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+}
+
+.ingredient-substitution-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  ion-icon {
+    flex: 0 0 auto;
+    color: var(--eatwell-green-700);
+    font-size: 1.3rem;
+  }
+
+  h3 {
+    min-width: 0;
+    margin: 0;
+    color: var(--eatwell-green-900);
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+}
+
+.ingredient-substitution-group {
+  color: var(--eatwell-muted);
+  font-size: 0.76rem;
+}
+
+.select-substitute-button {
+  width: 100%;
+  min-height: 40px;
+  margin-top: auto;
+  padding: 8px;
+  border: 1px solid rgba(47, 125, 89, 0.3);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    background: #eef7ee;
+  }
+}
+
+.close-substitution-button:focus-visible,
+.select-substitute-button:focus-visible {
+  outline: 2px solid var(--eatwell-green-700);
+  outline-offset: 2px;
+}
+
+.ingredient-substitution-panel > .ingredient-substitution-note {
+  margin: 16px 0 0;
+  font-size: 0.76rem;
+}
+
+@media (max-width: 380px) {
+  .ingredient-substitution-panel {
+    padding-inline: 14px;
+  }
+
+  .ingredient-substitution-options {
+    gap: 10px;
+  }
+
+  .ingredient-substitution-card {
+    padding: 10px;
   }
 }

@@ -113,13 +113,14 @@
   (didDismiss)="closeRecipeDetail()">
   <ng-template>
     <ion-header>
-      <ion-toolbar>
-        <ion-title>{{ detailRecipe?.title }}</ion-title>
-        <ion-buttons slot="end">
-          <ion-button aria-label="Cerrar detalle" (click)="closeRecipeDetail()">
-            <ion-icon slot="icon-only" name="close-outline"></ion-icon>
-          </ion-button>
-        </ion-buttons>
+      <ion-toolbar class="recipe-detail-header-toolbar">
+        <div class="recipe-detail-heading">
+          <button type="button" class="recipe-detail-back" aria-label="Volver a recetas" (click)="closeRecipeDetail()">
+            <ion-icon name="chevron-back-outline" aria-hidden="true"></ion-icon>
+            <span>Recetas</span>
+          </button>
+          <h1>{{ detailRecipe?.title }}</h1>
+        </div>
       </ion-toolbar>
     </ion-header>
 
@@ -186,20 +187,13 @@
           </button>
         </div>
         <div class="recipe-detail-actions">
-        <ion-button
-          class="recipe-suggestion-select"
-          [disabled]="!detailRecipe || isSaving || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
-          (click)="detailRecipe && selectRecipe(detailRecipe)">
-          <ion-spinner *ngIf="isSaving && detailRecipe && !isSelected(detailRecipe)" name="crescent"></ion-spinner>
-          <span>{{ detailRecipe && isSelected(detailRecipe) ? 'RECETA SELECCIONADA' : 'SELECCIONAR RECETA' }}</span>
-        </ion-button>
-        <ion-button
-          *ngIf="detailRecipe && isCatalogFallback(detailRecipe)"
-          class="recipe-suggestion-action recipe-suggestion-button"
-          [disabled]="isLoading"
-          (click)="retryGeneration()">
-          Obtener opciones seleccionables
-        </ion-button>
+          <ion-button
+            class="recipe-suggestion-select"
+            [disabled]="!detailRecipe || isSaving || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
+            (click)="detailRecipe && selectRecipe(detailRecipe)">
+            <ion-spinner *ngIf="isSaving && detailRecipe && !isSelected(detailRecipe)" name="crescent"></ion-spinner>
+            <span>{{ detailRecipe && isSelected(detailRecipe) ? 'RECETA SELECCIONADA' : 'SELECCIONAR RECETA' }}</span>
+          </ion-button>
         </div>
         <p *ngIf="isLoading" class="recipe-detail-feedback" role="status">Buscando opciones para tu plan...</p>
         <p *ngIf="error && !isLoading" class="recipe-detail-feedback" role="alert">{{ error }}</p>
@@ -211,27 +205,42 @@
 <ion-modal
   class="ingredient-substitution-sheet"
   [isOpen]="isSubstitutionSheetOpen"
-  [breakpoints]="[0, 0.45, 0.75]"
-  [initialBreakpoint]="0.45"
+  [breakpoints]="[0, 0.65, 0.9]"
+  [initialBreakpoint]="0.65"
   [handle]="true"
   (didDismiss)="closeSubstitutionSheet()">
   <ng-template>
-    <ion-content>
+    <ion-content class="ingredient-substitution-content">
       <section class="ingredient-substitution-panel">
-        <h2>Sustituir ingrediente</h2>
-        <p>Elige una alternativa del mismo grupo alimenticio. La cantidad y el aporte nutricional pueden variar.</p>
-        <div *ngIf="substituteOptions.length; else noSubstitutionOptions" class="ingredient-substitution-options">
-          <button
-            type="button"
-            *ngFor="let option of substituteOptions"
-            (click)="replaceIngredient(option)">
-            <span>{{ option }}</span>
-            <ion-icon name="swap-horizontal-outline" aria-hidden="true"></ion-icon>
+        <div class="ingredient-substitution-heading">
+          <h2>Sustituir: {{ selectedIngredientName }}</h2>
+          <button type="button" class="close-substitution-button" aria-label="Cerrar sustitución" (click)="closeSubstitutionSheet()">
+            <ion-icon name="close-outline" aria-hidden="true"></ion-icon>
           </button>
         </div>
+        <p *ngIf="substituteGroupLabel">Selecciona una alternativa de {{ substituteGroupLabel }}.</p>
+        <label class="ingredient-substitution-search">
+          <input type="search" placeholder="Buscar sustituto de ingrediente…" aria-label="Buscar sustituto de ingrediente"
+            [value]="substituteSearchTerm" (input)="updateSubstituteSearch($event)">
+          <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+        </label>
+        <div *ngIf="filteredSubstituteOptions.length; else noSubstitutionOptions" class="ingredient-substitution-options">
+          <article class="ingredient-substitution-card" *ngFor="let option of filteredSubstituteOptions">
+            <div class="ingredient-substitution-name">
+              <ion-icon [name]="substituteGroupIcon" aria-hidden="true"></ion-icon>
+              <h3>{{ option }}</h3>
+            </div>
+            <p>{{ substitutionPortion ? 'Cantidad de receta: ' + substitutionPortion : 'Cantidad no especificada' }}</p>
+            <span class="ingredient-substitution-group">{{ substituteGroupLabel }}</span>
+            <button type="button" class="select-substitute-button" [attr.aria-label]="'Seleccionar ' + option" (click)="replaceIngredient(option)">
+              Seleccionar
+            </button>
+          </article>
+        </div>
         <ng-template #noSubstitutionOptions>
-          <p class="recipe-detail-empty">No encontramos alternativas para este ingrediente.</p>
+          <p class="recipe-detail-empty" role="status">{{ substituteOptions.length ? 'No hay sustitutos que coincidan con tu búsqueda.' : 'No encontramos alternativas para este ingrediente.' }}</p>
         </ng-template>
+        <p class="ingredient-substitution-note">La cantidad mostrada es la de la receta original. La cantidad y el aporte nutricional del sustituto pueden variar.</p>
       </section>
     </ion-content>
   </ng-template>
