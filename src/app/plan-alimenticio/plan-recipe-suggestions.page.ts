@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AlertController } from '@ionic/angular';
 import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
@@ -58,7 +58,7 @@ function normalizeIngredient(value: string): string {
   styleUrls: ['./plan-recipe-suggestions.page.scss'],
   standalone: false,
 })
-export class PlanRecipeSuggestionsPage implements OnInit {
+export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   readonly recipeMealLabels = recipeMealLabels;
   mealType: RecipeMealType = 'breakfast';
   targetCalories = 0;
@@ -66,6 +66,12 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   recipes: Recipe[] = [];
   detailRecipe: Recipe | null = null;
   activeIngredients: string[] = [];
+  checkedIngredients = new Set<number>();
+  activeTimerStep: number | null = null;
+  timerSecondsLeft = 0;
+  isTimerPaused = false;
+  private timerEndsAt: number | null = null;
+  private cookingInterval?: ReturnType<typeof setInterval>;
   isRecipeDetailOpen = false;
   isSubstitutionSheetOpen = false;
   selectedIngredientIndex: number | null = null;
@@ -127,16 +133,157 @@ export class PlanRecipeSuggestionsPage implements OnInit {
   }
 
   openRecipeDetail(recipe: Recipe): void {
+    this.saveCookingProgress();
+    this.clearCookingInterval();
     this.detailRecipe = { ...recipe };
     this.activeIngredients = [...recipe.ingredients];
+    this.checkedIngredients = new Set();
+    this.activeTimerStep = null;
+    this.timerSecondsLeft = 0;
+    this.timerEndsAt = null;
+    this.isTimerPaused = false;
+    this.restoreCookingProgress();
     this.isRecipeDetailOpen = true;
   }
 
   closeRecipeDetail(): void {
+    this.saveCookingProgress();
+    this.clearCookingInterval();
     this.closeSubstitutionSheet();
     this.isRecipeDetailOpen = false;
     this.detailRecipe = null;
     this.activeIngredients = [];
+  }
+
+  ngOnDestroy(): void {
+    this.saveCookingProgress();
+    this.clearCookingInterval();
+  }
+
+  toggleIngredient(index: number): void {
+    if (this.checkedIngredients.has(index)) this.checkedIngredients.delete(index);
+    else this.checkedIngredients.add(index);
+    this.saveCookingProgress();
+  }
+
+  parseMinutes(instruction: string): number | null {
+    const match = instruction.match(/(\d+(?:[.,]\d+)?)(?:\s*\/\s*(\d+))?\s*(minutos?|min|m|horas?|h)\b/i);
+    if (!match) return null;
+    const amount = Number(match[1].replace(',', '.')) / (match[2] ? Number(match[2]) : 1);
+    const minutes = amount * (/^h/i.test(match[3]) ? 60 : 1);
+    return Number.isFinite(minutes) && minutes > 0 && minutes <= 1440 ? minutes : null;
+  }
+
+  startCookingTimer(minutes: number, step: number): void {
+    this.clearCookingInterval();
+    this.activeTimerStep = step;
+    this.timerSecondsLeft = Math.ceil(minutes * 60);
+    this.timerEndsAt = Date.now() + this.timerSecondsLeft * 1000;
+    this.isTimerPaused = false;
+    this.watchCookingTimer();
+    this.saveCookingProgress();
+  }
+
+  toggleTimerPause(): void {
+    if (this.isTimerPaused) {
+      this.timerEndsAt = Date.now() + this.timerSecondsLeft * 1000;
+      this.isTimerPaused = false;
+      this.watchCookingTimer();
+    } else {
+      this.updateCookingTimer();
+      this.clearCookingInterval();
+      this.timerEndsAt = null;
+      this.isTimerPaused = true;
+    }
+    this.saveCookingProgress();
+  }
+
+  stopCookingTimer(): void {
+    this.clearCookingInterval();
+    this.activeTimerStep = null;
+    this.timerSecondsLeft = 0;
+    this.timerEndsAt = null;
+    this.isTimerPaused = false;
+    this.saveCookingProgress();
+  }
+
+  get timerDisplay(): string {
+    const minutes = Math.floor(this.timerSecondsLeft / 60);
+    return `${minutes}:${String(this.timerSecondsLeft % 60).padStart(2, '0')}`;
+  }
+
+  private updateCookingTimer(): void {
+    if (this.timerEndsAt === null || this.isTimerPaused) return;
+    this.timerSecondsLeft = Math.max(0, Math.ceil((this.timerEndsAt - Date.now()) / 1000));
+    if (this.timerSecondsLeft === 0) {
+      this.clearCookingInterval();
+      this.timerEndsAt = null;
+      this.saveCookingProgress();
+    }
+  }
+
+  private watchCookingTimer(): void {
+    this.clearCookingInterval();
+    this.updateCookingTimer();
+    if (this.timerSecondsLeft > 0 && !this.isTimerPaused) {
+      this.cookingInterval = setInterval(() => this.updateCookingTimer(), 1000);
+    }
+  }
+
+  private clearCookingInterval(): void {
+    if (this.cookingInterval !== undefined) clearInterval(this.cookingInterval);
+    this.cookingInterval = undefined;
+  }
+
+  private get cookingStorageKey(): string | null {
+    const userId = this.eatWellService.getActiveUser()?.id;
+    return userId && this.detailRecipe
+      ? `eat-well-cooking-v1:${JSON.stringify([userId, this.selectedDate, this.mealType, this.detailRecipe.id])}`
+      : null;
+  }
+
+  private saveCookingProgress(): void {
+    const key = this.cookingStorageKey;
+    if (!key || !this.detailRecipe) return;
+    // El progreso de cocina es local; no cambia la receta ni su nutrición guardada en el plan.
+    try {
+      localStorage.setItem(key, JSON.stringify({
+        original: JSON.stringify([this.detailRecipe.ingredients, this.detailRecipe.instructions]),
+        ingredients: this.activeIngredients,
+        checked: [...this.checkedIngredients],
+        timerStep: this.activeTimerStep,
+        timerSeconds: this.timerSecondsLeft,
+        timerEndsAt: this.timerEndsAt,
+        timerPaused: this.isTimerPaused,
+      }));
+    } catch { /* El detalle sigue disponible si el dispositivo bloquea el almacenamiento. */ }
+  }
+
+  private restoreCookingProgress(): void {
+    const key = this.cookingStorageKey;
+    if (!key || !this.detailRecipe) return;
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) ?? 'null');
+      if (!saved || saved.original !== JSON.stringify([this.detailRecipe.ingredients, this.detailRecipe.instructions])) return;
+      if (Array.isArray(saved.ingredients) && saved.ingredients.length === this.activeIngredients.length
+        && saved.ingredients.every((item: unknown) => typeof item === 'string')) {
+        this.activeIngredients = saved.ingredients;
+      }
+      if (Array.isArray(saved.checked)) {
+        this.checkedIngredients = new Set(saved.checked.filter((index: unknown): index is number =>
+          typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < this.activeIngredients.length));
+      }
+      if (Number.isInteger(saved.timerStep) && saved.timerStep >= 0 && saved.timerStep < this.detailRecipe.instructions.length
+        && typeof saved.timerSeconds === 'number' && Number.isFinite(saved.timerSeconds)
+        && saved.timerSeconds >= 0 && saved.timerSeconds <= 86400) {
+        this.activeTimerStep = saved.timerStep;
+        this.timerSecondsLeft = Math.ceil(saved.timerSeconds);
+        this.isTimerPaused = saved.timerPaused === true;
+        this.timerEndsAt = typeof saved.timerEndsAt === 'number' && Number.isFinite(saved.timerEndsAt)
+          ? saved.timerEndsAt : null;
+        this.watchCookingTimer();
+      }
+    } catch { /* Una entrada local antigua o inválida no debe impedir abrir la receta. */ }
   }
 
   openSubstitution(index: number): void {
@@ -169,6 +316,8 @@ export class PlanRecipeSuggestionsPage implements OnInit {
         ? `${quantityPrefix ?? ''}${substitute}`
         : ingredient,
     );
+    this.checkedIngredients.delete(index);
+    this.saveCookingProgress();
     this.closeSubstitutionSheet();
   }
 

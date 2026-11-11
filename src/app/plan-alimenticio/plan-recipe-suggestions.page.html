@@ -30,14 +30,20 @@
         <ion-spinner name="crescent"></ion-spinner>
         <span>Buscando opciones para tu plan...</span>
       </div>
-      <div class="recipe-suggestions-retry" *ngIf="!isLoading && (error || hasCatalogFallback())">
+      <div class="recipe-suggestions-retry" *ngIf="!isLoading && error && recipes.length === 0">
         <ion-button expand="block" class="recipe-suggestion-action recipe-suggestion-button" (click)="retryGeneration()">
-          {{ hasCatalogFallback() ? 'Obtener opciones seleccionables' : 'Reintentar' }}
+          Reintentar
         </ion-button>
       </div>
 
       <section class="recipe-suggestions-list" *ngIf="recipes.length" aria-label="Sugerencias de recetas">
         <ion-card class="recipe-suggestion-card" *ngFor="let recipe of recipes">
+          <button
+            type="button"
+            class="recipe-card-open"
+            [attr.aria-label]="'Ver ingredientes y preparación de ' + recipe.title"
+            (click)="openRecipeDetail(recipe)">
+          </button>
           <ion-card-header>
             <div class="recipe-suggestion-heading">
               <span class="recipe-suggestion-icon" aria-hidden="true">
@@ -90,15 +96,6 @@
             <p *ngIf="!canSelectRecipe(recipe) && !isFixture(recipe)" class="recipe-suggestion-fixture-note" role="note">
               {{ selectionLimitation(recipe) }}
             </p>
-            <ion-button *ngIf="isCatalogFallback(recipe)" expand="block" class="recipe-suggestion-action recipe-suggestion-button" [disabled]="isLoading" (click)="retryGeneration()">
-              Obtener opciones seleccionables
-            </ion-button>
-            <ion-button
-              expand="block"
-              class="recipe-suggestion-view recipe-suggestion-button"
-              (click)="openRecipeDetail(recipe)">
-              VER INGREDIENTES Y PREPARACIÓN
-            </ion-button>
           </ion-card-content>
         </ion-card>
       </section>
@@ -128,44 +125,17 @@
 
     <ion-content class="suggested-recipe-detail-content">
       <main class="suggested-recipe-detail">
-        <p class="suggested-recipe-description">{{ detailRecipe?.description }}</p>
-        <section *ngIf="detailRecipe as detail" class="recipe-suggestion-macros" [attr.aria-label]="nutrition(detail).isCompletePerServing ? 'Calorías y macronutrientes por porción' : 'Calorías y macronutrientes; porción no confirmada'">
-          <div>
-            <strong>{{ nutritionValue(detail, 'calories') }}</strong>
-            <span>{{ nutrition(detail).calorieUnitLabel }}</span>
-          </div>
-          <div>
-            <strong>{{ nutritionValue(detail, 'proteinGrams') }} g</strong>
-            <span>Proteínas</span>
-          </div>
-          <div>
-            <strong>{{ nutritionValue(detail, 'carbsGrams') }} g</strong>
-            <span>Carbohidratos</span>
-          </div>
-          <div>
-            <strong>{{ nutritionValue(detail, 'fatGrams') }} g</strong>
-            <span>Grasas</span>
-          </div>
-        </section>
-        <p *ngIf="detailRecipe" class="recipe-suggestion-estimate-note" role="note">{{ nutrition(detailRecipe).sourceLabel }}</p>
-        <p *ngIf="detailRecipe?.suggestionContext?.source === 'cache'" class="recipe-suggestion-estimate-note" role="status">
-          Opciones personalizadas recuperadas de la caché del servidor.
-        </p>
-        <p *ngIf="detailRecipe && isCatalogFallback(detailRecipe)" class="recipe-suggestion-fixture-note" role="status">
-          {{ fallbackStatus(detailRecipe) }}
-        </p>
-        <p *ngIf="detailRecipe && !canSelectRecipe(detailRecipe) && !isFixture(detailRecipe)" class="recipe-suggestion-fixture-note" role="note">
-          {{ selectionLimitation(detailRecipe) }}
-        </p>
-
         <section class="recipe-detail-section">
           <h2>Ingredientes</h2>
           <p *ngIf="activeIngredients.length === 0" class="recipe-detail-empty">
             Los ingredientes no están disponibles para esta receta.
           </p>
           <ul *ngIf="activeIngredients.length > 0" class="recipe-detail-ingredients">
-            <li *ngFor="let ingredient of activeIngredients; let i = index">
-              <span>{{ ingredient }}</span>
+            <li *ngFor="let ingredient of activeIngredients; let i = index" [class.checked]="checkedIngredients.has(i)">
+              <label class="ingredient-check">
+                <input type="checkbox" [checked]="checkedIngredients.has(i)" (change)="toggleIngredient(i)">
+                <span>{{ ingredient }}</span>
+              </label>
               <ion-button
                 fill="outline"
                 size="small"
@@ -182,7 +152,18 @@
         <section class="recipe-detail-section">
           <h2>Preparación</h2>
           <ol *ngIf="detailRecipe?.instructions?.length; else noRecipeInstructions">
-            <li *ngFor="let instruction of detailRecipe?.instructions">{{ instruction }}</li>
+            <li *ngFor="let instruction of detailRecipe?.instructions; let i = index">
+              <div class="instruction-row">
+                <span>{{ instruction }}</span>
+                <button *ngIf="parseMinutes(instruction) as minutes"
+                  type="button" class="step-timer-button"
+                  [attr.aria-label]="'Iniciar temporizador de ' + minutes + ' minutos para el paso ' + (i + 1)"
+                  (click)="startCookingTimer(minutes, i)">
+                  <ion-icon name="timer-outline" aria-hidden="true"></ion-icon>
+                  <span>{{ minutes }}m</span>
+                </button>
+              </div>
+            </li>
           </ol>
           <ng-template #noRecipeInstructions>
             <p class="recipe-detail-empty">Las instrucciones no están disponibles para esta receta.</p>
@@ -193,8 +174,19 @@
 
     <ion-footer class="suggested-recipe-detail-footer">
       <ion-toolbar>
+        <div class="recipe-cooking-timer" *ngIf="activeTimerStep !== null">
+          <ion-icon name="timer-outline" aria-hidden="true"></ion-icon>
+          <span role="status">Paso {{ activeTimerStep + 1 }} · {{ timerSecondsLeft === 0 ? 'Tiempo terminado' : (isTimerPaused ? 'En pausa' : 'En curso') }}</span>
+          <strong role="timer">{{ timerDisplay }}</strong>
+          <button *ngIf="timerSecondsLeft > 0" type="button" (click)="toggleTimerPause()" [attr.aria-label]="isTimerPaused ? 'Continuar temporizador' : 'Pausar temporizador'">
+            <ion-icon [name]="isTimerPaused ? 'play-outline' : 'pause-outline'"></ion-icon>
+          </button>
+          <button type="button" (click)="stopCookingTimer()" aria-label="Cerrar temporizador">
+            <ion-icon name="close-outline"></ion-icon>
+          </button>
+        </div>
+        <div class="recipe-detail-actions">
         <ion-button
-          expand="block"
           class="recipe-suggestion-select"
           [disabled]="!detailRecipe || isSaving || !canSelectRecipe(detailRecipe) || isSelected(detailRecipe)"
           (click)="detailRecipe && selectRecipe(detailRecipe)">
@@ -203,12 +195,14 @@
         </ion-button>
         <ion-button
           *ngIf="detailRecipe && isCatalogFallback(detailRecipe)"
-          expand="block"
           class="recipe-suggestion-action recipe-suggestion-button"
           [disabled]="isLoading"
           (click)="retryGeneration()">
           Obtener opciones seleccionables
         </ion-button>
+        </div>
+        <p *ngIf="isLoading" class="recipe-detail-feedback" role="status">Buscando opciones para tu plan...</p>
+        <p *ngIf="error && !isLoading" class="recipe-detail-feedback" role="alert">{{ error }}</p>
       </ion-toolbar>
     </ion-footer>
   </ng-template>

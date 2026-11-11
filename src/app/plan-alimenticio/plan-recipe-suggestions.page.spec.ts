@@ -1,11 +1,15 @@
 import { CommonModule } from '@angular/common';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { AlertController } from '@ionic/angular';
+import { AlertController, IonicModule } from '@ionic/angular';
+import { defineCustomElement as defineIonButton } from '@ionic/core/components/ion-button';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EatWellService, Recipe } from '../core';
 import { DailyMealPlan } from '../core/daily-meal-plan';
 import { PlanRecipeSuggestionsPage } from './plan-recipe-suggestions.page';
+
+// Inicializa el botón real antes de que Angular actualice sus atributos ARIA en la prueba.
+defineIonButton();
 
 describe('PlanRecipeSuggestionsPage recipe detail', () => {
   const fallbackRecipe: Recipe = {
@@ -40,8 +44,9 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
   it('closes on X, reopens, survives successful retry, then closes the detail again', async () => {
     const eatWellService = jasmine.createSpyObj<EatWellService>(
       'EatWellService',
-      ['getDailyMealPlan', 'getFavoriteRecipes', 'getMealOptions'],
+      ['getDailyMealPlan', 'getFavoriteRecipes', 'getMealOptions', 'getActiveUser'],
     );
+    eatWellService.getActiveUser.and.returnValue(null);
     eatWellService.getDailyMealPlan.and.returnValue(Promise.resolve(emptyPlan));
     eatWellService.getFavoriteRecipes.and.returnValue(Promise.resolve([]));
     eatWellService.getMealOptions.and.returnValues(
@@ -51,7 +56,7 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
 
     await TestBed.configureTestingModule({
       declarations: [PlanRecipeSuggestionsPage],
-      imports: [CommonModule],
+      imports: [CommonModule, IonicModule.forRoot({ animated: false })],
       providers: [
         {
           provide: ActivatedRoute,
@@ -74,44 +79,47 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+    const modal = fixture.nativeElement.querySelector('ion-modal') as HTMLIonModalElement;
+    const whenPresented = () => new Promise<Event>(resolve => modal.addEventListener('ionModalDidPresent', resolve, { once: true }));
+    await modal.componentOnReady();
+    await Promise.all(Array.from(fixture.nativeElement.querySelectorAll('ion-button') as NodeListOf<HTMLIonButtonElement>)
+      .map(button => button.componentOnReady?.()));
 
-    const actionButton = fixture.nativeElement.querySelector('.recipe-suggestion-action') as HTMLElement;
-    const referenceButton = fixture.nativeElement.querySelector('.recipe-suggestion-view') as HTMLElement;
-    expect(actionButton).toBeTruthy();
-    expect(referenceButton).toBeTruthy();
-    for (const property of ['--background', '--color', '--border-color', '--border-radius', '--box-shadow']) {
-      expect(getComputedStyle(actionButton).getPropertyValue(property))
-        .withContext(`${property}: ${referenceButton.outerHTML}`)
-        .toBe(getComputedStyle(referenceButton).getPropertyValue(property));
-    }
-    expect(getComputedStyle(actionButton).fontWeight).toBe(getComputedStyle(referenceButton).fontWeight);
-    expect(getComputedStyle(actionButton).minHeight).toBe(getComputedStyle(referenceButton).minHeight);
-    for (const width of [360, 1280]) {
-      fixture.nativeElement.style.width = `${width}px`;
-      fixture.detectChanges();
-      const buttons = fixture.nativeElement.querySelectorAll('.recipe-suggestion-action, .recipe-suggestion-view') as NodeListOf<HTMLElement>;
-      for (const button of Array.from(buttons)) {
-        expect(button.getBoundingClientRect().right).withContext(`${width}px viewport`).toBeLessThanOrEqual(width + 1);
-      }
-    }
-
-    page.openRecipeDetail(fallbackRecipe);
+    const cardButton = fixture.nativeElement.querySelector('.recipe-card-open') as HTMLButtonElement;
+    expect(cardButton).toBeTruthy();
+    expect(cardButton.getAttribute('aria-label')).toContain(fallbackRecipe.title);
+    expect(fixture.nativeElement.querySelector('.recipe-suggestion-view')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.recipe-suggestions-retry')).toBeNull();
+    let presented = whenPresented();
+    cardButton.click();
+    expect(page.detailRecipe?.id).toBe(fallbackRecipe.id);
     fixture.detectChanges();
+    await presented;
+    let dismissed = modal.onDidDismiss();
     page.closeRecipeDetail();
     expect(() => fixture.detectChanges()).not.toThrow();
+    await dismissed;
     expect(page.detailRecipe).toBeNull();
 
+    presented = whenPresented();
     page.openRecipeDetail(fallbackRecipe);
     fixture.detectChanges();
+    await presented;
+    dismissed = modal.onDidDismiss();
     await page.retryGeneration();
     expect(page.detailRecipe).toBeNull();
     expect(page.recipes[0].id).toBe('personalized-1');
     expect(() => fixture.detectChanges()).not.toThrow();
+    await dismissed;
 
+    presented = whenPresented();
     page.openRecipeDetail(generatedRecipe);
     fixture.detectChanges();
+    await presented;
+    dismissed = modal.onDidDismiss();
     page.closeRecipeDetail();
     expect(() => fixture.detectChanges()).not.toThrow();
+    await dismissed;
     expect(page.detailRecipe).toBeNull();
     fixture.destroy();
   });

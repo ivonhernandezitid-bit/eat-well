@@ -153,6 +153,7 @@
 }
 
 .recipe-suggestion-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   margin: 0;
@@ -160,6 +161,18 @@
   border-radius: 20px;
   background: #fff;
   box-shadow: 0 8px 24px rgba(31, 68, 48, 0.07);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(31, 68, 48, 0.12);
+    }
+  }
+
+  &:active {
+    transform: scale(0.995);
+  }
 
   ion-card-header {
     padding: 20px 20px 10px;
@@ -177,6 +190,31 @@
     flex: 1;
     flex-direction: column;
     padding: 8px 20px 20px;
+  }
+}
+
+.recipe-card-open {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 3px solid var(--eatwell-green-700);
+    outline-offset: -3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .recipe-suggestion-card {
+    transition: none;
+    transform: none;
   }
 }
 
@@ -224,6 +262,8 @@
 }
 
 .recipe-suggestion-favorite {
+  position: relative;
+  z-index: 2;
   flex: 0 0 40px;
   width: 40px;
   height: 40px;
@@ -381,11 +421,6 @@ ion-button.recipe-suggestion-button {
   margin: 0 0 10px;
 }
 
-.suggested-recipe-detail-footer ion-toolbar {
-  display: grid;
-  gap: 10px;
-}
-
 .suggested-recipe-detail-footer .recipe-suggestion-action,
 .suggested-recipe-detail-footer .recipe-suggestion-select {
   margin: 0;
@@ -431,10 +466,7 @@ ion-modal.suggested-recipe-detail-modal {
 }
 
 .recipe-detail-section {
-  padding: 18px;
-  border: 1px solid rgba(47, 125, 89, 0.12);
-  border-radius: 18px;
-  background: #fff;
+  min-width: 0;
 
   h2 {
     margin: 0 0 12px;
@@ -464,19 +496,68 @@ ion-modal.suggested-recipe-detail-modal {
     align-items: center;
     justify-content: space-between;
     gap: 10px;
-    padding: 10px 0;
-    border-bottom: 1px solid rgba(47, 125, 89, 0.1);
+    padding: 10px 12px;
+    border: 1px solid rgba(47, 125, 89, 0.06);
+    border-radius: 12px;
+    background: #fff;
     color: var(--eatwell-ink);
   }
 
-  li:last-child {
-    border-bottom: 0;
+  .ingredient-check {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    min-height: 28px;
+    cursor: pointer;
+
+    input {
+      flex: 0 0 17px;
+      width: 17px;
+      height: 17px;
+      margin: 0;
+      accent-color: var(--eatwell-green-700);
+    }
+
+    span {
+      overflow-wrap: anywhere;
+      line-height: 1.4;
+    }
   }
 
-  li > span {
-    min-width: 0;
-    line-height: 1.4;
+  li.checked .ingredient-check span {
+    text-decoration: line-through;
+    color: var(--eatwell-muted);
   }
+}
+
+.instruction-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+
+  > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.step-timer-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 5px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(47, 125, 89, 0.15);
+  background: rgba(47, 125, 89, 0.08);
+  color: var(--eatwell-green-700);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .recipe-detail-ingredients .substitute-ingredient-button {
@@ -505,12 +586,78 @@ ion-modal.suggested-recipe-detail-modal {
     --padding-start: 16px;
     --padding-end: 16px;
     --padding-top: 8px;
-    --padding-bottom: 8px;
+    --padding-bottom: max(8px, env(safe-area-inset-bottom));
   }
 
   .recipe-suggestion-select {
     margin: 0;
   }
+}
+
+.recipe-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  max-width: var(--eatwell-content-width, 620px);
+  margin: 0 auto;
+  padding: 4px 0;
+
+  ion-button {
+    flex: 0 1 290px;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 46px;
+    height: auto;
+    margin: 0;
+    --padding-top: 12px;
+    --padding-bottom: 12px;
+
+    &::part(native) {
+      white-space: normal;
+      line-height: 1.25;
+    }
+  }
+}
+
+.recipe-cooking-timer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  max-width: var(--eatwell-content-width, 620px);
+  margin: 0 auto 10px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #edf8df;
+  color: var(--eatwell-green-900);
+  font-size: 0.85rem;
+
+  strong {
+    font-variant-numeric: tabular-nums;
+    font-size: 1.1rem;
+  }
+
+  button {
+    display: grid;
+    place-items: center;
+    min-width: 36px;
+    min-height: 36px;
+    border: 1px solid rgba(47, 125, 89, 0.2);
+    border-radius: 50%;
+    background: #fff;
+    color: var(--eatwell-green-700);
+    cursor: pointer;
+  }
+}
+
+.recipe-detail-feedback {
+  max-width: var(--eatwell-content-width, 620px);
+  margin: 8px auto 0;
+  text-align: center;
+  color: var(--eatwell-muted);
+  font-size: 0.8rem;
 }
 
 ion-modal.ingredient-substitution-sheet {
