@@ -4,13 +4,15 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { ActionSheetController, AlertController, IonicModule, IonContent, Platform } from '@ionic/angular';
-import { EatWellService, Gender } from '../core';
+import { EatWellService, Gender, UserProfile } from '../core';
 import { LifestyleSettings, defaultLifestyleSettings, lifestyleSettingsError, loadLifestyleSettings, normalizeLifestyleSettings } from '../core/lifestyle-goals';
 import { FitnessGoal } from '../core/models';
 import { measurementValuesError, measurementImc } from '../core/anthropometric-measurements';
 import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, clinicalHistoryMissingFields, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
 import { MealSchedule, mealScheduleError, scheduleMeals, shiftMealTime } from '../core/meal-schedule';
+import { BodyMeasurement, bodyFatPercentage, readBodyMeasurements } from '../core/body-measurements';
+import { MedicionesModalComponent } from '../mediciones-modal/mediciones-modal.component';
 
 type WeightUnit = 'kg' | 'lbs';
 type HeightUnit = 'cm' | 'ft';
@@ -21,7 +23,7 @@ type R24hTimeField = 'wakeTime' | 'breakfastTime' | 'snackTime' | 'lunchTime' | 
   templateUrl: './datos-perfil.page.html',
   styleUrls: ['./datos-perfil.page.scss'],
   standalone: true,
-  imports: [CommonModule, FormsModule, IonicModule],
+  imports: [CommonModule, FormsModule, IonicModule, MedicionesModalComponent],
 })
 export class DatosPerfilPage implements OnInit {
   @ViewChild('photoInput') photoInput?: ElementRef<HTMLInputElement>;
@@ -48,6 +50,9 @@ export class DatosPerfilPage implements OnInit {
   profileProgressReady = false;
   foodPreferencesCompleted = false;
   showProfileModuleDetails = false;
+  measurementsModalOpen = false;
+  bodyMeasurements: BodyMeasurement[] = [];
+  activeProfile: UserProfile | null = null;
   view: 'settings' | 'general' | 'clinical' | 'r24h' | 'schedule' | 'lifestyle' | 'privacy' = 'settings';
   mealSchedule: MealSchedule | null = null;
   scheduleLoading = false;
@@ -417,6 +422,7 @@ export class DatosPerfilPage implements OnInit {
     const activeUser = this.eatWellService.getActiveUser();
 
     if (!activeUser) {
+      this.activeProfile = null;
       ++this.clinicalLoadVersion;
       this.clinicalData = emptyClinicalHistory();
       this.clinicalHistorySaved = false;
@@ -440,6 +446,7 @@ export class DatosPerfilPage implements OnInit {
     }
 
     this.fullName = activeUser.name;
+    this.activeProfile = activeUser;
     this.username = activeUser.username || '';
     this.email = activeUser.email;
     this.weightKg = activeUser.weightKg;
@@ -448,6 +455,7 @@ export class DatosPerfilPage implements OnInit {
     this.age = activeUser.age;
     this.imc = activeUser.imc;
     this.profileImage = activeUser.profileImage ?? null;
+    this.bodyMeasurements = readBodyMeasurements(activeUser.id);
     this.foodPreferencesCompleted = false;
     const profileLoads = [
       this.loadFoodPreferencesCompletion(activeUser.id),
@@ -473,6 +481,26 @@ export class DatosPerfilPage implements OnInit {
     this.birthDate = this.buildBirthDateFromAge(this.age);
     this.syncDisplayValues();
   }
+
+  get latestBodyMeasurement(): BodyMeasurement | null {
+    return this.bodyMeasurements[this.bodyMeasurements.length - 1] ?? null;
+  }
+
+  get currentBodyFat(): number | null {
+    const user = this.eatWellService.getActiveUser();
+    return user && this.latestBodyMeasurement ? bodyFatPercentage(user.gender, user.heightCm, this.latestBodyMeasurement) : null;
+  }
+
+  get waistChange(): number | null {
+    if (this.bodyMeasurements.length < 2 || !this.latestBodyMeasurement) return null;
+    return Number((this.latestBodyMeasurement.waistCm - this.bodyMeasurements[0].waistCm).toFixed(1));
+  }
+
+  openMeasurements(): void { this.measurementsModalOpen = true; }
+
+  closeMeasurements(): void { this.measurementsModalOpen = false; }
+
+  updateBodyMeasurements(records: BodyMeasurement[]): void { this.bodyMeasurements = records; }
 
   get profileModules(): { name: string; completed: boolean }[] {
     const activeUser = this.eatWellService.getActiveUser();

@@ -69,6 +69,17 @@
         </div>
       </div>
 
+      <section class="body-summary-card">
+        <div class="body-summary-icon"><ion-icon name="body-outline"></ion-icon></div>
+        <div class="body-summary-copy">
+          <h2>Composición y Medidas Corporales</h2>
+          <p *ngIf="latestBodyMeasurement; else noBodyMeasurements">Último registro: {{ latestBodyMeasurement.measuredAt | date:'dd/MM/yyyy' }}</p>
+          <ng-template #noBodyMeasurements><p>Registra tus medidas para ver tu composición.</p></ng-template>
+          <div class="body-summary-stats"><span>Grasa actual <b>{{ currentBodyFat === null ? '—' : (currentBodyFat | number:'1.1-1') + '%' }}</b></span><span>Cintura <b [class.positive-change]="waistChange !== null && waistChange < 0">{{ waistChange === null ? '—' : (waistChange > 0 ? '+' : '') + (waistChange | number:'1.1-1') + ' cm' }}</b></span></div>
+          <button type="button" (click)="openMeasurements()">VER HISTORIAL Y REGISTRAR MEDIDAS <ion-icon name="arrow-forward-outline"></ion-icon></button>
+        </div>
+      </section>
+
       <div class="settings-list">
         <button
           class="settings-item"
@@ -88,6 +99,8 @@
       </div>
 
     </div>
+
+    <app-mediciones-modal *ngIf="measurementsModalOpen && activeProfile" [profile]="activeProfile" (closed)="closeMeasurements()" (measurementsChanged)="updateBodyMeasurements($event)"></app-mediciones-modal>
 
     <div *ngIf="view === 'r24h'" class="r24h-shell">
       <div class="profile-module-title">

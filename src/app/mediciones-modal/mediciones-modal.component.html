@@ -1,0 +1,27 @@
+<div class="measurements-backdrop" role="dialog" aria-modal="true" aria-label="Composición y medidas corporales">
+  <section class="measurements-sheet">
+    <header><button type="button" class="back" (click)="closed.emit()"><ion-icon name="chevron-back-outline"></ion-icon> Perfil</button><button type="button" class="new" (click)="toggleForm()">+ Nueva</button></header>
+    <h1>Composición y Medidas Corporales</h1>
+    <p class="subtitle">Seguimiento basado en tus mediciones corporales.</p>
+
+    <section class="fat-card">
+      <span>GRASA CORPORAL ESTIMADA</span>
+      <strong>{{ bodyFat === null ? 'Pendiente' : (bodyFat | number:'1.1-1') + '%' }}</strong>
+      <p class="lean-mass-label">Masa magra estimada <button type="button" class="info-button" [attr.aria-expanded]="showLeanMassInfo" aria-label="Explicación de masa magra estimada" (click)="showLeanMassInfo = !showLeanMassInfo"><ion-icon name="information-circle-outline"></ion-icon></button>: <b>{{ leanMass === null ? '—' : (leanMass | number:'1.1-1') + ' kg' }}</b></p>
+      <p *ngIf="showLeanMassInfo" class="info-panel">Es el peso de tu músculo, huesos y agua (todo excepto grasa). Si sube o se mantiene mientras baja tu porcentaje de grasa, significa que estás ganando o conservando músculo.</p>
+      <small *ngIf="leanMassTrend" class="lean-mass-trend" [class.lean-mass-up]="leanMassChange! > 0" [class.lean-mass-down]="leanMassChange! < 0">{{ leanMassTrend }}</small>
+      <small *ngIf="bodyFatChange !== null">{{ bodyFatChange > 0 ? '+' : '' }}{{ bodyFatChange | number:'1.1-1' }}% respecto al inicio</small>
+      <small *ngIf="bodyFatChange === null">Registra tus medidas para calcularla.</small>
+    </section>
+
+    <section class="indices"><article><span>Índice Cintura/Cadera <button type="button" class="info-button" [attr.aria-expanded]="showIccInfo" aria-label="Explicación del índice cintura cadera" (click)="showIccInfo = !showIccInfo"><ion-icon name="information-circle-outline"></ion-icon></button></span><strong>{{ icc === null ? '—' : (icc | number:'1.2-2') }}</strong><small [class.healthy]="iccLabel === 'Saludable'">{{ iccLabel }}</small><p *ngIf="showIccInfo" class="index-info">Indica cómo se distribuye tu grasa corporal. Un valor saludable es menor a 0.85 en mujeres y 0.90 en hombres.</p></article><article><span>Índice Cintura/Altura <button type="button" class="info-button" [attr.aria-expanded]="showIcaInfo" aria-label="Explicación del índice cintura altura" (click)="showIcaInfo = !showIcaInfo"><ion-icon name="information-circle-outline"></ion-icon></button></span><strong>{{ ica === null ? '—' : (ica | number:'1.2-2') }}</strong><small [class.healthy]="icaLabel === 'Saludable'">{{ icaLabel }}</small><p *ngIf="showIcaInfo" class="index-info">Compara tu cintura con tu estatura. Lo ideal es que tu cintura mida menos de la mitad de tu altura (valor menor a 0.50).</p></article></section>
+
+    <form *ngIf="showForm" class="new-form" (ngSubmit)="save()">
+      <h2>Nueva medición</h2>
+      <label *ngFor="let zone of zones"><span>{{ zone.label }} <em>cm</em></span><input type="number" min="1" max="250" step="0.1" [(ngModel)]="form[zone.key]" [name]="zone.key" /><small><ion-icon name="location-outline"></ion-icon>{{ zone.guide }}</small></label>
+      <p class="form-error" *ngIf="error">{{ error }}</p><div class="form-actions"><button type="button" (click)="cancel()">Cancelar</button><button type="submit" [disabled]="saving">{{ saving ? 'Guardando...' : 'Guardar Registro' }}</button></div>
+    </form>
+
+    <section class="comparison"><h2>COMPARATIVA DE MEDIDAS</h2><p *ngIf="!current">Aún no hay medidas registradas.</p><article *ngFor="let zone of zones"><span class="comparison-icon" aria-hidden="true"><ion-icon name="resize-outline"></ion-icon></span><div class="comparison-copy"><span>{{ zone.label }}</span><small>Inicial: {{ first?.[zone.key] ?? '—' }} cm · Actual: {{ current?.[zone.key] ?? '—' }} cm</small></div><b [class.improvement]="improvement(zone.key)" *ngIf="delta(zone.key) !== null">{{ delta(zone.key)! > 0 ? '+' : '' }}{{ delta(zone.key) | number:'1.1-1' }} cm</b></article></section>
+  </section>
+</div>
