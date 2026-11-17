@@ -4,10 +4,10 @@ header { display: flex; align-items: center; justify-content: space-between; }
 .back, .new, .form-actions button { border: 0; font: inherit; font-weight: 800; cursor: pointer; }
 .back { display: flex; align-items: center; background: transparent; color: #1b4d3e; }
 .back ion-icon { font-size: 1.25rem; }
-.new { padding: 9px 16px; border-radius: 20px; background: linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%); box-shadow: 0 5px 14px rgba(46, 125, 50, .2); color: #fff; }
+.new { padding: 9px 16px; border-radius: 20px; background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73); box-shadow: 0 5px 14px rgba(46, 125, 50, .2); color: #fff; }
 h1 { margin: 22px 0 4px; color: #1b4d3e; font-size: 1.35rem; font-weight: 800; text-transform: uppercase; }
 .subtitle { margin: 0 0 16px; color: #5d6d63; font-size: .88rem; }
-.fat-card { padding: 22px; border-radius: 18px; background: linear-gradient(135deg, #2e7d32 0%, #66bb6a 100%); box-shadow: 0 8px 18px rgba(46, 125, 50, .2); color: #fff; }
+.fat-card { padding: 22px; border-radius: 18px; background: linear-gradient(135deg, var(--eatwell-green-700), #8dcc73); box-shadow: 0 8px 18px rgba(46, 125, 50, .2); color: #fff; }
 .fat-card span, .indices span { display: block; font-size: .74rem; font-weight: 800; letter-spacing: .04em; }
 .fat-card strong { display: block; margin: 7px 0; font-size: 2.25rem; }.fat-card p { margin: 0 0 5px; }.fat-card small { opacity: .86; }
 .info-button { display: inline-grid; width: 18px; height: 18px; padding: 0; place-items: center; border: 0; background: transparent; color: inherit; font: inherit; vertical-align: text-bottom; cursor: pointer; }.info-button ion-icon { margin: 0; font-size: 1rem; }.info-button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 50%; }.info-panel { margin-top: 9px !important; padding: 9px 10px; border-radius: 10px; background: rgba(255, 255, 255, .16); font-size: .78rem; line-height: 1.4; }.lean-mass-trend { display: block; margin-top: 8px; font-weight: 800; }.lean-mass-trend.lean-mass-up { color: #e0f7df; }.lean-mass-trend.lean-mass-down { color: #fff0bf; }

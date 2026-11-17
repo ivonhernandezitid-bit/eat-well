@@ -70,7 +70,7 @@
       </div>
 
       <section class="body-summary-card">
-        <div class="body-summary-icon"><ion-icon name="body-outline"></ion-icon></div>
+        <div class="body-summary-icon"><ion-icon name="body"></ion-icon></div>
         <div class="body-summary-copy">
           <h2>Composición y Medidas Corporales</h2>
           <p *ngIf="latestBodyMeasurement; else noBodyMeasurements">Último registro: {{ latestBodyMeasurement.measuredAt | date:'dd/MM/yyyy' }}</p>
@@ -93,6 +93,10 @@
           <div class="item-copy">
             <strong>{{ item.title }}</strong>
             <span>{{ item.subtitle }}</span>
+          </div>
+          <div class="item-quick-indicator">
+            <strong>{{ moduleQuickIndicator(item.id).value }}</strong>
+            <small>{{ moduleQuickIndicator(item.id).status }}</small>
           </div>
           <ion-icon class="chevron" name="chevron-forward-outline"></ion-icon>
         </button>

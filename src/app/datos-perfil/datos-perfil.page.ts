@@ -244,42 +244,42 @@ export class DatosPerfilPage implements OnInit {
   readonly baseSettingsItems = [
     {
       id: 'general',
-      icon: 'person-outline',
+      icon: 'person',
       title: 'Datos Generales y Antropométricos',
       subtitle: 'Edad, peso, estatura, IMC',
       route: '/tabs/datos-perfil',
     },
     {
       id: 'clinical',
-      icon: 'document-text-outline',
+      icon: 'document-text',
       title: 'Historial Clínico y Nutricional',
       subtitle: 'Padecimientos, alergias, medicamentos',
       route: '/tabs/preferencias-alimentarias',
     },
     {
       id: 'record',
-      icon: 'time-outline',
+      icon: 'time',
       title: 'Recordatorio 24 Horas',
       subtitle: 'Alimentación y actividad del día anterior',
       route: '/tabs/datos-perfil',
     },
     {
       id: 'lifestyle',
-      icon: 'fitness-outline',
+      icon: 'fitness',
       title: 'Estilo de Vida y Metas',
       subtitle: 'Nivel de actividad física y metas',
       route: '/tabs/home',
     },
     {
       id: 'food',
-      icon: 'restaurant-outline',
+      icon: 'restaurant',
       title: 'Preferencias Alimentarias',
       subtitle: 'Comidas favoritas, aversiones, dietas',
       route: '/tabs/preferencias-alimentarias',
     },
     {
       id: 'privacy',
-      icon: 'shield-checkmark-outline',
+      icon: 'shield-checkmark',
       title: 'Privacidad y Datos',
       subtitle: 'Configuración de cuenta y seguridad',
       route: '/tabs/datos-perfil',
@@ -292,11 +292,25 @@ export class DatosPerfilPage implements OnInit {
       if (item.id === 'privacy') continue;
       items.push(item);
       if (item.id === 'food' && this.r24hSaved) {
-        items.push({ id: 'schedule', icon: 'time-outline', title: 'Horarios de alimentación', subtitle: 'Desayuno, colaciones, comida y cena', route: '/tabs/datos-perfil' });
+        items.push({ id: 'schedule', icon: 'time', title: 'Horarios de alimentación', subtitle: 'Desayuno, colaciones, comida y cena', route: '/tabs/datos-perfil' });
       }
     }
     items.push(...this.baseSettingsItems.filter(item => item.id === 'privacy'));
     return items;
+  }
+
+  moduleQuickIndicator(id: string): { value: string; status: string } {
+    if (id === 'general') return { value: this.measurementImc === null ? '—' : this.measurementImc.toFixed(1), status: 'IMC actual' };
+    if (id === 'clinical') return this.moduleStatus(this.isClinicalHistoryComplete);
+    if (id === 'record') return this.moduleStatus(this.isR24hComplete);
+    if (id === 'lifestyle') return this.moduleStatus(this.lifestyleSaved);
+    if (id === 'food') return this.moduleStatus(this.foodPreferencesCompleted);
+    if (id === 'schedule') return this.moduleStatus(this.scheduleCustomized);
+    return { value: 'Datos', status: 'Cuenta' };
+  }
+
+  private moduleStatus(completed: boolean): { value: string; status: string } {
+    return { value: completed ? 'Completado' : 'Pendiente', status: completed ? 'Listo' : 'Por completar' };
   }
 
   isCroppingModalOpen = false;

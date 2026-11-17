@@ -5,7 +5,7 @@
     <p class="subtitle">Seguimiento basado en tus mediciones corporales.</p>
 
     <section class="fat-card">
-      <span>GRASA CORPORAL ESTIMADA</span>
+      <span translate="no">GRASA CORPORAL ESTIMADA</span>
       <strong>{{ bodyFat === null ? 'Pendiente' : (bodyFat | number:'1.1-1') + '%' }}</strong>
       <p class="lean-mass-label">Masa magra estimada <button type="button" class="info-button" [attr.aria-expanded]="showLeanMassInfo" aria-label="Explicación de masa magra estimada" (click)="showLeanMassInfo = !showLeanMassInfo"><ion-icon name="information-circle-outline"></ion-icon></button>: <b>{{ leanMass === null ? '—' : (leanMass | number:'1.1-1') + ' kg' }}</b></p>
       <p *ngIf="showLeanMassInfo" class="info-panel">Es el peso de tu músculo, huesos y agua (todo excepto grasa). Si sube o se mantiene mientras baja tu porcentaje de grasa, significa que estás ganando o conservando músculo.</p>
