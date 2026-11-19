@@ -74,6 +74,31 @@ button,
   touch-action: manipulation;
 }
 
+:is(a, button, [role="button"], ion-button, ion-back-button, ion-tab-button, ion-menu-button),
+:is(ion-button, ion-back-button, ion-tab-button, ion-menu-button)::part(native) {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(a, button, [role="button"], ion-button, ion-back-button, ion-tab-button, ion-menu-button):focus-visible,
+:where(ion-button, ion-back-button, ion-tab-button, ion-menu-button)::part(native):focus-visible {
+  outline: 2px solid var(--eatwell-green-700, #2e7d5f);
+  outline-offset: 2px;
+}
+
+@media (any-pointer: coarse) {
+  ion-button,
+  ion-back-button,
+  ion-tab-button,
+  ion-menu-button {
+    --ripple-color: transparent;
+  }
+
+  :where(a, button, [role="button"], ion-button, ion-back-button, ion-tab-button, ion-menu-button):focus:not(:focus-visible),
+  :where(ion-button, ion-back-button, ion-tab-button, ion-menu-button)::part(native):focus:not(:focus-visible) {
+    outline: none;
+  }
+}
+
 .profile-module-save-button {
   --background: var(--eatwell-green-700, #2e7d5f);
   --background-activated: var(--eatwell-green-900, #1d4d3d);

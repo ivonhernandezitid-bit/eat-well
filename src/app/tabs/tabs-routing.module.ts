@@ -1,11 +1,13 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 import { TabsPage } from './tabs.page';
+import { sessionGuard } from '../core/session.guard';
 
 const routes: Routes = [
   {
     path: '',
     component: TabsPage,
+    canActivateChild: [sessionGuard],
     children: [
       {
         path: 'home',

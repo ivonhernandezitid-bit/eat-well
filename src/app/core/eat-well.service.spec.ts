@@ -213,11 +213,16 @@ describe('EatWellService meal option requests', () => {
     expect(selected).toBe(generatedRecipe.id);
   }));
 
-  it('persists per-serving consumption without duplicates, isolated by account and date', () => {
-    const recipe = { ...generatedRecipe, calories: null, proteinGrams: null, carbsGrams: null, fatGrams: null };
+  it('records one serving even when the recipe makes two, isolated by account and date', () => {
+    const recipe = {
+      ...generatedRecipe,
+      servings: 2,
+      calories: null, proteinGrams: null, carbsGrams: null, fatGrams: null,
+      estimatedNutrition: { calories: 320, proteinGrams: 5, carbsGrams: 20, fatGrams: 4 },
+    };
     const first = service.markDailyMealConsumed(recipe, 'breakfast');
     expect(first.consumedMeals[0]).toEqual(jasmine.objectContaining({
-      id: recipe.id, mealType: 'breakfast', calories: 0, protein: 5, carbohydrates: 20, fat: 4,
+      id: recipe.id, mealType: 'breakfast', calories: 320, protein: 5, carbohydrates: 20, fat: 4,
     }));
     expect(service.markDailyMealConsumed(recipe, 'breakfast').consumedMeals.length).toBe(1);
     const restoredService = TestBed.runInInjectionContext(() => new EatWellService());

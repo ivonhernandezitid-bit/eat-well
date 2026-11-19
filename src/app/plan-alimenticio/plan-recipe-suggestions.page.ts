@@ -1,65 +1,22 @@
-import { Component, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController } from '@ionic/angular';
+import { AlertController, IonModal } from '@ionic/angular';
 import { EatWellService, Recipe, SuggestedFoodRecipe } from '../core';
-import { DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
+import { DAILY_MEAL_OPTION_COUNT, DailyMealPlan, mealPlanDate } from '../core/daily-meal-plan';
 import { ConsumedMeal } from '../core/daily-dashboard-log';
+import { confirmMealConsumption } from '../core/confirm-meal-consumption';
+import { recipeCanScale, RecipePortionPreview } from '../core/recipe-portions';
+import { ingredientAlternatives, ingredientMeasure, normalizeIngredient } from '../core/ingredient-alternatives';
 import {
   RecipeNutrientKey,
   ResolvedRecipeNutrition,
   recipeMealLabels,
   recipeMealTypes,
-  recipeCanBeSelected,
   RecipeMealType,
   resolveRecipeNutrition,
+  selectRecipeForMeal,
 } from '../core/recipe-meals';
 
-const ingredientSubstituteGroups: Array<{ label: string; icon: string; keywords: string[]; options: string[] }> = [
-  {
-    label: 'Verduras', icon: 'leaf-outline',
-    keywords: ['lechuga', 'espinaca', 'acelga', 'col', 'kale', 'berro'],
-    options: ['Espinaca baby', 'Acelga', 'Col'],
-  },
-  {
-    label: 'Verduras', icon: 'leaf-outline',
-    keywords: ['tomate', 'jitomate', 'pimiento', 'calabaza', 'calabacita', 'pepino', 'brocoli', 'coliflor', 'zanahoria'],
-    options: ['Calabacita', 'Pimiento', 'Brócoli'],
-  },
-  {
-    label: 'Frutas', icon: 'nutrition-outline',
-    keywords: ['manzana', 'pera', 'platano', 'banana', 'naranja', 'fresa', 'frutos rojos', 'mango'],
-    options: ['Manzana', 'Pera', 'Naranja'],
-  },
-  {
-    label: 'Cereales', icon: 'restaurant-outline',
-    keywords: ['arroz', 'avena', 'quinoa', 'maiz', 'tortilla', 'pasta', 'pan', 'cebada'],
-    options: ['Arroz integral', 'Quinoa', 'Avena'],
-  },
-  {
-    label: 'Leguminosas', icon: 'leaf-outline',
-    keywords: ['frijol', 'lenteja', 'garbanzo', 'haba'],
-    options: ['Lentejas', 'Garbanzos', 'Frijoles'],
-  },
-  {
-    label: 'Alimentos de origen animal', icon: 'restaurant-outline',
-    keywords: ['pollo', 'pavo', 'res', 'carne', 'pescado', 'atun', 'salmon', 'huevo'],
-    options: ['Pollo', 'Pescado', 'Huevo'],
-  },
-  {
-    label: 'Lácteos y alternativas', icon: 'cafe-outline',
-    keywords: ['leche', 'yogur', 'yogurt', 'queso', 'requeson'],
-    options: ['Yogur natural', 'Queso panela', 'Leche'],
-  },
-  {
-    label: 'Grasas y semillas', icon: 'nutrition-outline',
-    keywords: ['aguacate', 'aceite', 'nuez', 'almendra', 'semilla'],
-    options: ['Aguacate', 'Nueces', 'Semillas'],
-  },
-];
-
-function normalizeIngredient(value: string): string {
-  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
-}
 
 @Component({
   selector: 'app-plan-recipe-suggestions',
@@ -70,10 +27,13 @@ function normalizeIngredient(value: string): string {
 export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   readonly recipeMealLabels = recipeMealLabels;
   mealType: RecipeMealType = 'breakfast';
-  targetCalories = 0;
   selectedDate = mealPlanDate();
   recipes: Recipe[] = [];
+  loadingBackup: Recipe | null = null;
   detailRecipe: Recipe | null = null;
+  portionPreview: RecipePortionPreview | null = null;
+  portionLoading = false;
+  portionError = '';
   activeIngredients: string[] = [];
   checkedIngredients = new Set<number>();
   activeTimerStep: number | null = null;
@@ -86,12 +46,17 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   selectedIngredientIndex: number | null = null;
   substituteOptions: string[] = [];
   substituteSearchTerm = '';
+  substitutionLoading = false;
+  substitutionError = '';
+  private substitutionRequest = 0;
   substituteGroupLabel = '';
   substituteGroupIcon = 'swap-horizontal-outline';
   dailyPlan: DailyMealPlan | null = null;
   consumedMeals: ConsumedMeal[] = [];
   isLoading = true;
   isSaving = false;
+  plannedRecipeId: string | null = null;
+  confirmingMeal = false;
   error = '';
   favoriteIds = new Map<string, string>();
   favoriteLoadingId: string | null = null;
@@ -100,9 +65,15 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly eatWellService = inject(EatWellService);
   private readonly alertController = inject(AlertController);
+  @ViewChild('recipeDetailModal') private recipeDetailModal?: IonModal;
+  @ViewChild('substitutionModal') private substitutionModal?: IonModal;
+  private leavingView = false;
+  private mealOptions: Recipe[] = [];
 
   ngOnInit(): void {
     const mealType = this.route.snapshot.paramMap.get('mealType');
+    this.plannedRecipeId = this.route.snapshot.paramMap.has?.('recipeId')
+      ? this.route.snapshot.paramMap.get('recipeId') : null;
     const targetCalories = Number(this.route.snapshot.paramMap.get('kcal'));
     const date = this.route.snapshot.queryParamMap.get('date');
 
@@ -114,9 +85,30 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     }
 
     this.mealType = mealType as RecipeMealType;
-    this.targetCalories = targetCalories;
     if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) this.selectedDate = date;
-    void this.loadSuggestions();
+    if (this.plannedRecipeId) void this.loadPlannedRecipe(this.plannedRecipeId);
+    else void this.loadSuggestions();
+  }
+
+  private async loadPlannedRecipe(recipeId: string): Promise<void> {
+    try {
+      const userId = this.eatWellService.getActiveUser()?.id;
+      if (!userId) return;
+      const plan = await this.eatWellService.getDailyMealPlan(this.selectedDate);
+      if (this.leavingView || this.eatWellService.getActiveUser()?.id !== userId) return;
+      const recipe = plan.choices[this.mealType];
+      if (plan.date !== this.selectedDate || recipe?.id !== recipeId) {
+        this.error = 'Esta receta ya no está seleccionada en tu plan.';
+        return;
+      }
+      this.dailyPlan = plan;
+      this.consumedMeals = this.eatWellService.getDailyMealLog(this.selectedDate).consumedMeals;
+      this.openRecipeDetail(recipe);
+    } catch {
+      this.error = 'No se pudo cargar la receta de tu plan.';
+    } finally {
+      this.isLoading = false;
+    }
   }
 
   get mealLabel(): string {
@@ -137,6 +129,23 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     return this.dailyPlan?.choices[this.mealType]?.id ?? null;
   }
 
+  get energyTarget() {
+    return this.dailyPlan?.energyTargets?.[this.mealType];
+  }
+
+  isWithinEnergyTarget(recipe: Recipe): boolean {
+    const target = this.energyTarget;
+    const nutrition = this.nutrition(recipe);
+    const calories = nutrition.perServingValues.calories;
+    return !!target && nutrition.sources.calories === 'BAM'
+      && calories !== null && calories >= target.min && calories <= target.max;
+  }
+
+  get visibleRecipes(): Recipe[] {
+    const backup = this.loadingBackup;
+    return backup && !this.recipes.some(recipe => recipe.id === backup.id) ? [backup, ...this.recipes] : this.recipes;
+  }
+
   isSelected(recipe: Recipe): boolean {
     return this.selectedRecipeId === recipe.id;
   }
@@ -151,23 +160,89 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   ionViewWillEnter(): void {
-    if (!this.isLoading) void this.loadSuggestions();
+    this.leavingView = false;
+    if (this.isLoading) return;
+    if (!this.plannedRecipeId) void this.loadSuggestions();
+    else if (!this.isRecipeDetailOpen) {
+      this.isLoading = true;
+      this.error = '';
+      void this.loadPlannedRecipe(this.plannedRecipeId);
+    }
   }
 
   private pinSelectedRecipe(options: Recipe[]): void {
     const selected = this.dailyPlan?.choices[this.mealType];
-    const ordered = selected ? [selected, ...options] : options;
-    this.recipes = ordered.filter((recipe, index) => ordered.findIndex(item => item.id === recipe.id) === index);
+    const alternatives = options.filter((recipe, index) => options.findIndex(item => item.id === recipe.id) === index)
+      .slice(0, DAILY_MEAL_OPTION_COUNT);
+    this.recipes = selected ? [selected, ...alternatives.filter(recipe => recipe.id !== selected.id)] : alternatives;
   }
 
   returnToPlan(): void {
-    void this.router.navigateByUrl('/tabs/plan-alimenticio');
+    if (this.plannedRecipeId) void this.router.navigateByUrl('/tabs/home', { replaceUrl: true });
+    else void this.router.navigateByUrl('/tabs/plan-alimenticio');
+  }
+
+  onRecipeDetailDismiss(): void {
+    this.closeRecipeDetail();
+    if (this.plannedRecipeId && !this.leavingView) this.returnToPlan();
+  }
+
+  async dismissOverlaysBeforeLeaving(fromBrowserHistory: boolean): Promise<boolean> {
+    if (fromBrowserHistory && !this.plannedRecipeId) {
+      if (this.isSubstitutionSheetOpen) {
+        await this.substitutionModal?.dismiss();
+        this.closeSubstitutionSheet();
+        return false;
+      }
+      if (this.isRecipeDetailOpen) {
+        await this.recipeDetailModal?.dismiss();
+        this.closeRecipeDetail();
+        return false;
+      }
+    }
+
+    this.leavingView = true;
+    // Finish dismissal while this page still owns the modal's content and styles.
+    try {
+      await this.substitutionModal?.dismiss();
+      await this.recipeDetailModal?.dismiss();
+    } finally {
+      this.closeRecipeDetail();
+    }
+    return true;
+  }
+
+  get canCompletePlannedRecipe(): boolean {
+    return !!this.detailRecipe && this.selectedDate === mealPlanDate() && !this.isConsumed(this.detailRecipe);
+  }
+
+  async completePlannedRecipe(): Promise<void> {
+    const recipe = this.detailRecipe;
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!this.plannedRecipeId || !recipe || !userId || !this.canCompletePlannedRecipe || this.confirmingMeal) return;
+    this.confirmingMeal = true;
+    this.error = '';
+    try {
+      if (await confirmMealConsumption(this.alertController)
+        && this.eatWellService.getActiveUser()?.id === userId
+        && this.detailRecipe === recipe && this.canCompletePlannedRecipe) {
+        this.consumedMeals = this.eatWellService.markDailyMealConsumed(recipe, this.mealType).consumedMeals;
+        this.closeRecipeDetail();
+      }
+    } catch {
+      this.error = 'No se pudo registrar la comida consumida.';
+    } finally {
+      this.confirmingMeal = false;
+    }
   }
 
   openRecipeDetail(recipe: Recipe): void {
     this.saveCookingProgress();
     this.clearCookingInterval();
     this.detailRecipe = { ...recipe };
+    this.portionPreview = null;
+    this.portionLoading = false;
+    this.portionError = '';
     this.activeIngredients = [...recipe.ingredients];
     this.checkedIngredients = new Set();
     this.activeTimerStep = null;
@@ -196,6 +271,50 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     if (this.checkedIngredients.has(index)) this.checkedIngredients.delete(index);
     else this.checkedIngredients.add(index);
     this.saveCookingProgress();
+  }
+
+  get canAdjustPortions(): boolean {
+    return !!this.detailRecipe && recipeCanScale(this.detailRecipe)
+      && /^(personalized-.+|[1-9]\d*)$/.test(this.detailRecipe.id);
+  }
+
+  get displayedServings(): number | undefined {
+    return this.portionPreview?.requestedServings ?? this.detailRecipe?.servings ?? undefined;
+  }
+
+  displayedIngredient(index: number): string {
+    const active = this.activeIngredients[index];
+    if (active === this.detailRecipe?.ingredients[index]) return this.portionPreview?.ingredients?.[index] ?? active;
+    const measure = this.substituteMeasure(index);
+    return measure ? measure + ' de ' + active : active;
+  }
+
+  private substituteMeasure(index: number): string {
+    const source = this.portionPreview ?? this.detailRecipe;
+    return ingredientMeasure(source?.ingredients?.[index], source?.ingredientData?.[index]);
+  }
+
+  async changeServings(change: number): Promise<void> {
+    const recipe = this.detailRecipe;
+    const userId = this.eatWellService.getActiveUser()?.id;
+    const target = (this.displayedServings ?? 1) + change;
+    if (!recipe || !userId || !this.canAdjustPortions || this.portionLoading || target < 1 || target > 12) return;
+    this.portionError = '';
+    if (target === recipe.servings) {
+      this.portionPreview = null;
+      return;
+    }
+    this.portionLoading = true;
+    try {
+      const result = await this.eatWellService.getRecipePortions(recipe.id, recipe.id.startsWith('personalized-') ? 'personalized' : 'local', target);
+      if (this.detailRecipe !== recipe || this.eatWellService.getActiveUser()?.id !== userId) return;
+      if (result.available && result.ingredients?.length) this.portionPreview = result;
+      else this.portionError = result.reason ?? 'No se pudieron ajustar las cantidades.';
+    } catch {
+      if (this.detailRecipe === recipe) this.portionError = 'No se pudieron ajustar las porciones.';
+    } finally {
+      if (this.detailRecipe === recipe) this.portionLoading = false;
+    }
   }
 
   parseMinutes(instruction: string): number | null {
@@ -319,11 +438,13 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   get selectedIngredientName(): string {
-    return this.selectedIngredientIndex === null ? '' : this.activeIngredients[this.selectedIngredientIndex] ?? '';
+    return this.selectedIngredientIndex === null ? '' : this.displayedIngredient(this.selectedIngredientIndex) ?? '';
   }
 
   get substitutionPortion(): string {
-    return this.selectedIngredientName.match(/^(.+?)\s+de\s+/i)?.[1] ?? '';
+    if (this.selectedIngredientIndex === null) return '';
+    const index = this.selectedIngredientIndex;
+    return this.substituteMeasure(index);
   }
 
   get filteredSubstituteOptions(): string[] {
@@ -335,22 +456,32 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     this.substituteSearchTerm = (event.target as HTMLInputElement).value;
   }
 
-  openSubstitution(index: number): void {
+  async openSubstitution(index: number): Promise<void> {
     const ingredient = this.activeIngredients[index];
-    if (!ingredient) return;
+    const userId = this.eatWellService.getActiveUser()?.id;
+    if (!ingredient || !userId) return;
 
-    const normalized = normalizeIngredient(ingredient);
-    const group = ingredientSubstituteGroups.find(item =>
-      item.keywords.some(keyword => normalized.includes(keyword)),
-    );
+    const original = this.detailRecipe?.ingredientData?.[index]?.name ?? this.detailRecipe?.ingredients[index] ?? ingredient;
     this.selectedIngredientIndex = index;
     this.substituteSearchTerm = '';
-    this.substituteGroupLabel = group?.label ?? '';
-    this.substituteGroupIcon = group?.icon ?? 'swap-horizontal-outline';
-    this.substituteOptions = group
-      ? group.options.filter(option => !normalized.includes(normalizeIngredient(option)))
-      : [];
+    this.substituteGroupLabel = '';
+    this.substituteOptions = [];
+    this.substitutionError = '';
+    this.substitutionLoading = true;
     this.isSubstitutionSheetOpen = true;
+    const request = ++this.substitutionRequest;
+    try {
+      const preferences = await this.eatWellService.getFoodPreferences();
+      if (request !== this.substitutionRequest || this.eatWellService.getActiveUser()?.id !== userId) return;
+      const group = ingredientAlternatives(original, preferences);
+      this.substituteGroupLabel = group.label;
+      this.substituteGroupIcon = group.icon;
+      this.substituteOptions = group.options.filter(option => normalizeIngredient(option) !== normalizeIngredient(ingredient));
+    } catch {
+      if (request === this.substitutionRequest) this.substitutionError = 'No se pudieron consultar tus preferencias.';
+    } finally {
+      if (request === this.substitutionRequest) this.substitutionLoading = false;
+    }
   }
 
   replaceIngredient(substitute: string): void {
@@ -360,12 +491,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
     const currentIngredient = this.activeIngredients[index];
     if (!currentIngredient) return;
 
-    const quantityPrefix = currentIngredient.match(
-      /^(.+?\bde\s+)/i,
-    )?.[0];
     this.activeIngredients = this.activeIngredients.map((ingredient, ingredientIndex) =>
       ingredientIndex === index
-        ? `${quantityPrefix ?? ''}${substitute}`
+        ? substitute
         : ingredient,
     );
     this.checkedIngredients.delete(index);
@@ -374,6 +502,9 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   closeSubstitutionSheet(): void {
+    ++this.substitutionRequest;
+    this.substitutionLoading = false;
+    this.substitutionError = '';
     this.isSubstitutionSheetOpen = false;
     this.selectedIngredientIndex = null;
     this.substituteOptions = [];
@@ -420,31 +551,28 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
   }
 
   canSelectRecipe(recipe: Recipe): boolean {
-    if (this.isFixture(recipe)) return false;
-    if (/^[1-9]\d*$/.test(recipe.id)) {
-      return recipe.ingredients.length > 0 && recipe.instructions.length > 0
-        && recipeMealTypes(recipe).includes(this.mealType)
-        && Object.values(this.nutrition(recipe).values).every(value => value !== null);
-    }
-    return recipeCanBeSelected(recipe);
+    return /^(personalized-[1-9]\d*|[1-9]\d*)$/.test(recipe.id)
+      && recipe.ingredients.length > 0 && recipe.instructions.length > 0
+      && recipeMealTypes(recipe).includes(this.mealType);
   }
 
   selectionLimitation(recipe: Recipe): string {
-    if (/^[1-9]\d*$/.test(recipe.id)) {
-      return 'Esta receta no tiene todos los datos necesarios o no corresponde a este tiempo de comida.';
-    }
-    if (!recipe.id.startsWith('personalized-')) {
-      return 'Esta receta no pertenece a las opciones personalizadas que el plan permite guardar.';
-    }
-    return 'No están disponibles los cuatro valores nutricionales por porción; esta receta no se puede agregar al plan todavía.';
+    return 'Esta receta no tiene ingredientes o preparación, o no corresponde a esta comida.';
   }
 
   async loadSuggestions(recoverCache = false): Promise<void> {
     this.isLoading = true;
+    this.loadingBackup = null;
     this.error = '';
     try {
-      if (this.eatWellService.getActiveUser()) {
+      const user = this.eatWellService.getActiveUser();
+      if (user) {
         this.consumedMeals = this.eatWellService.getDailyMealLog(this.selectedDate).consumedMeals;
+        void Promise.resolve().then(() => this.eatWellService.getGeneralRecipes()).then(recipes => {
+          if (this.eatWellService.getActiveUser()?.id === user.id) {
+            this.loadingBackup = selectRecipeForMeal(recipes, this.mealType, this.selectedDate);
+          }
+        }).catch(() => {});
       }
       console.log('[Frontend] Enviando solicitud a backend...');
       const planPromise = this.eatWellService.getDailyMealPlan(this.selectedDate).catch(error => {
@@ -467,7 +595,8 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
       ]);
       this.dailyPlan = plan;
       this.favoriteIds = new Map(favorites.map(favorite => [favorite.title, favorite.favoriteId]));
-      this.pinSelectedRecipe(recipes);
+      this.mealOptions = recipes;
+      this.pinSelectedRecipe(this.mealOptions);
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'No se pudieron cargar las sugerencias de recetas.';
     } finally {
@@ -491,7 +620,7 @@ export class PlanRecipeSuggestionsPage implements OnInit, OnDestroy {
         recipe.id,
         this.selectedDate,
       );
-      this.pinSelectedRecipe(this.recipes);
+      this.pinSelectedRecipe(this.mealOptions);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'No se pudo guardar la receta.';
       this.error = message;

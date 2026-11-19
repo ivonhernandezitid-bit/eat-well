@@ -11,7 +11,7 @@ import { measurementValuesError, measurementImc } from '../core/anthropometric-m
 import { changeClinicalField, ClinicalHistoryData, clinicalHistoryError, clinicalHistoryForSex, clinicalHistoryMissingFields, emptyClinicalHistory } from '../core/clinical-history';
 import { calendarDate, dietaryRecallError, emptyDietaryRecall, previousRecallDate, recallDateError, recallMeals, setRecallSkipped } from '../core/dietary-recall';
 import { MealSchedule, mealScheduleError, scheduleMeals, shiftMealTime } from '../core/meal-schedule';
-import { BodyMeasurement, bodyFatPercentage, readBodyMeasurements } from '../core/body-measurements';
+import { BodyMeasurement, bodyFatPercentage, readBodyMeasurements, saveBodyMeasurements } from '../core/body-measurements';
 import { MedicionesModalComponent } from '../mediciones-modal/mediciones-modal.component';
 
 type WeightUnit = 'kg' | 'lbs';
@@ -472,6 +472,7 @@ export class DatosPerfilPage implements OnInit {
     this.bodyMeasurements = readBodyMeasurements(activeUser.id);
     this.foodPreferencesCompleted = false;
     const profileLoads = [
+      this.loadBodyMeasurements(activeUser.id, version),
       this.loadFoodPreferencesCompletion(activeUser.id),
       this.loadLifestyleForm(activeUser.id),
       this.loadClinicalHistory(activeUser.id),
@@ -500,9 +501,19 @@ export class DatosPerfilPage implements OnInit {
     return this.bodyMeasurements[this.bodyMeasurements.length - 1] ?? null;
   }
 
+  private async loadBodyMeasurements(userId: string, version: number): Promise<void> {
+    try {
+      const records = await this.eatWellService.getBodyMeasurements();
+      if (this.profileLoadVersion !== version || this.eatWellService.getActiveUser()?.id !== userId) return;
+      this.bodyMeasurements = [...this.bodyMeasurements.filter(local => !records.some(record => record.id === local.id)), ...records]
+        .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+      try { saveBodyMeasurements(userId, this.bodyMeasurements); } catch { /* The server remains the source of truth. */ }
+    } catch { /* Preserve previously captured local records. */ }
+  }
+
   get currentBodyFat(): number | null {
     const user = this.eatWellService.getActiveUser();
-    return user && this.latestBodyMeasurement ? bodyFatPercentage(user.gender, user.heightCm, this.latestBodyMeasurement) : null;
+    return user && this.latestBodyMeasurement ? bodyFatPercentage(user.gender, this.latestBodyMeasurement.heightCm ?? user.heightCm, this.latestBodyMeasurement) : null;
   }
 
   get waistChange(): number | null {

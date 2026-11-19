@@ -9,6 +9,7 @@ import { DailyMealPlan, dailyMealOptions, mealPlanDate } from '../core/daily-mea
 import { ClinicalHistoryData } from '../core/clinical-history';
 import { recipeCanScale, RecipePortionPreview } from '../core/recipe-portions';
 import { ConsumedMeal, readDailyDashboardLog, recordConsumedMeal } from '../core/daily-dashboard-log';
+import { ingredientMeasure } from '../core/ingredient-alternatives';
 
 interface PlanDayOption {
   date: string;
@@ -196,7 +197,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     }
   }
 
-  get planMealCards(): Array<PlanMealSlot & { recipe: Recipe | null; consumedMeal: ConsumedMeal | null; isConsumed: boolean; calories: number }> {
+  get planMealCards(): Array<PlanMealSlot & { recipe: Recipe | null; consumedMeal: ConsumedMeal | null; isConsumed: boolean; calories: number | null }> {
     const meals = Array.isArray(this.dailyPlan?.meals) ? this.dailyPlan.meals : [];
     const choices = this.dailyPlan?.choices ?? {};
     const consumedMeals = Array.isArray(this.consumedMeals) ? this.consumedMeals : [];
@@ -204,12 +205,14 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
       const planMeal = meals.find(meal => meal.mealType === slot.type);
       const recipe = planMeal?.recipe ?? choices[slot.type] ?? null;
       const consumedMeal = consumedMeals.find(meal => meal.mealType === slot.type || (!!recipe && meal.id === recipe.id)) ?? null;
+      const target = this.dailyPlan?.energyTargets?.[slot.type]?.target;
       return {
         ...slot,
+        estimatedCalories: target ?? 0,
         recipe,
         consumedMeal,
         isConsumed: !!consumedMeal,
-        calories: consumedMeal?.calories ?? recipe?.calories ?? slot.estimatedCalories,
+        calories: consumedMeal ? consumedMeal.calories ?? null : recipe ? recipe.calories ?? null : target ?? null,
       };
     });
   }
@@ -328,12 +331,11 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     const recipe = this.selectedRecipe;
     const userId = this.user?.id;
     if (!recipe || !userId || !this.selectedPlanMealType || this.selectedRecipeIsConsumed) return;
-    const slot = this.planMealSlots.find(item => item.type === this.selectedPlanMealType);
     const meal: ConsumedMeal = {
       id: recipe.id,
       title: recipe.title,
       mealType: this.selectedPlanMealType,
-      calories: recipe.calories ?? slot?.estimatedCalories ?? null,
+      calories: recipe.calories ?? null,
       protein: recipe.proteinGrams ?? null,
       carbohydrates: recipe.carbsGrams ?? null,
       fat: recipe.fatGrams ?? null,
@@ -498,7 +500,7 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
 
     try {
       const options = await this.eatWellService.obtenerSustitutos(
-        ingredientData?.foodId ?? ingredient,
+        ingredientData?.name ?? ingredient,
       );
       if (request === this.substituteRequest) this.substituteOptions = options;
     } catch (error) {
@@ -519,10 +521,8 @@ export class PlanAlimenticioPage implements OnInit, OnDestroy {
     const { index } = this.selectedIngredient;
     const substitute = this.selectedSubstitute;
     this.checkedIngredients.delete(this.selectedRecipe.ingredients[index]);
-    const portion = substitute.quantity != null
-      ? `${substitute.quantity} ${substitute.unit ?? ''}`.trim()
-      : 'Porción no especificada';
-    const nextIngredient = `${substitute.name} (${portion})`;
+    const measure = ingredientMeasure(this.selectedRecipe.ingredients[index], this.selectedRecipe.ingredientData?.[index]);
+    const nextIngredient = measure ? measure + ' de ' + substitute.name : substitute.name;
 
     this.selectedRecipe.ingredients = this.selectedRecipe.ingredients.map((ingredient, ingredientIndex) =>
       ingredientIndex === index ? nextIngredient : ingredient,

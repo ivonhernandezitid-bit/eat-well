@@ -172,7 +172,8 @@ export function resolveRecipeNutrition(recipe: RecipeNutritionInput): ResolvedRe
     sources,
     portionBases,
     sourceLabel,
-    calorieUnitLabel: portionBases.calories === 'per_serving' ? 'kcal por porción' : 'kcal · porción no confirmada',
+    calorieUnitLabel: portionBases.calories === 'per_serving' ? 'kcal por porción'
+      : sources.calories === 'catalog' ? 'kcal registradas' : 'kcal',
     isCompletePerServing,
     hasAnyValues,
   };

@@ -37,16 +37,16 @@ export class MedicionesModalComponent implements OnInit {
 
   ngOnInit(): void {
     this.records = readBodyMeasurements(this.profile.id);
-    void this.syncWeightHistory();
+    void this.loadMeasurements();
   }
 
   get current(): BodyMeasurement | null { return this.records[this.records.length - 1] ?? null; }
   get first(): BodyMeasurement | null { return this.records[0] ?? null; }
-  get bodyFat(): number | null { return this.current ? bodyFatPercentage(this.profile.gender, this.profile.heightCm, this.current) : null; }
+  get bodyFat(): number | null { return this.current ? bodyFatPercentage(this.profile.gender, this.current.heightCm ?? this.profile.heightCm, this.current) : null; }
   get leanMass(): number | null { return this.bodyFat === null ? null : Number((this.current!.weightKg * (1 - this.bodyFat / 100)).toFixed(1)); }
   get initialLeanMass(): number | null {
     if (!this.first) return null;
-    const initialFat = bodyFatPercentage(this.profile.gender, this.profile.heightCm, this.first);
+    const initialFat = bodyFatPercentage(this.profile.gender, this.first.heightCm ?? this.profile.heightCm, this.first);
     return initialFat === null ? null : Number((this.first.weightKg * (1 - initialFat / 100)).toFixed(1));
   }
   get leanMassChange(): number | null {
@@ -55,17 +55,17 @@ export class MedicionesModalComponent implements OnInit {
   }
   get leanMassTrend(): string | null {
     if (this.leanMassChange === null) return null;
-    if (this.leanMassChange > 0) return '↑ Subió (Buena señal: ganancia muscular)';
-    if (this.leanMassChange < 0) return '↓ Bajó (Revisa tu ingesta de proteína)';
-    return '= Se mantiene (Músculo conservado)';
+    if (this.leanMassChange > 0) return 'Subió la masa libre de grasa estimada';
+    if (this.leanMassChange < 0) return 'Bajó la masa libre de grasa estimada';
+    return 'La estimación se mantiene';
   }
   get bodyFatChange(): number | null {
     if (!this.first || this.bodyFat === null) return null;
-    const initial = bodyFatPercentage(this.profile.gender, this.profile.heightCm, this.first);
+    const initial = bodyFatPercentage(this.profile.gender, this.first.heightCm ?? this.profile.heightCm, this.first);
     return initial === null ? null : Number((this.bodyFat - initial).toFixed(1));
   }
   get icc(): number | null { return this.current && this.current.hipCm > 0 ? Number((this.current.waistCm / this.current.hipCm).toFixed(2)) : null; }
-  get ica(): number | null { return this.current ? Number((this.current.waistCm / this.profile.heightCm).toFixed(2)) : null; }
+  get ica(): number | null { return this.current ? Number((this.current.waistCm / (this.current.heightCm ?? this.profile.heightCm)).toFixed(2)) : null; }
   get iccLabel(): string { return this.icc !== null && this.icc < (this.profile.gender === 'male' ? 0.9 : 0.85) ? 'Saludable' : 'En observación'; }
   get icaLabel(): string { return this.ica !== null && this.ica < 0.5 ? 'Saludable' : 'En observación'; }
 
@@ -75,6 +75,7 @@ export class MedicionesModalComponent implements OnInit {
   improvement(key: keyof FormValues): boolean { return (this.delta(key) ?? 0) < 0; }
 
   async save(): Promise<void> {
+    if (this.saving) return;
     const values = Object.values(this.form).map(Number);
     if (values.some(value => !Number.isFinite(value) || value <= 0 || value > 250)) {
       this.error = 'Completa las cinco medidas con valores válidos en centímetros.';
@@ -86,11 +87,15 @@ export class MedicionesModalComponent implements OnInit {
     }
     this.saving = true; this.error = '';
     try {
-      // Persiste la medición antropométrica compatible con la API existente.
-      const user = await this.service.updateProfile({ weightKg: this.profile.weightKg, heightCm: this.profile.heightCm }, true);
-      this.profile = user;
-      this.records = [...this.records, { id: crypto.randomUUID?.() ?? `${Date.now()}`, measuredAt: new Date().toISOString(), weightKg: user.weightKg, ...this.form }];
-      saveBodyMeasurements(user.id, this.records);
+      const userId = this.profile.id;
+      const record: BodyMeasurement = {
+        ...this.form, id: crypto.randomUUID?.() ?? `${Date.now()}`,
+        measuredAt: new Date().toISOString(), weightKg: this.profile.weightKg, heightCm: this.profile.heightCm,
+      };
+      const saved = await this.service.saveBodyMeasurement(record);
+      if (this.service.getActiveUser()?.id !== userId) return;
+      this.records = this.mergeMeasurements(saved);
+      try { saveBodyMeasurements(userId, this.records); } catch { /* The database already saved this record. */ }
       this.measurementsChanged.emit(this.records);
       this.form = { waistCm: 0, hipCm: 0, armCm: 0, thighCm: 0, neckCm: 0 };
       this.showForm = false;
@@ -99,11 +104,19 @@ export class MedicionesModalComponent implements OnInit {
     } finally { this.saving = false; }
   }
 
-  private async syncWeightHistory(): Promise<void> {
+  private mergeMeasurements(saved: BodyMeasurement[]): BodyMeasurement[] {
+    return [...this.records.filter(local => !saved.some(record => record.id === local.id)), ...saved]
+      .sort((a, b) => a.measuredAt.localeCompare(b.measuredAt));
+  }
+
+  private async loadMeasurements(): Promise<void> {
+    const userId = this.profile.id;
     try {
-      const response = await this.service.getMeasurementHistory();
-      // El endpoint conserva peso/estatura; las circunferencias permanecen en el respaldo local.
-      if (!this.records.length && response.measurements.length) saveBodyMeasurements(this.profile.id, this.records);
-    } catch { /* El respaldo local permite usar el módulo sin conexión. */ }
+      const records = await this.service.getBodyMeasurements();
+      if (this.service.getActiveUser()?.id !== userId) return;
+      this.records = this.mergeMeasurements(records);
+      this.measurementsChanged.emit(this.records);
+      try { saveBodyMeasurements(userId, this.records); } catch { /* Keep the server response visible. */ }
+    } catch { this.error = 'No se pudo cargar el historial del servidor. Se muestra el respaldo local.'; }
   }
 }

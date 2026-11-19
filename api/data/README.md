@@ -14,7 +14,7 @@ No se utilizan tablas separadas para fuentes, componentes o valores. Los nombres
 
 Las 5,575 cantidades no disponibles permanecen como `NULL`, no como cero. El punto de la celda U930 se conserva en los valores originales, con su columna numérica en `NULL`. Los ceros presentes en el archivo se conservan.
 
-La cantidad de alimento a la que corresponden los valores no está definida expresamente en el Excel. `reference_amount` y `reference_unit` permanecen pendientes de confirmación. No se deben calcular porciones suponiendo una cantidad de referencia.
+El Excel no indica expresamente la cantidad de referencia. Para este archivo de BAM 18.1.1 se usa **100 g de parte comestible**, con base en los valores revisados del Excel y el [manual de intervención nutricional que usa BAM](https://www.scribd.com/document/1002011800/L-Web-Intervencion-Nutricional). El resultado es una estimación por porción. No se convierte de ml a g sin una densidad conocida.
 
 ## Actualizar una copia de la base original
 
@@ -39,4 +39,6 @@ python api/tools/prepare_bam_catalog.py --excel "C:\ruta\220615_bam_1811.xlsx"
 
 Si cambian las columnas del archivo o aparecen valores inesperados, la herramienta detiene la preparación para que se revisen antes de importarlos.
 
-El catálogo no contiene cuentas ni claves de API. Se utiliza como referencia para generar recetas y para calcular su información nutrimental en PHP. El cálculo exige cantidades de ingredientes, porciones y una cantidad de referencia confirmada en `foods`; mientras esta última esté pendiente no se asume que los nutrientes corresponden a 100 g. Los datos faltantes se devuelven como `NULL`, no como cero.
+Si la base ya contiene el catálogo, importar únicamente [bam_reference_100g.sql](bam_reference_100g.sql). Solo actualiza las filas sin referencia del archivo revisado; no cambia los valores originales ni los datos de pacientes.
+
+El cálculo exige cantidades de ingredientes, porciones y una referencia en `foods`. Los datos faltantes se devuelven como `NULL`, no como cero.

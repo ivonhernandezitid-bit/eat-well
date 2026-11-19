@@ -7,6 +7,7 @@ export interface BodyMeasurement {
   thighCm: number;
   neckCm: number;
   weightKg: number;
+  heightCm?: number;
 }
 
 export const bodyMeasurementStorageKey = (userId: string) => `eat-well-body-measurements:${userId}`;
@@ -41,5 +42,8 @@ function isBodyMeasurement(value: unknown): value is BodyMeasurement {
   if (!value || typeof value !== 'object') return false;
   const record = value as Record<string, unknown>;
   return typeof record['id'] === 'string' && typeof record['measuredAt'] === 'string'
-    && ['waistCm', 'hipCm', 'armCm', 'thighCm', 'neckCm', 'weightKg'].every(key => Number.isFinite(Number(record[key])));
+    && Number.isFinite(Date.parse(record['measuredAt'] as string))
+    && ['waistCm', 'hipCm', 'armCm', 'thighCm', 'neckCm', 'weightKg'].every(key =>
+      typeof record[key] === 'number' && Number.isFinite(record[key]) && (record[key] as number) > 0
+      && (record[key] as number) <= (key === 'weightKg' ? 500 : 250));
 }

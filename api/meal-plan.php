@@ -8,18 +8,19 @@ declare(strict_types=1);
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/lifestyle-goals.php';
 require_once __DIR__ . '/clinical-history.php';
+require_once __DIR__ . '/meal-energy.php';
 
 const MEAL_PLAN_OPTION_COUNT = 4;
 
 function mealOptionHash(array $user, array $preferences, string $mealType): string
 {
-    // La versión identifica el contrato nutricional y evita reutilizar filas antiguas sin estimaciones persistidas.
-    return hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-nutrition-provenance-v1:' . $mealType);
+    return hash('sha256', recipePreferenceHash($user, $preferences) . ':bam-energy-v1:' . $mealType);
 }
 
 function compatibleMealOptionHashes(array $user, array $preferences, string $mealType): array
 {
-    return [mealOptionHash($user, $preferences, $mealType)];
+    return [mealOptionHash($user, $preferences, $mealType),
+        hash('sha256', recipePreferenceHash($user, $preferences) . ':' . MEAL_PLAN_OPTION_COUNT . '-nutrition-provenance-v1:' . $mealType)];
 }
 
 function mealPlanClinicalConditions(PDO $pdo, int $userId): array
@@ -137,7 +138,8 @@ function readDailyMealChoices(PDO $pdo, array $user, array $preferences, string 
     $schedule = $pdo->prepare('SELECT * FROM meal_schedules WHERE user_id=?');
     $schedule->execute([$user['id']]);
     $schedule = $schedule->fetch(PDO::FETCH_ASSOC) ?: null;
-    return structureDailyMealPlan($date, $choices, $needsReview, $schedule);
+    return [...structureDailyMealPlan($date, $choices, $needsReview, $schedule),
+        'energyTargets' => (object)mealEnergyTargets($user, $preferences)];
 }
 
 function structureDailyMealPlan(string $date, array $choices, array $needsReview, ?array $schedule): array
@@ -168,23 +170,20 @@ function structureDailyMealPlan(string $date, array $choices, array $needsReview
             'needsReviewMeals'=>$reviewCount, 'complete'=>$selected===5]];
 }
 
-function mealOptionSetHasCompleteNutrition(PDO $pdo, array $rows, string $type): bool
+function mealOptionSetIsUsable(array $rows, string $type, array $catalog, array $range): bool
 {
     if (count($rows) !== MEAL_PLAN_OPTION_COUNT) return false;
     foreach ($rows as $row) {
         $recipe = mapPersonalizedRecipe($row);
         $metadata = recipeMetadata($recipe);
         if (!in_array($type, $metadata['mealTypes'], true) || !$metadata['servings']) return false;
-        $recipe = withRecipeNutrition($pdo, $recipe);
-        foreach (['calories', 'proteinGrams', 'carbsGrams', 'fatGrams'] as $nutrient) {
-            if ($recipe['nutrition']['values'][$nutrient] === null
-                || $recipe['nutrition']['portionBases'][$nutrient] !== 'per_serving') return false;
-        }
+        if (empty($recipe['ingredients']) || empty($recipe['instructions'])) return false;
+        if (!mealRecipeMeetsEnergy($recipe, $catalog, $range)) return false;
     }
     return true;
 }
 
-function archiveIncompleteMealOptions(PDO $pdo, int $userId, string $hash, string $type): bool
+function archiveIncompleteMealOptions(PDO $pdo, int $userId, string $hash, string $type, array $catalog, array $range): bool
 {
     // Archivar sin borrar filas conserva las referencias de elecciones y permite marcarlas para revisión.
     $pdo->beginTransaction();
@@ -194,7 +193,7 @@ function archiveIncompleteMealOptions(PDO $pdo, int $userId, string $hash, strin
         $query = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT ' . MEAL_PLAN_OPTION_COUNT);
         $query->execute([$userId, $hash]);
         $rows = $query->fetchAll(PDO::FETCH_ASSOC);
-        if (!$rows || mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+        if (!$rows || mealOptionSetIsUsable($rows, $type, $catalog, $range)) {
             $pdo->commit();
             return false;
         }
@@ -212,31 +211,40 @@ function archiveIncompleteMealOptions(PDO $pdo, int $userId, string $hash, strin
 function readMealOptions(PDO $pdo, array $user, array $preferences, string $type, string $apiKey, string $model, ?string &$source = null, bool $recoverCache = false): array
 {
     if (!$preferences['completed']) throw new InvalidArgumentException('Completa tus preferencias alimentarias antes de elegir tus recetas.');
+    $range = mealEnergyTargets($user, $preferences)[$type] ?? null;
+    if (!$range) throw new InvalidArgumentException('No hay una meta energética disponible para este perfil.');
+    $catalog = nutritionFoodCatalog($pdo);
     $hash = mealOptionHash($user, $preferences, $type);
     $stmt = $pdo->prepare('SELECT * FROM personalized_recipes WHERE user_id=? AND preference_hash=? ORDER BY id LIMIT ' . MEAL_PLAN_OPTION_COUNT);
     $stmt->execute([$user['id'], $hash]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     // Cualquier conjunto guardado incompleto requiere una acción explícita; solo esa acción lo archiva y genera su reemplazo.
-    if ($rows && !mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+    if ($rows && !mealOptionSetIsUsable($rows, $type, $catalog, $range)) {
         if (!$recoverCache) sendError('El conjunto guardado de recetas requiere revisión antes de reutilizarse.', 409, 'options_cache_review');
         if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503, 'generation_not_configured');
-        archiveIncompleteMealOptions($pdo, (int)$user['id'], $hash, $type);
+        archiveIncompleteMealOptions($pdo, (int)$user['id'], $hash, $type, $catalog, $range);
         $stmt->execute([$user['id'], $hash]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if ($rows && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+        if ($rows && mealOptionSetIsUsable($rows, $type, $catalog, $range)) {
             $source = 'cache';
             return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
         }
         if ($rows) sendError('El conjunto guardado de recetas requiere revisión antes de reutilizarse.', 409, 'options_cache_review');
     }
     // No se considera válida una caché solo porque tenga el número esperado de filas.
-    if (count($rows) === MEAL_PLAN_OPTION_COUNT && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+    if (mealOptionSetIsUsable($rows, $type, $catalog, $range)) {
         $source = 'cache';
         return array_map(fn($row) => withRecipeNutrition($pdo, mapPersonalizedRecipe($row)), $rows);
     }
     if ($apiKey === '') sendError('La generacion de recetas no esta configurada en el servidor.', 503, 'generation_not_configured');
     $labels = ['breakfast' => 'Desayuno', 'morning_snack' => 'Colacion matutina', 'lunch' => 'Comida', 'afternoon_snack' => 'Colacion vespertina', 'dinner' => 'Cena'];
-    $prompt = recipeGenerationPrompt($user, $preferences, recipeBamContext($pdo, $preferences), recipeClinicalGuidance($preferences['clinicalConditions'] ?? []))
+    $foods = mealCookingFoods($pdo, $preferences);
+    if (!$foods) sendError('No hay alimentos BAM con energía y referencia disponibles para calcular las opciones.', 503);
+    $guidance = function_exists('recipeClinicalGuidance') ? recipeClinicalGuidance($preferences['clinicalConditions'] ?? []) : [];
+    $prompt = recipeGenerationPrompt($user, $preferences, $foods, $guidance)
+        . "\nPropón platillos reconocibles y viables para este tiempo de comida, con tamaños de porción e ingredientes razonables. Si no llegas a la meta, cambia la combinación o la preparación; no uses cantidades desproporcionadas de aceite, azúcar o condimentos para completar kcal. Cada paso debe corresponder a los ingredientes y cantidades indicados. Respeta el estado crudo o cocido de cada registro BAM."
+        . "\nUsa un nombre que describa el platillo que realmente se prepara. Da pasos en orden, con la técnica y el punto de cocción cuando corresponda. No sirvas crudos ingredientes que deben cocinarse. No agregues en los pasos aceite, sal, guarniciones ni otros ingredientes que falten de la lista."
+        . "\nMeta estimada: {$range['target']} kcal POR PORCION; rango obligatorio {$range['min']} a {$range['max']} kcal por porcion en cada receta. Usa exclusivamente los alimentos BAM incluidos, con su foodId y nombre exactos y cantidades en gramos; calcula sumando gramos * energy_kcal / 100 y dividiendo entre servings. Ajusta cantidades antes de responder. No inventes energia ni uses ingredientes fuera de la lista."
         . "\nGenera exactamente cuatro opciones diferentes para {$labels[$type]}. Cada una debe tener mealTypes=[\"{$type}\"]. Son alternativas para elegir UNA, no cuatro comidas que deban consumirse juntas. No repitas la misma receta cambiando solo el nombre. Devuelve un array JSON de cuatro recetas.";
     error_log('[Paso 2] Solicitando receta a Gemini');
     try {
@@ -248,13 +256,22 @@ function readMealOptions(PDO $pdo, array $user, array $preferences, string $type
     $recipes = filterRecipesByPreferences($recipes, $preferences);
     $recipes = filterRecipesByClinicalConditions($recipes, $preferences['clinicalConditions'] ?? []);
     if (count($recipes) !== MEAL_PLAN_OPTION_COUNT) throw new RuntimeException('Una o más recetas no cumplieron con las restricciones registradas. Vuelve a generar las opciones.');
+    $listedIds = array_fill_keys(array_column($foods, 'id'), true);
+    foreach ($recipes as $recipe) {
+        if (!mealRecipeUsesListedFoods($recipe, $listedIds)) {
+            sendError('No se pudieron verificar los ingredientes de las recetas. Puedes reintentar.', 502, 'meal_ingredients_unverified');
+        }
+        if (!mealRecipeMeetsEnergy($recipe, $catalog, $range)) {
+            sendError('No se pudieron verificar cuatro recetas dentro de tu rango de kcal con BAM. Puedes reintentar.', 502, 'meal_energy_out_of_range');
+        }
+    }
     $reused = false;
     $pdo->beginTransaction();
     try {
         // Lock this account so concurrent requests reuse a single completed option set.
         $lock = $pdo->prepare('SELECT id FROM users WHERE id=? FOR UPDATE'); $lock->execute([$user['id']]);
         $stmt->execute([$user['id'], $hash]); $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        if (count($rows) === MEAL_PLAN_OPTION_COUNT && mealOptionSetHasCompleteNutrition($pdo, $rows, $type)) {
+        if (mealOptionSetIsUsable($rows, $type, $catalog, $range)) {
             $reused = true;
         } else {
             if ($rows) {
@@ -305,9 +322,8 @@ function catalogMealChoiceRecipe(PDO $pdo, array $preferences, string $type, int
         || !filterRecipesByClinicalConditions([$recipe], $preferences['clinicalConditions'] ?? [])) {
         throw new InvalidArgumentException('La receta no es compatible con tus preferencias o condiciones registradas.');
     }
-    if (!$recipe['ingredients'] || !$recipe['instructions']
-        || in_array(null, $recipe['nutrition']['values'], true)) {
-        throw new InvalidArgumentException('La receta del catalogo no tiene todos los datos necesarios.');
+    if (!$recipe['ingredients'] || !$recipe['instructions']) {
+        throw new InvalidArgumentException('La receta del catalogo no tiene ingredientes o preparacion.');
     }
     return $recipe;
 }
@@ -326,7 +342,7 @@ function saveCatalogMealChoice(PDO $pdo, array $user, array $preferences, string
         $referenceId = $existing->fetchColumn();
         if ($referenceId === false) {
             // No promover calorías registradas a estimación por porción: se conservan como registeredNutrition.
-            $recipe['estimatedNutrition'] = normalizeRecipeNutrientValues(null);
+            unset($recipe['estimatedNutrition']);
             $instructions = json_decode(encodeRecipeInstructions($recipe), true, 512, JSON_THROW_ON_ERROR);
             $instructions['catalogRecipeId'] = $catalogId;
             $insert = $pdo->prepare('INSERT INTO personalized_recipes (user_id,preference_hash,title,description,ingredients,instructions) VALUES (?,?,?,?,?,?)');

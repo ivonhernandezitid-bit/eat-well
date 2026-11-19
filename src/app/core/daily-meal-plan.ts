@@ -3,6 +3,12 @@ import { RecipeMealType } from './recipe-meals';
 
 export const DAILY_MEAL_OPTION_COUNT = 4;
 
+export interface MealEnergyTarget {
+  target: number;
+  min: number;
+  max: number;
+}
+
 export function dailyMealOptions<T extends { id: string }>(options: readonly T[], selected?: T): T[] {
   const visible = options.slice(0, DAILY_MEAL_OPTION_COUNT);
   if (!selected || visible.some(recipe => recipe.id === selected.id)) return visible;
@@ -11,6 +17,7 @@ export function dailyMealOptions<T extends { id: string }>(options: readonly T[]
 
 export interface DailyMealPlan {
   date: string;
+  energyTargets?: Partial<Record<RecipeMealType, MealEnergyTarget>>;
   choices: Partial<Record<RecipeMealType, Recipe>>;
   meals: DailyPlanMeal[];
   scheduleCustomized: boolean;

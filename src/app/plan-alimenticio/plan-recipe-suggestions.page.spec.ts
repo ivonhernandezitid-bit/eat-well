@@ -145,8 +145,13 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     const savedProgress = new Map<string, string>();
     spyOn(Storage.prototype, 'getItem').and.callFake(key => savedProgress.get(key) ?? null);
     spyOn(Storage.prototype, 'setItem').and.callFake((key, value) => savedProgress.set(key, value));
-    const eatWellService = jasmine.createSpyObj<EatWellService>('EatWellService', ['getActiveUser']);
+    const eatWellService = jasmine.createSpyObj<EatWellService>('EatWellService', ['getActiveUser', 'getFoodPreferences']);
     eatWellService.getActiveUser.and.returnValue({ id: 'substitution-test-user' } as UserProfile);
+    eatWellService.getFoodPreferences.and.resolveTo({
+      dietType: 'omnivore', allergies: [], dislikedFoods: [], preferredFruits: [], preferredVegetables: [],
+      preferredProteins: [], preferredCarbohydrates: [], preferredLegumes: [], preferredDairy: [],
+      preferredFats: [], noPreferenceCategories: [], cookingTimeMinutes: 30, completed: true,
+    });
     spyOn(PlanRecipeSuggestionsPage.prototype, 'ngOnInit').and.stub();
     await TestBed.configureTestingModule({
       declarations: [PlanRecipeSuggestionsPage],
@@ -193,7 +198,7 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     search.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
     expect(sheet.querySelectorAll('.ingredient-substitution-card').length).toBe(1);
-    expect(sheet.querySelector('h3')?.textContent).toBe('Quinoa');
+    expect(sheet.querySelector('h3')?.textContent).toBe('Hojuelas de quinoa');
     search.value = 'sin coincidencias';
     search.dispatchEvent(new Event('input', { bubbles: true }));
     fixture.detectChanges();
@@ -206,7 +211,7 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     (sheet.querySelector('.select-substitute-button') as HTMLButtonElement).click();
     fixture.detectChanges();
     await sheetDismissed;
-    expect(page.activeIngredients).toEqual(['1/2 taza de Quinoa', '1 taza de leche', 'Sal']);
+    expect(page.activeIngredients).toEqual(['Hojuelas de quinoa', '1 taza de leche', 'Sal']);
     expect(page.checkedIngredients.has(0)).toBeFalse();
     expect(page.checkedIngredients.has(1)).toBeTrue();
     expect(recipe.ingredients[0]).toBe('1/2 taza de hojuelas de avena entera');
@@ -219,12 +224,17 @@ describe('PlanRecipeSuggestionsPage recipe detail', () => {
     const reopenedFixture = TestBed.createComponent(PlanRecipeSuggestionsPage);
     const reopened = reopenedFixture.componentInstance;
     reopened.openRecipeDetail(recipe);
-    expect(reopened.activeIngredients[0]).toBe('1/2 taza de Quinoa');
+    expect(reopened.activeIngredients[0]).toBe('Hojuelas de quinoa');
     expect(reopened.checkedIngredients.has(1)).toBeTrue();
-    reopened.openSubstitution(1);
+    reopened.portionPreview = { recipeId: recipe.id, available: true, requestedServings: 2, ingredients: ['1 taza de avena', '2 tazas de leche', 'Sal'] };
+    expect(reopened.displayedIngredient(0)).toBe('1 taza de Hojuelas de quinoa');
+    expect(reopened.displayedIngredient(1)).toBe('2 tazas de leche');
+    reopened.portionPreview = { ...reopened.portionPreview, ingredients: ['80 g de avena', '2 tazas de leche', 'Sal'] };
+    expect(reopened.displayedIngredient(0)).toBe('80 g de Hojuelas de quinoa');
+    await reopened.openSubstitution(1);
     expect(reopened.substituteSearchTerm).toBe('');
-    expect(reopened.substituteGroupLabel).toBe('Lácteos y alternativas');
-    reopened.openSubstitution(2);
+    expect(reopened.substituteOptions).toEqual([]);
+    await reopened.openSubstitution(2);
     expect(reopened.substituteOptions).toEqual([]);
     reopened.replaceIngredient('No disponible');
     expect(reopened.activeIngredients[2]).toBe('Sal');

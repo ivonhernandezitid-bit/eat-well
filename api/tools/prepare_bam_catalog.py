@@ -168,7 +168,8 @@ def prepare(excel_path, output_path):
             sql.append('INSERT INTO foods (' + ', '.join(columns) + ') VALUES\n'
                        + ',\n'.join(tuples[start:start + 100])
                        + '\nON DUPLICATE KEY UPDATE id = id;')
-        sql.extend(['COMMIT;', ''])
+        reference_update = Path(__file__).resolve().parents[1] / 'data' / 'bam_reference_100g.sql'
+        sql.extend([reference_update.read_text(encoding='utf-8').strip(), 'COMMIT;', ''])
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text('\n'.join(sql), encoding='utf-8')
         print(json.dumps({'foods': len(records), 'nutrients': len(VARIABLES), 'values': len(records) * len(VARIABLES),

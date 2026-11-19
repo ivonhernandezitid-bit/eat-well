@@ -149,7 +149,7 @@ describe('PlanAlimenticioPage list and grid views', () => {
       expect(cards[0].scrollWidth).toBeLessThanOrEqual(cards[0].clientWidth);
     }
     meals.querySelectorAll<HTMLButtonElement>('.planned-meal-card').forEach(card => card.click());
-    expect(openMeal.calls.allArgs()).toEqual(page.planMealSlots.map(meal => [meal.type, meal.estimatedCalories]));
+    expect(openMeal.calls.allArgs()).toEqual(page.planMealCards.map(meal => [meal.type, meal.estimatedCalories]));
     meals.style.removeProperty('width');
 
     const filters = root.querySelectorAll<HTMLButtonElement>('.filter-pill');

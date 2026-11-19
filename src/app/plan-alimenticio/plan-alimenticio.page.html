@@ -114,7 +114,7 @@
           class="planned-meal-card"
           *ngFor="let meal of planMealCards"
           [class.consumed]="meal.isConsumed"
-          [attr.aria-label]="meal.label + ', ' + meal.calories + ' kilocalorías, ' + (meal.isConsumed ? 'consumido' : 'pendiente')"
+          [attr.aria-label]="meal.label + ', ' + (meal.isConsumed ? 'consumido' : 'pendiente')"
           (click)="abrirSugerencias(meal.type, meal.estimatedCalories)">
           <span class="planned-meal-icon" aria-hidden="true">{{ meal.icon }}</span>
           <span class="planned-meal-copy">
@@ -122,7 +122,7 @@
             <small>{{ meal.consumedMeal?.title || meal.recipe?.title || 'Toca para elegir una receta' }}</small>
           </span>
           <span class="planned-meal-meta">
-            <strong>{{ meal.calories | number }} kcal</strong>
+            <strong>{{ meal.calories !== null ? (meal.calories | number) + ' kcal' : 'Kcal pendientes' }}<ng-container *ngIf="meal.calories !== null && !meal.recipe && !meal.consumedMeal"> meta</ng-container></strong>
             <small [class.consumed-label]="meal.isConsumed">
               <ion-icon [name]="meal.isConsumed ? 'checkmark-circle' : 'time-outline'"></ion-icon>
               {{ meal.isConsumed ? 'Consumido' : 'Pendiente' }}
@@ -440,7 +440,7 @@
           [(ngModel)]="substituteSearchTerm">
         </ion-searchbar>
 
-        <p class="substitution-note">Opciones de prueba; no representan equivalencias nutricionales verificadas.</p>
+        <p class="substitution-note">Alternativas de preparación. La cantidad y el aporte nutricional pueden cambiar.</p>
 
         <div class="substitution-loading" *ngIf="isLoadingSubstitutes">
           <ion-spinner name="crescent"></ion-spinner>

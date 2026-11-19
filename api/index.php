@@ -8,6 +8,7 @@ require_once __DIR__ . '/dietary-recall.php';
 require_once __DIR__ . '/meal-schedule.php';
 require_once __DIR__ . '/eating-habits.php';
 require_once __DIR__ . '/anthropometric-measurements.php';
+require_once __DIR__ . '/body-measurements.php';
 require_once __DIR__ . '/recipe-generation.php';
 require_once __DIR__ . '/recipe-portions.php';
 require_once __DIR__ . '/meal-plan.php';
@@ -47,21 +48,6 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ],
     );
-
-    // Add account role and professional validation columns automatically.
-    $existingUserColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
-    $userColumns = [
-        'role' => "VARCHAR(20) NOT NULL DEFAULT 'patient'",
-        'cedula_profesional' => 'VARCHAR(20) NULL',
-        'universidad' => 'VARCHAR(150) NULL',
-        'especialidad' => 'VARCHAR(100) NULL',
-        'consultorio' => 'VARCHAR(150) NULL',
-    ];
-    foreach ($userColumns as $column => $definition) {
-        if (!in_array($column, $existingUserColumns, true)) {
-            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $definition");
-        }
-    }
 
     // Auto-create user_tips table if not exists
     $pdo->exec("
@@ -251,6 +237,10 @@ try {
         case 'auth.logout':
             logoutSession($pdo);
             break;
+        case 'auth.session':
+            if ($_SERVER['REQUEST_METHOD'] !== 'GET') sendError('Metodo no permitido.', 405);
+            sendJson(['user' => mapUser(requireSessionUser($pdo))]);
+            break;
         case 'clinical.get':
         case 'clinical.save':
         case 'clinical.delete':
@@ -276,6 +266,10 @@ try {
             break;
         case 'measurements.get':
             handleMeasurementHistory($pdo, $input);
+            break;
+        case 'body-measurements.get':
+        case 'body-measurements.save':
+            handleBodyMeasurements($pdo, $action, $input);
             break;
         case 'preferences.get':
         case 'preferences.save':
@@ -357,7 +351,13 @@ function registerUser(PDO $pdo, array $input): void
     $requestedUsername = strtolower(trim((string)($input['username'] ?? '')));
     $finalUsername = $requestedUsername !== '' ? $requestedUsername : explode('@', $email)[0];
     $plainPassword = trim((string)($input['password'] ?? ''));
-    $role = ($input['role'] ?? 'patient') === 'nutritionist' ? 'nutritionist' : 'patient';
+    $role = $input['role'] ?? 'patient';
+    if (!in_array($role, ['patient','nutritionist'], true)) sendError('Selecciona un tipo de cuenta valido.', 422);
+    foreach (['cedula_profesional'=>20,'universidad'=>150,'especialidad'=>100,'consultorio'=>150] as $field=>$limit) {
+        if (isset($input[$field]) && (!is_string($input[$field]) || mb_strlen(trim($input[$field])) > $limit)) {
+            sendError('Revisa los datos profesionales: ' . $field . ' supera el limite permitido o no es texto.', 422);
+        }
+    }
     $cedulaProfesional = trim((string)($input['cedula_profesional'] ?? ''));
     $universidad = trim((string)($input['universidad'] ?? ''));
     $especialidad = trim((string)($input['especialidad'] ?? ''));
@@ -443,7 +443,9 @@ function loginUser(PDO $pdo, array $input): void
 
 function getProfile(PDO $pdo, int $userId): void
 {
-    sendJson(['user' => mapUser(getUserById($pdo, $userId))]);
+    $user = requireSessionUser($pdo);
+    if ($userId !== (int)$user['id']) sendError('No puedes consultar el perfil de otra cuenta.', 403);
+    sendJson(['user' => mapUser($user)]);
 }
 
 function updateProfile(PDO $pdo, array $input): void
@@ -1225,7 +1227,7 @@ function mapUser(array $user): array
         'name' => $user['name'],
         'username' => $user['username'],
         'email' => $user['email'],
-        'role' => in_array($user['role'] ?? 'patient', ['patient', 'nutritionist'], true) ? $user['role'] : 'patient',
+        'role' => in_array($user['role'] ?? null, ['patient', 'nutritionist'], true) ? $user['role'] : 'patient',
         'cedula_profesional' => $user['cedula_profesional'] ?? null,
         'universidad' => $user['universidad'] ?? null,
         'especialidad' => $user['especialidad'] ?? null,

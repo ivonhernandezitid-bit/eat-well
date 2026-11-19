@@ -1,13 +1,16 @@
 import { Component, inject, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
+import { AlertController } from '@ionic/angular';
 import { CapacitorPedometer } from '@capgo/capacitor-pedometer';
 import { PluginListenerHandle } from '@capacitor/core';
 import { Subscription } from 'rxjs';
 import { EatWellService, Recipe, UserProfile } from '../core';
 import { calculateMacroTargets, defaultLifestyleSettings, MacroTargets } from '../core/lifestyle-goals';
 import { MealSchedule } from '../core/meal-schedule';
-import { RecipeMealType, recipeMealLabels } from '../core/recipe-meals';
+import { RecipeMealType, recipeMealLabels, resolveRecipeNutrition } from '../core/recipe-meals';
+import { DailyMealPlan } from '../core/daily-meal-plan';
 import { nextPlannedMeal } from '../core/next-meal';
+import { confirmMealConsumption } from '../core/confirm-meal-consumption';
 import { createDailyDashboardLog, DailyDashboardLog, readDailyDashboardLog, saveDailyDashboardLog } from '../core/daily-dashboard-log';
 
 type ActivityMode = 'checking' | 'sensor' | 'permission' | 'manual';
@@ -25,12 +28,14 @@ export class HomePage implements OnInit, OnDestroy {
   isFading = false;
   recipes: Recipe[] = [];
   private mealChoices: Partial<Record<RecipeMealType, string>> = {};
+  private energyTargets: DailyMealPlan['energyTargets'];
   private choicesLoading = false;
   private choicesError = '';
   mealSchedule: MealSchedule | null = null;
   scheduleLoading = false;
   scheduleError = '';
   mealConsumptionError = '';
+  confirmingMeal = false;
   private scheduleRequest = 0;
   private recipesRequest = 0;
   private lifestyleTargetRequest = 0;
@@ -47,6 +52,7 @@ export class HomePage implements OnInit, OnDestroy {
   readonly stepGoal = 10000;
   readonly exerciseGoalMinutes = 30;
   readonly waterGlassSlots = Array.from({ length: 10 }, (_, index) => index + 1);
+  readonly recipeNutrition = resolveRecipeNutrition;
 
   private userSubscription?: Subscription;
   private tipTimer?: ReturnType<typeof setInterval>;
@@ -59,6 +65,7 @@ export class HomePage implements OnInit, OnDestroy {
 
   private readonly eatWellService = inject(EatWellService);
   private readonly router = inject(Router);
+  private readonly alertController = inject(AlertController);
 
   ngOnInit() {
     this.userSubscription = this.eatWellService.activeUser$.subscribe((user) => {
@@ -68,6 +75,7 @@ export class HomePage implements OnInit, OnDestroy {
         this.mealSchedule=null;
         this.recipes=[];
         this.mealChoices = {};
+        this.energyTargets = undefined;
         this.choicesError = '';
         this.choicesLoading = false;
         this.dailyLog=createDailyDashboardLog(this.localDateKey());
@@ -123,35 +131,82 @@ export class HomePage implements OnInit, OnDestroy {
   }
 
   get caloriesConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.calories ?? 0), 0);
+    return this.consumedMealsWithNutrition.reduce((total, meal) => total + (meal.calories ?? 0), 0);
   }
 
   get proteinConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.protein ?? 0), 0);
+    return this.consumedMealsWithNutrition.reduce((total, meal) => total + (meal.protein ?? 0), 0);
   }
 
   get carbohydratesConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.carbohydrates ?? 0), 0);
+    return this.consumedMealsWithNutrition.reduce((total, meal) => total + (meal.carbohydrates ?? 0), 0);
   }
 
   get fatConsumed(): number {
-    return this.dailyLog.consumedMeals.reduce((total, meal) => total + (meal.fat ?? 0), 0);
+    return this.consumedMealsWithNutrition.reduce((total, meal) => total + (meal.fat ?? 0), 0);
   }
 
   get includesCatalogNutrition(): boolean {
-    return this.dailyLog.consumedMeals.some(meal => meal.nutritionSource === 'catalog');
+    return this.consumedMealsWithNutrition.some(meal => meal.nutritionSource === 'catalog');
   }
 
   nutritionIncomplete(field: 'calories' | 'protein' | 'carbohydrates' | 'fat'): boolean {
-    return this.dailyLog.consumedMeals.some(meal => meal[field] == null);
+    return this.consumedMealsWithNutrition.some(meal => meal[field] == null);
+  }
+
+  private get consumedMealsWithNutrition() {
+    return this.dailyLog.consumedMeals.map(meal => {
+      if (!meal.mealType || this.mealChoices[meal.mealType] !== meal.id || meal.nutritionSource === 'manual') return meal;
+      if ([meal.calories, meal.protein, meal.carbohydrates, meal.fat].every(value => value != null)) return meal;
+      const recipe = this.recipes.find(item => item.id === meal.id);
+      if (!recipe) return meal;
+      const nutrition = resolveRecipeNutrition(recipe);
+      const isCatalog = /^[1-9]\d*$/.test(recipe.id);
+      const values = isCatalog ? nutrition.values : nutrition.perServingValues;
+      return {
+        ...meal,
+        calories: meal.calories ?? values.calories,
+        protein: meal.protein ?? values.proteinGrams,
+        carbohydrates: meal.carbohydrates ?? values.carbsGrams,
+        fat: meal.fat ?? values.fatGrams,
+        nutritionSource: isCatalog && Object.values(nutrition.sources).includes('catalog') ? 'catalog' as const : meal.nutritionSource,
+      };
+    });
+  }
+
+  get dailyCalorieTarget(): number | null {
+    if (this.energyTargets) {
+      return Object.values(this.energyTargets).reduce((total, meal) => total + meal.target, 0) || null;
+    }
+    return this.user && this.user.age >= 18 && this.macroTargets.calories > 0 ? this.macroTargets.calories : null;
+  }
+
+  get plannedEnergy(): { total: number; selected: number; known: number; includesCatalog: boolean } {
+    let total = 0, selected = 0, known = 0, includesCatalog = false;
+    for (const id of Object.values(this.mealChoices)) {
+      const recipe = this.recipes.find(item => item.id === id);
+      if (!recipe) continue;
+      ++selected;
+      const nutrition = resolveRecipeNutrition(recipe);
+      if (nutrition.values.calories === null) continue;
+      total += nutrition.values.calories;
+      ++known;
+      if (nutrition.sources.calories === 'catalog') includesCatalog = true;
+    }
+    return { total, selected, known, includesCatalog };
+  }
+
+  get nextMealEnergyTarget(): number | undefined {
+    const mealType = this.nextMealCard?.mealType;
+    return mealType ? this.energyTargets?.[mealType]?.target : undefined;
   }
 
   get calorieProgress(): number {
-    return Math.min(100, Math.round(this.caloriesConsumed / Math.max(1, this.macroTargets.calories) * 100));
+    return this.dailyCalorieTarget ? Math.min(100, Math.round(this.caloriesConsumed / this.dailyCalorieTarget * 100)) : 0;
   }
 
   get caloriesRemaining(): number {
-    return Math.max(0, this.macroTargets.calories - this.caloriesConsumed);
+    return Math.max(0, (this.dailyCalorieTarget ?? 0) - this.caloriesConsumed);
   }
 
   get proteinProgress(): number {
@@ -240,6 +295,7 @@ export class HomePage implements OnInit, OnDestroy {
       this.dailyLog = this.loadDailyLog(this.user.id);
       this.recipes = [];
       this.mealChoices = {};
+      this.energyTargets = undefined;
       void this.loadRecipes(this.user);
     }
   }
@@ -305,6 +361,7 @@ export class HomePage implements OnInit, OnDestroy {
       const plan = await this.eatWellService.getDailyMealPlan(date);
       if (version === this.recipesRequest && this.eatWellService.getActiveUser()?.id === user.id) {
         if (plan.date !== this.localDateKey()) return;
+        this.energyTargets = plan.energyTargets;
         this.recipes = Object.values(plan.choices).filter((recipe): recipe is Recipe => !!recipe);
         this.mealChoices = {};
         for (const [type, recipe] of Object.entries(plan.choices)) if (recipe) this.mealChoices[type as RecipeMealType] = recipe.id;
@@ -325,6 +382,31 @@ export class HomePage implements OnInit, OnDestroy {
   removeWaterGlass(): void {
     this.dailyLog.waterGlasses = Math.max(0, this.dailyLog.waterGlasses - 1);
     this.saveDailyLog();
+  }
+
+  openPlannedRecipe(recipe: Recipe, mealType?: RecipeMealType): void {
+    if (!mealType) return;
+    void this.router.navigate(['/tabs/plan-alimenticio/receta', mealType, recipe.id], {
+      queryParams: { date: this.dailyLog.date },
+    });
+  }
+
+  async confirmPlannedMeal(recipe: Recipe, mealType?: RecipeMealType): Promise<void> {
+    const userId = this.user?.id;
+    const date = this.dailyLog.date;
+    if (!userId || this.confirmingMeal || this.mealIsTomorrow) return;
+    this.confirmingMeal = true;
+    this.mealConsumptionError = '';
+    try {
+      if (await confirmMealConsumption(this.alertController)
+        && this.user?.id === userId && this.localDateKey() === date) {
+        this.markMealConsumed(recipe, mealType);
+      }
+    } catch {
+      this.mealConsumptionError = 'No se pudo abrir la confirmación.';
+    } finally {
+      this.confirmingMeal = false;
+    }
   }
 
   markMealConsumed(recipe: Recipe, mealType?: RecipeMealType): void {

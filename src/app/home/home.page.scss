@@ -485,6 +485,21 @@ ion-content {
   font-weight: 850;
 }
 
+.meal-recipe-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.meal-recipe-link ion-icon { flex: none; }
+
 .meal-copy p,
 .empty-meal-copy {
   margin: 5px 0 0;

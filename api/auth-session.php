@@ -3,6 +3,13 @@ declare(strict_types=1);
 
 const AUTH_TOKEN_LIFETIME_DAYS = 30;
 
+function requireSessionRole(PDO $pdo, string $role): array
+{
+    $user = requireSessionUser($pdo);
+    if (($user['role'] ?? 'patient') !== $role) sendError('Tu cuenta no tiene permiso para esta accion.', 403);
+    return $user;
+}
+
 function ensureAuthSessionsTable(PDO $pdo): void
 {
     static $initialized = false;

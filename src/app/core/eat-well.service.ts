@@ -8,10 +8,12 @@ import { MealSchedule, MealScheduleResponse } from './meal-schedule';
 import { EatingHabitsResponse } from './eating-habits';
 import { MeasurementHistoryResponse } from './anthropometric-measurements';
 import { PortionRecipeSource, RecipePortionPreview } from './recipe-portions';
+import { BodyMeasurement } from './body-measurements';
 import { DAILY_MEAL_OPTION_COUNT, DailyMealPlan, mealPlanDate } from './daily-meal-plan';
 import { IngredientSubstitute, RecipeMealType, RecipeNutritionSource, resolveRecipeNutrition, selectRecipeForMeal } from './recipe-meals';
 import { DailyDashboardLog, readDailyDashboardLog, recordConsumedMeal } from './daily-dashboard-log';
 import { LifestyleSettings, LifestyleGoalsResponse, lifestyleStorageKey } from './lifestyle-goals';
+import { ingredientAlternatives } from './ingredient-alternatives';
 import {
   BodyZone,
   Exercise,
@@ -176,6 +178,14 @@ export class EatWellService {
     return response.user;
   }
 
+  async refreshSession(): Promise<UserProfile> {
+    const currentId = this.getRequiredActiveUser().id;
+    const response = await this.get<UserResponse>('auth.session', {});
+    if (this.getActiveUser()?.id !== currentId) throw new Error('La cuenta activa cambió. Vuelve a iniciar sesión.');
+    this.saveActiveUser(response.user);
+    return response.user;
+  }
+
   async logout(): Promise<void> {
     if (localStorage.getItem(AUTH_TOKEN_KEY)) {
       try {
@@ -223,6 +233,18 @@ export class EatWellService {
   async getMeasurementHistory(limit = 50): Promise<MeasurementHistoryResponse> {
     const user = this.getRequiredActiveUser();
     return this.get('measurements.get', { userId: user.id, limit });
+  }
+
+  async getBodyMeasurements(): Promise<BodyMeasurement[]> {
+    const user = this.getRequiredActiveUser();
+    const response = await this.get<{ measurements: BodyMeasurement[] }>('body-measurements.get', { userId: user.id });
+    return response.measurements;
+  }
+
+  async saveBodyMeasurement(measurement: BodyMeasurement): Promise<BodyMeasurement[]> {
+    const user = this.getRequiredActiveUser();
+    const response = await this.post<{ measurements: BodyMeasurement[] }>('body-measurements.save', { userId: user.id, measurement });
+    return response.measurements;
   }
 
   async getRecipePortions(recipeId: string, source: PortionRecipeSource, servings: number): Promise<RecipePortionPreview> {
@@ -553,13 +575,10 @@ export class EatWellService {
     return response.recipes;
   }
 
-  async obtenerSustitutos(ingredienteId: number | string): Promise<IngredientSubstitute[]> {
-    void ingredienteId;
-    return Promise.resolve([
-      { foodId: 90001, name: 'Tofu firme', quantity: 100, unit: 'g' },
-      { foodId: 90002, name: 'Frijoles cocidos', quantity: 90, unit: 'g' },
-      { foodId: 90003, name: 'Queso panela', quantity: 60, unit: 'g' },
-    ]);
+  async obtenerSustitutos(ingredient: string): Promise<IngredientSubstitute[]> {
+    const preferences = await this.getFoodPreferences();
+    return ingredientAlternatives(ingredient, preferences).options.map(name =>
+      ({ name, foodId: 0, quantity: null, unit: null }));
   }
 
   async addFavoriteRecipe(recipe: SuggestedFoodRecipe, sourceType: string): Promise<FavoriteRecipe> {

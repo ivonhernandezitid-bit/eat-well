@@ -4,6 +4,7 @@ import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { AlertController } from '@ionic/angular';
 import { EatWellService, Recipe, UserProfile } from '../core';
 import { mealPlanDate } from '../core/daily-meal-plan';
 import { HomePage } from './home.page';
@@ -21,20 +22,28 @@ describe('HomePage meal consumption', () => {
     ingredients: ['Avena'], instructions: ['Cocinar'], goals: [], mealTypes: ['breakfast', 'dinner'],
   };
   let service: EatWellService;
+  let confirmationRole: string;
 
   beforeEach(async () => {
+    confirmationRole = 'confirm';
     const storage = new Map<string, string>([['eat-well-active-user', JSON.stringify(user)]]);
     spyOn(Storage.prototype, 'getItem').and.callFake(key => storage.get(key) ?? null);
     spyOn(Storage.prototype, 'setItem').and.callFake((key, value) => { storage.set(key, value); });
     await TestBed.configureTestingModule({
       declarations: [HomePage], imports: [CommonModule], schemas: [CUSTOM_ELEMENTS_SCHEMA],
-      providers: [provideHttpClient(), provideHttpClientTesting(), { provide: Router, useValue: {} }],
+      providers: [
+        provideHttpClient(), provideHttpClientTesting(), { provide: Router, useValue: {} },
+        { provide: AlertController, useValue: { create: async () => ({
+          present: async () => {},
+          onDidDismiss: async () => ({ role: confirmationRole }),
+        }) } },
+      ],
     }).compileComponents();
     service = TestBed.inject(EatWellService);
     spyOn(service, 'getLifestyleGoals').and.rejectWith(new Error('No settings in this test'));
   });
 
-  it('updates all four progress values on click and restores them in a new page', () => {
+  it('leaves progress unchanged on cancel and saves it after confirmation', async () => {
     const fixture = TestBed.createComponent(HomePage);
     const page = fixture.componentInstance;
     fixture.detectChanges();
@@ -45,7 +54,13 @@ describe('HomePage meal consumption', () => {
     fixture.detectChanges();
     const button = fixture.nativeElement.querySelector('button.meal-confirm-button') as HTMLButtonElement;
     expect(button.textContent).toContain('Marcar como consumido');
+    confirmationRole = 'cancel';
     button.click();
+    await fixture.whenStable();
+    expect(page.dailyLog.consumedMeals).toEqual([]);
+    confirmationRole = 'confirm';
+    button.click();
+    await fixture.whenStable();
     fixture.detectChanges();
     expect([page.caloriesConsumed, page.proteinConsumed, page.carbohydratesConsumed, page.fatConsumed]).toEqual([320, 12, 44, 8]);
     expect(fixture.nativeElement.querySelector('.calorie-ring').getAttribute('aria-valuenow')).toBe('320');
@@ -106,7 +121,7 @@ describe('HomePage meal consumption', () => {
     fixture.destroy();
   });
 
-  it('includes a selected catalog recipe in the graph and identifies its unconfirmed serving basis', () => {
+  it('includes a selected catalog recipe in the graph and identifies its unconfirmed serving basis', async () => {
     const fixture = TestBed.createComponent(HomePage);
     const page = fixture.componentInstance;
     fixture.detectChanges();
@@ -117,9 +132,34 @@ describe('HomePage meal consumption', () => {
     page['mealChoices'] = { dinner: catalog.id };
     fixture.detectChanges();
     (fixture.nativeElement.querySelector('button.meal-confirm-button') as HTMLButtonElement).click();
+    await fixture.whenStable();
     fixture.detectChanges();
     expect([page.caloriesConsumed, page.proteinConsumed, page.carbohydratesConsumed, page.fatConsumed]).toEqual([320, 12, 44, 8]);
     expect(fixture.nativeElement.querySelector('[role="note"]').textContent).toContain('base por porción no está confirmada');
+    fixture.destroy();
+  });
+
+  it('uses the plan target and keeps planned energy separate from consumed energy', () => {
+    const fixture = TestBed.createComponent(HomePage);
+    const page = fixture.componentInstance;
+    fixture.detectChanges();
+    page.recipes = [recipe];
+    page['mealChoices'] = { breakfast: recipe.id, dinner: recipe.id };
+    page['energyTargets'] = {
+      breakfast: { target: 400, min: 360, max: 440 },
+      dinner: { target: 400, min: 360, max: 440 },
+    };
+    expect(page.dailyCalorieTarget).toBe(800);
+    expect(page.plannedEnergy.total).toBe(640);
+    expect(page.caloriesConsumed).toBe(0);
+
+    page.dailyLog.consumedMeals = [
+      { id: recipe.id, mealType: 'breakfast', calories: null, protein: null, carbohydrates: null, fat: null },
+      { id: 'manual-missing', mealType: 'lunch', calories: null, protein: null, carbohydrates: null, fat: null, nutritionSource: 'manual' },
+    ];
+    expect(page.caloriesConsumed).toBe(320);
+    expect(page.nutritionIncomplete('calories')).toBeTrue();
+    expect(page.dailyLog.consumedMeals[0].calories).toBeNull();
     fixture.destroy();
   });
 });

@@ -42,16 +42,24 @@
       </div>
 
       <div class="calorie-summary">
-        <div class="calorie-ring" role="progressbar" aria-label="Calorías consumidas" aria-valuemin="0" [attr.aria-valuemax]="macroTargets.calories" [attr.aria-valuenow]="caloriesConsumed" [style.--ring-progress.%]="calorieProgress">
+        <div class="calorie-ring" role="progressbar" aria-label="Calorías consumidas" aria-valuemin="0" [attr.aria-valuemax]="dailyCalorieTarget" [attr.aria-valuenow]="dailyCalorieTarget !== null ? caloriesConsumed : null" [style.--ring-progress.%]="calorieProgress">
           <div class="calorie-ring-center">
-            <strong [style.font-size]="nutritionIncomplete('calories') ? '0.9rem' : null">{{ nutritionIncomplete('calories') ? 'Pendiente' : (caloriesConsumed | number) }}</strong>
-            <span>de {{ macroTargets.calories | number }} kcal</span>
+            <strong>{{ caloriesConsumed | number:'1.0-1' }}</strong>
+            <span>{{ dailyCalorieTarget !== null ? 'de ' + (dailyCalorieTarget | number) + ' kcal' : 'kcal registradas' }}</span>
           </div>
         </div>
         <div class="calorie-copy">
-          <strong [style.font-size]="nutritionIncomplete('calories') ? '1rem' : null">{{ nutritionIncomplete('calories') ? 'Pendiente' : calorieProgress + '%' }}</strong>
-          <span>de tu meta diaria</span>
-          <small>{{ nutritionIncomplete('calories') ? 'Consumo pendiente de calcular' : (caloriesRemaining | number) + ' kcal restantes' }}</small>
+          <strong *ngIf="dailyCalorieTarget !== null">{{ calorieProgress }}%</strong>
+          <span>{{ dailyCalorieTarget !== null ? 'de tu meta diaria estimada' : 'Meta diaria no disponible' }}</span>
+          <small *ngIf="nutritionIncomplete('calories'); else remainingEnergy">Algunas comidas consumidas aún no tienen kcal.</small>
+          <ng-template #remainingEnergy><small *ngIf="dailyCalorieTarget !== null">{{ caloriesRemaining | number:'1.0-1' }} kcal restantes</small></ng-template>
+          <ng-container *ngIf="plannedEnergy as planned">
+            <small *ngIf="planned.selected">
+              {{ planned.known ? (planned.total | number:'1.0-1') + ' kcal planeadas' : 'Kcal del plan no disponibles' }}
+              · {{ planned.selected }}/5 comidas elegidas<span *ngIf="planned.known > 0 && planned.known < planned.selected"> · total parcial</span>
+            </small>
+            <small *ngIf="planned.includesCatalog">Incluye kcal registradas del catálogo.</small>
+          </ng-container>
         </div>
       </div>
 
@@ -86,17 +94,23 @@
       <ng-container *ngIf="card.recipe as meal">
         <div class="meal-content">
           <div class="meal-copy">
-            <h3>{{ meal.title }}</h3>
+            <h3><button type="button" class="meal-recipe-link" (click)="openPlannedRecipe(meal, card.mealType)">
+              {{ meal.title }} <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+            </button></h3>
             <p>{{ meal.description }}</p>
           </div>
-          <div class="meal-calories" [attr.title]="meal.nutrition?.source === 'catalog' ? 'Valores registrados del catálogo; porción no confirmada' : (meal.nutrition?.warnings?.join(' ') || 'Estimación por porción')"><strong [style.font-size]="meal.calories == null ? '0.85rem' : null">{{ meal.calories == null ? 'Pendiente' : (meal.calories | number:'1.0-1') }}</strong><span>{{ meal.nutrition?.source === 'catalog' ? 'kcal · porción no confirmada' : 'kcal / porción' }}</span></div>
+          <div *ngIf="recipeNutrition(meal) as energy" class="meal-calories">
+            <strong [style.font-size]="energy.values.calories === null ? '0.85rem' : null">{{ energy.values.calories === null ? 'Sin kcal' : (energy.values.calories | number:'1.0-1') }}</strong>
+            <span *ngIf="energy.values.calories !== null">{{ energy.calorieUnitLabel }}</span>
+            <span *ngIf="nextMealEnergyTarget as target">{{ target | number }} kcal meta</span>
+          </div>
         </div>
         <div class="meal-macros">
           <span>{{ meal.proteinGrams == null ? 'Pendiente' : (meal.proteinGrams | number:'1.0-1') + ' g' }} proteína</span>
           <span>{{ meal.carbsGrams == null ? 'Pendiente' : (meal.carbsGrams | number:'1.0-1') + ' g' }} carbohidratos</span>
           <span>{{ meal.fatGrams == null ? 'Pendiente' : (meal.fatGrams | number:'1.0-1') + ' g' }} grasa</span>
         </div>
-        <button type="button" class="meal-confirm-button" (click)="markMealConsumed(meal, card.mealType)" [disabled]="mealIsTomorrow">
+        <button type="button" class="meal-confirm-button" (click)="confirmPlannedMeal(meal, card.mealType)" [disabled]="mealIsTomorrow || confirmingMeal">
           <ion-icon name="checkmark-circle-outline"></ion-icon>
           Marcar como consumido
         </button>
