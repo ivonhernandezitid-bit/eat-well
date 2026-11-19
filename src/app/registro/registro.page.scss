@@ -86,7 +86,44 @@
 }
 
 ion-content {
-  --background: linear-gradient(180deg, #f7fff4 0%, #e9f6eb 100%);
+  --background: #F4F9F5;
+}
+
+.account-role-selector {
+  width: 100%;
+  margin-bottom: 2px;
+  border-radius: 18px;
+  background: #eaf3ec;
+  border: 1px solid rgba(27, 77, 62, 0.12);
+  padding: 4px;
+
+  ion-segment-button {
+    --background: transparent;
+    --background-checked: #1B4D3E;
+    --color: #1B4D3E;
+    --color-checked: #ffffff;
+    --indicator-color: transparent;
+    --border-radius: 14px;
+    min-height: 44px;
+    font-weight: 800;
+  }
+}
+
+.professional-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 16px;
+  border: 1.5px solid rgba(82, 183, 136, 0.55);
+  border-radius: 18px;
+  background: #ffffff;
+
+  h3 {
+    margin: 0 0 2px;
+    color: #1B4D3E;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+  }
 }
 
 .btn-signup {

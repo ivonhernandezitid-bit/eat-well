@@ -8,6 +8,23 @@
       </div>
 
       <div class="form-box">
+        <ion-segment [(ngModel)]="role" class="account-role-selector" mode="md">
+          <ion-segment-button value="patient">
+            <ion-label>Soy Paciente</ion-label>
+          </ion-segment-button>
+          <ion-segment-button value="nutritionist">
+            <ion-label>Soy Nutriólogo</ion-label>
+          </ion-segment-button>
+        </ion-segment>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="Nombre completo" class="custom-field" [(ngModel)]="fullName"></ion-input>
+        </div>
+
+        <div class="input-group">
+          <ion-input type="text" placeholder="Usuario" class="custom-field" [(ngModel)]="username"></ion-input>
+        </div>
+
         <div class="input-group">
           <ion-input type="email" placeholder="Correo" class="custom-field" [(ngModel)]="email"></ion-input>
         </div>
@@ -27,12 +44,25 @@
           </div>
         </div>
 
-        <div class="input-group">
-          <ion-input type="text" placeholder="Nombre completo" class="custom-field" [(ngModel)]="fullName"></ion-input>
-        </div>
-
-        <div class="input-group">
-          <ion-input type="text" placeholder="Usuario" class="custom-field" [(ngModel)]="username"></ion-input>
+        <div class="professional-section" *ngIf="role === 'nutritionist'">
+          <h3>VALIDACIÓN PROFESIONAL</h3>
+          <div class="input-group">
+            <ion-input type="tel" inputmode="numeric" placeholder="Cédula Profesional *" class="custom-field" [(ngModel)]="cedulaProfesional"></ion-input>
+          </div>
+          <div class="input-group">
+            <ion-input type="text" placeholder="Universidad / Institución de egreso *" class="custom-field" [(ngModel)]="universidad"></ion-input>
+          </div>
+          <div class="input-group">
+            <ion-select placeholder="Especialidad (opcional)" class="custom-field" [(ngModel)]="especialidad">
+              <ion-select-option value="Nutrición General">Nutrición General</ion-select-option>
+              <ion-select-option value="Nutrición Clínica">Nutrición Clínica</ion-select-option>
+              <ion-select-option value="Nutrición Deportiva">Nutrición Deportiva</ion-select-option>
+              <ion-select-option value="Control de Peso y Metabolismo">Control de Peso y Metabolismo</ion-select-option>
+            </ion-select>
+          </div>
+          <div class="input-group">
+            <ion-input type="text" placeholder="Nombre de Consultorio o Clínica (opcional)" class="custom-field" [(ngModel)]="consultorio"></ion-input>
+          </div>
         </div>
 
         <ion-button expand="block" class="btn-signup" (click)="register()">

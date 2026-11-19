@@ -47,6 +47,22 @@ try {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ],
     );
+
+    // Add account role and professional validation columns automatically.
+    $existingUserColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
+    $userColumns = [
+        'role' => "VARCHAR(20) NOT NULL DEFAULT 'patient'",
+        'cedula_profesional' => 'VARCHAR(20) NULL',
+        'universidad' => 'VARCHAR(150) NULL',
+        'especialidad' => 'VARCHAR(100) NULL',
+        'consultorio' => 'VARCHAR(150) NULL',
+    ];
+    foreach ($userColumns as $column => $definition) {
+        if (!in_array($column, $existingUserColumns, true)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $definition");
+        }
+    }
+
     // Auto-create user_tips table if not exists
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS user_tips (
@@ -341,6 +357,11 @@ function registerUser(PDO $pdo, array $input): void
     $requestedUsername = strtolower(trim((string)($input['username'] ?? '')));
     $finalUsername = $requestedUsername !== '' ? $requestedUsername : explode('@', $email)[0];
     $plainPassword = trim((string)($input['password'] ?? ''));
+    $role = ($input['role'] ?? 'patient') === 'nutritionist' ? 'nutritionist' : 'patient';
+    $cedulaProfesional = trim((string)($input['cedula_profesional'] ?? ''));
+    $universidad = trim((string)($input['universidad'] ?? ''));
+    $especialidad = trim((string)($input['especialidad'] ?? ''));
+    $consultorio = trim((string)($input['consultorio'] ?? ''));
 
     if ($name === '') sendError('El campo “Nombre completo” es obligatorio.', 422);
     if ($email === '') sendError('El campo “Correo” es obligatorio.', 422);
@@ -357,6 +378,19 @@ function registerUser(PDO $pdo, array $input): void
         sendError('La contraseña debe tener al menos 8 caracteres y contener al menos una letra y un número.', 422);
     }
 
+    if ($role === 'nutritionist') {
+        if ($cedulaProfesional === '') sendError('La cédula profesional es obligatoria.', 422);
+        if (!preg_match('/^\d{7,8}$/', $cedulaProfesional)) {
+            sendError('La cédula profesional debe contener entre 7 y 8 dígitos.', 422);
+        }
+        if ($universidad === '') sendError('La universidad o institución de egreso es obligatoria.', 422);
+    } else {
+        $cedulaProfesional = '';
+        $universidad = '';
+        $especialidad = '';
+        $consultorio = '';
+    }
+
     $statement = $pdo->prepare('SELECT id FROM users WHERE email = ? LIMIT 1');
     $statement->execute([$email]);
     if ($statement->fetch()) sendError('Este correo ya está registrado. Inicia sesión o usa otro correo.', 409);
@@ -367,13 +401,19 @@ function registerUser(PDO $pdo, array $input): void
 
     $passwordHash = password_hash($plainPassword, PASSWORD_DEFAULT);
     $statement = $pdo->prepare(
-        'INSERT INTO users (name, username, email, password_hash) VALUES (?, ?, ?, ?)',
+        'INSERT INTO users (name, username, email, password_hash, role, cedula_profesional, universidad, especialidad, consultorio)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     );
     $statement->execute([
         $name,
         $finalUsername,
         $email,
         $passwordHash,
+        $role,
+        $cedulaProfesional === '' ? null : $cedulaProfesional,
+        $universidad === '' ? null : $universidad,
+        $especialidad === '' ? null : $especialidad,
+        $consultorio === '' ? null : $consultorio,
     ]);
 
     $userId = (int)$pdo->lastInsertId();
@@ -1185,6 +1225,11 @@ function mapUser(array $user): array
         'name' => $user['name'],
         'username' => $user['username'],
         'email' => $user['email'],
+        'role' => in_array($user['role'] ?? 'patient', ['patient', 'nutritionist'], true) ? $user['role'] : 'patient',
+        'cedula_profesional' => $user['cedula_profesional'] ?? null,
+        'universidad' => $user['universidad'] ?? null,
+        'especialidad' => $user['especialidad'] ?? null,
+        'consultorio' => $user['consultorio'] ?? null,
         'profileImage' => $user['profile_image'] ?? null,
         'age' => (int)$user['age'],
         'gender' => $user['gender'],

@@ -14,6 +14,11 @@ export class RegistroPage {
   password = '';
   fullName = '';
   username = '';
+  role: 'patient' | 'nutritionist' = 'patient';
+  cedulaProfesional = '';
+  universidad = '';
+  especialidad = '';
+  consultorio = '';
 
   hasMinLength = false;
   hasLetterAndNumber = false;
@@ -42,6 +47,18 @@ export class RegistroPage {
     if (!this.password) {
       await this.showAlert('Falta la contraseña', 'Escribe una contraseña para crear la cuenta.');
       return;
+    }
+
+    if (this.role === 'nutritionist') {
+      const cedula = this.cedulaProfesional.trim();
+      if (!/^\d{7,8}$/.test(cedula)) {
+        await this.showAlert('Cédula inválida', 'La cédula profesional debe contener entre 7 y 8 dígitos.');
+        return;
+      }
+      if (!this.universidad.trim()) {
+        await this.showAlert('Falta la universidad', 'Escribe la universidad o institución donde egresaste.');
+        return;
+      }
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -75,6 +92,11 @@ export class RegistroPage {
         email,
         password: this.password,
         username,
+        role: this.role,
+        cedula_profesional: this.role === 'nutritionist' ? this.cedulaProfesional.trim() : undefined,
+        universidad: this.role === 'nutritionist' ? this.universidad.trim() : undefined,
+        especialidad: this.role === 'nutritionist' ? this.especialidad : undefined,
+        consultorio: this.role === 'nutritionist' ? this.consultorio.trim() : undefined,
       });
       await this.router.navigateByUrl('/datos-perfil?onboarding=1');
     } catch (error) {

@@ -23,6 +23,11 @@ export interface UserRegistrationData {
   email: string;
   password: string;
   username?: string;
+  role?: 'patient' | 'nutritionist';
+  cedula_profesional?: string;
+  universidad?: string;
+  especialidad?: string;
+  consultorio?: string;
   age?: number;
   gender?: Gender;
   heightCm?: number;
@@ -42,6 +47,11 @@ export interface UserProfile {
   name: string;
   username?: string;
   email: string;
+  role: 'patient' | 'nutritionist';
+  cedula_profesional: string | null;
+  universidad: string | null;
+  especialidad: string | null;
+  consultorio: string | null;
   profileImage?: string | null;
   age: number;
   gender: Gender;
