@@ -1,10 +1,14 @@
 <ion-content class="profile-page">
   <div class="profile-shell">
-    <h1>PERFIL PROFESIONAL</h1>
+    <div class="profile-title-row"><h1>Perfil profesional</h1><button class="edit-button" (click)="editProfile()"><ion-icon name="create-outline"></ion-icon> Editar perfil</button></div>
     <section class="profile-card">
       <div class="avatar">{{ initials }}</div>
       <h2>{{ user?.name }}</h2>
-      <p>{{ user?.especialidad || 'Nutrición General' }}</p>
+    </section>
+    <section class="registration-card">
+      <div class="registration-icon"><ion-icon name="link-outline"></ion-icon></div>
+      <div><strong>Registro para pacientes</strong><span>Comparte el enlace con nuevos pacientes</span></div>
+      <button (click)="copyRegistrationLink()">{{ copied ? 'Copiado' : 'Copiar enlace' }}</button>
     </section>
     <section class="details-card">
       <div><ion-icon name="card-outline"></ion-icon><span><small>CÉDULA PROFESIONAL</small><strong>{{ user?.cedula_profesional || 'No registrada' }}</strong></span></div>

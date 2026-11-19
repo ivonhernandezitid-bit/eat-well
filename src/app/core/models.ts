@@ -75,7 +75,7 @@ export interface NutritionistPatientSummary {
     measuredAt: string;
     weightKg: number;
     heightCm: number;
-    imc: number;
+    imc: number | string;
   } | null;
   bodyFatPercentage: number | null;
   condition: string;

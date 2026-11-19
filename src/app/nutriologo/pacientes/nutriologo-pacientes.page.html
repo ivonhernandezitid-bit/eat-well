@@ -1,6 +1,12 @@
 <ion-content class="directory-page">
   <div class="directory-shell">
-    <h1>PACIENTES REGISTRADOS</h1>
+    <div class="title-row">
+      <h1>Pacientes registrados</h1>
+      <div class="patient-actions">
+        <button class="measure-patient" (click)="openMeasureModal()"><ion-icon name="body-outline"></ion-icon> Medidas</button>
+        <button class="new-patient" (click)="openRegistration()"><ion-icon name="add-outline"></ion-icon> Nuevo paciente</button>
+      </div>
+    </div>
     <div class="search-box"><ion-icon name="search-outline"></ion-icon><ion-input [(ngModel)]="search" placeholder="Buscar por nombre, correo o condición"></ion-input></div>
     <div class="filters">
       <button [class.active]="filter === 'all'" (click)="filter = 'all'">Todos</button>
@@ -13,14 +19,72 @@
       <div class="patient-info">
         <strong>{{ patient.profile.name }}</strong>
         <span>{{ patient.profile.age || '—' }} años · {{ patient.profile.heightCm || '—' }} cm · {{ patient.profile.weightKg || '—' }} kg</span>
-        <small [class.alert]="patient.condition">{{ patient.condition || 'Sin condición registrada' }}</small>
+        <div class="status-row">
+          <small [class.allergy-pill]="isAllergy(patient.condition)" [class.alert]="isAllergy(patient.condition)">{{ patient.condition || 'Sin condición registrada' }}</small>
+          <span class="goal-pill">{{ patient.profile.goal === 'lose_weight' ? 'Bajar peso' : patient.profile.goal === 'gain_muscle' ? 'Aumentar masa' : patient.profile.goal === 'maintain' ? 'Mantener peso' : 'Mejorar salud' }}</span>
+        </div>
       </div>
       <div class="patient-values">
-        <div><span>IMC</span><strong>{{ patient.latestMeasurement?.imc || patient.profile.imc || '—' }}</strong></div>
+        <div><span>IMC</span><strong>{{ formatImc(patient.latestMeasurement?.imc ?? patient.profile.imc) }}</strong></div>
         <div><span>GRASA</span><strong>{{ patient.bodyFatPercentage ?? '—' }}{{ patient.bodyFatPercentage !== null ? '%' : '' }}</strong></div>
       </div>
+      <button class="card-measure" (click)="openMeasureModal(patient); $event.stopPropagation()" aria-label="Registrar medidas"><ion-icon name="body-outline"></ion-icon></button>
       <ion-icon name="chevron-forward-outline"></ion-icon>
     </article>
     <p class="empty" *ngIf="!loading && filtered.length === 0">No se encontraron pacientes.</p>
   </div>
+
+  <ion-modal [isOpen]="showCreateModal" (didDismiss)="showCreateModal = false">
+    <ng-template>
+      <ion-content class="patient-modal">
+        <div class="modal-shell">
+          <div class="modal-header"><h2>Nuevo paciente</h2><button (click)="showCreateModal = false"><ion-icon name="close-outline"></ion-icon></button></div>
+          <div class="form-grid">
+            <label>Nombre completo<input [(ngModel)]="newPatient.name" name="patientName"></label>
+            <label>Correo<input type="email" [(ngModel)]="newPatient.email" name="patientEmail"></label>
+            <label>Usuario (opcional)<input [(ngModel)]="newPatient.username" name="patientUsername"></label>
+            <label>Contraseña temporal (opcional)<input [(ngModel)]="newPatient.password" name="patientPassword"></label>
+            <label>Edad<input type="number" min="1" max="120" [(ngModel)]="newPatient.age" name="patientAge"></label>
+            <label>Género biológico
+              <select [(ngModel)]="newPatient.gender" name="patientGender"><option value="other">Otro</option><option value="female">Femenino</option><option value="male">Masculino</option></select>
+            </label>
+            <label>Estatura (cm)<input type="number" [(ngModel)]="newPatient.heightCm" name="patientHeight"></label>
+            <label>Peso (kg)<input type="number" [(ngModel)]="newPatient.weightKg" name="patientWeight"></label>
+            <label>Nivel de actividad
+              <select [(ngModel)]="newPatient.activityLevel" name="patientActivity"><option value="low">Bajo</option><option value="moderate">Moderado</option><option value="high">Alto</option></select>
+            </label>
+            <label>Objetivo
+              <select [(ngModel)]="newPatient.goal" name="patientGoal"><option value="lose_weight">Bajar peso</option><option value="maintain">Mantener peso</option><option value="gain_muscle">Aumentar masa</option><option value="improve_health">Mejorar salud</option></select>
+            </label>
+          </div>
+          <p class="action-error" *ngIf="actionError">{{ actionError }}</p>
+          <ion-button expand="block" [disabled]="saving" (click)="createPatient()">Crear paciente</ion-button>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal [isOpen]="showMeasureModal" (didDismiss)="showMeasureModal = false">
+    <ng-template>
+      <ion-content class="patient-modal">
+        <div class="modal-shell">
+          <div class="modal-header"><h2>Registrar medidas</h2><button (click)="showMeasureModal = false"><ion-icon name="close-outline"></ion-icon></button></div>
+          <div class="form-grid">
+            <label class="full-field">Paciente
+              <select [(ngModel)]="measure.patientId" name="measurePatient"><option value="">Selecciona un paciente</option><option *ngFor="let patient of patients" [value]="patient.profile.id">{{ patient.profile.name }}</option></select>
+            </label>
+            <label>Peso (kg)<input type="number" [(ngModel)]="measure.weightKg" name="measureWeight"></label>
+            <label>Estatura (cm)<input type="number" [(ngModel)]="measure.heightCm" name="measureHeight"></label>
+            <label>Cintura (cm)<input type="number" [(ngModel)]="measure.waistCm" name="measureWaist"></label>
+            <label>Cadera (cm)<input type="number" [(ngModel)]="measure.hipCm" name="measureHip"></label>
+            <label>Brazo (cm)<input type="number" [(ngModel)]="measure.armCm" name="measureArm"></label>
+            <label>Muslo (cm)<input type="number" [(ngModel)]="measure.thighCm" name="measureThigh"></label>
+            <label>Cuello (cm)<input type="number" [(ngModel)]="measure.neckCm" name="measureNeck"></label>
+          </div>
+          <p class="action-error" *ngIf="actionError">{{ actionError }}</p>
+          <ion-button expand="block" [disabled]="saving" (click)="saveMeasurements()">Guardar medidas</ion-button>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 </ion-content>

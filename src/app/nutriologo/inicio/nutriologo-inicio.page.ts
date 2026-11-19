@@ -30,6 +30,11 @@ export class NutriologoInicioPage implements OnInit {
     return this.patients.filter(p => p.latestMeasurement && new Date(p.updatedAt).getTime() >= cutoff);
   }
 
+  get pendingPatients(): NutritionistPatientSummary[] {
+    const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    return this.patients.filter(p => !p.latestMeasurement || new Date(p.updatedAt).getTime() < cutoff);
+  }
+
   ngOnInit(): void {
     void this.load();
   }
@@ -48,6 +53,22 @@ export class NutriologoInicioPage implements OnInit {
 
   openUpdated(): void {
     void this.router.navigate(['/nutriologo/pacientes'], { queryParams: { filter: 'new' } });
+  }
+
+  openPatients(): void {
+    void this.router.navigate(['/nutriologo/pacientes']);
+  }
+
+  openCreatePatient(): void {
+    void this.router.navigate(['/nutriologo/pacientes'], { queryParams: { action: 'new' } });
+  }
+
+  openMeasurePatient(): void {
+    void this.router.navigate(['/nutriologo/pacientes'], { queryParams: { action: 'measure' } });
+  }
+
+  formatImc(value: number | string | null | undefined): string {
+    return value == null || value === '' ? '—' : Number(value).toFixed(1);
   }
 
   async logout(): Promise<void> {

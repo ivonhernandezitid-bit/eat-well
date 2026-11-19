@@ -258,6 +258,34 @@ export class EatWellService {
     return this.get<NutritionistPatientDetail>('nutritionist.patient_detail', { patientId });
   }
 
+  async createNutritionistPatient(data: {
+    name: string;
+    email: string;
+    username?: string;
+    password?: string;
+    age: number;
+    gender: 'female' | 'male' | 'other';
+    heightCm: number;
+    weightKg: number;
+    activityLevel: 'low' | 'moderate' | 'high';
+    goal: 'lose_weight' | 'maintain' | 'gain_muscle' | 'improve_health';
+  }): Promise<{ patient: UserProfile; temporaryPassword: string }> {
+    return this.post('nutritionist.create_patient', data);
+  }
+
+  async saveNutritionistPatientMeasurements(data: {
+    patientId: string;
+    weightKg: number;
+    heightCm: number;
+    waistCm: number;
+    hipCm: number;
+    armCm: number;
+    thighCm: number;
+    neckCm: number;
+  }): Promise<{ success: boolean; patient: UserProfile }> {
+    return this.post('nutritionist.save_patient_measurements', data);
+  }
+
   async saveBodyMeasurements(measurements: { waistCm: number; hipCm: number; armCm: number; thighCm: number; neckCm: number }): Promise<void> {
     await this.saveBodyMeasurement({
       id: crypto.randomUUID?.() ?? `${Date.now()}`,

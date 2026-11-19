@@ -40,11 +40,23 @@ html,
 body {
   width: 100%;
   min-height: 100%;
-  background: #dfe9dc;
+  background: var(--bg-app);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   overscroll-behavior: none;
 }
 
 :root {
+  --bg-app: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --border-subtle: #E2E8F0;
+  --emerald: #10B981;
+  --emerald-dark: #059669;
+  --amber-bg: #FEF3C7;
+  --amber-text: #B45309;
+  --blue-bg: #EFF6FF;
+  --blue-text: #1D4ED8;
   --eatwell-content-width: 620px;
   --eatwell-form-width: 420px;
 }
@@ -52,7 +64,7 @@ body {
 ion-app {
   width: 100%;
   min-height: 100%;
-  background: #f7fff4;
+  background: var(--bg-app);
 }
 
 *,

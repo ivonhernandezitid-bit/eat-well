@@ -17,19 +17,33 @@
     </section>
 
     <section class="kpi-grid">
-      <article class="kpi-card"><div class="kpi-icon"><ion-icon name="people-outline"></ion-icon></div><div><span>PACIENTES ACTIVOS</span><strong>{{ patients.length }}</strong></div></article>
-      <article class="kpi-card"><div class="kpi-icon"><ion-icon name="analytics-outline"></ion-icon></div><div><span>NUEVAS MEDIDAS (7 DÍAS)</span><strong>{{ recentPatients.length }}</strong></div></article>
+      <article class="kpi-card"><div class="kpi-icon green"><ion-icon name="people-outline"></ion-icon></div><div><span>Pacientes activos</span><strong>{{ patients.length }}</strong></div></article>
+      <article class="kpi-card"><div class="kpi-icon blue"><ion-icon name="analytics-outline"></ion-icon></div><div><span>Nuevas medidas (7 días)</span><strong>{{ recentPatients.length }}</strong></div></article>
+    </section>
+
+    <section class="quick-section">
+      <h2>Acciones rápidas</h2>
+      <div class="quick-grid">
+        <button class="quick-card" (click)="openCreatePatient()"><span class="quick-icon violet"><ion-icon name="person-add-outline"></ion-icon></span><strong>Nuevo paciente</strong></button>
+        <button class="quick-card" (click)="openMeasurePatient()"><span class="quick-icon blue"><ion-icon name="body-outline"></ion-icon></span><strong>Registrar medida</strong></button>
+        <button class="quick-card" (click)="openPatients()"><span class="quick-icon amber"><ion-icon name="restaurant-outline"></ion-icon></span><strong>Asignar dieta</strong></button>
+      </div>
+      <article class="pending-card" (click)="openPatients()" *ngIf="pendingPatients.length">
+        <span class="pending-icon"><ion-icon name="time-outline"></ion-icon></span>
+        <div><strong>Seguimiento pendiente</strong><span>{{ pendingPatients.length }} pacientes sin registro reciente</span></div>
+        <ion-icon name="chevron-forward-outline"></ion-icon>
+      </article>
     </section>
 
     <section class="recent-section">
-      <h2>ACTIVIDAD RECIENTE DE PACIENTES</h2>
+      <h2>Actividad reciente de pacientes</h2>
       <ion-spinner *ngIf="loading"></ion-spinner>
       <article class="patient-card" *ngFor="let patient of recentPatients" (click)="openPatient(patient)">
         <div class="patient-avatar">{{ patientInitials(patient.profile.name) }}</div>
         <div class="patient-main"><strong>{{ patient.profile.name }}</strong><span>Actualizó medidas corporales</span></div>
         <div class="patient-values">
           <div><span>GRASA</span><strong>{{ patient.bodyFatPercentage ?? '—' }}{{ patient.bodyFatPercentage !== null ? '%' : '' }}</strong></div>
-          <div><span>IMC</span><strong>{{ patient.latestMeasurement?.imc || '—' }}</strong></div>
+          <div><span>IMC</span><strong>{{ formatImc(patient.latestMeasurement?.imc) }}</strong></div>
         </div>
         <ion-icon name="chevron-forward-outline"></ion-icon>
       </article>

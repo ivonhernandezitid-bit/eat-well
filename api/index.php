@@ -316,6 +316,12 @@ try {
         case 'nutritionist.patient_detail':
             getNutritionistPatientDetail($pdo, (int)($_GET['patientId'] ?? $input['patientId'] ?? 0));
             break;
+        case 'nutritionist.create_patient':
+            createNutritionistPatient($pdo, $input);
+            break;
+        case 'nutritionist.save_patient_measurements':
+            saveNutritionistPatientMeasurements($pdo, $input);
+            break;
         case 'preferences.get':
         case 'preferences.save':
         case 'preferences.delete':
@@ -495,6 +501,132 @@ function requireNutritionist(PDO $pdo): array
     return $user;
 }
 
+function createNutritionistPatient(PDO $pdo, array $input): void
+{
+    requireNutritionist($pdo);
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendError('Metodo no permitido.', 405);
+
+    $name = trim((string)($input['name'] ?? ''));
+    $email = strtolower(trim((string)($input['email'] ?? '')));
+    $requestedUsername = strtolower(trim((string)($input['username'] ?? '')));
+    $password = trim((string)($input['password'] ?? ''));
+    $age = (int)($input['age'] ?? 18);
+    $gender = (string)($input['gender'] ?? 'other');
+    $height = (float)($input['heightCm'] ?? 170);
+    $weight = (float)($input['weightKg'] ?? 70);
+    $goal = (string)($input['goal'] ?? 'improve_health');
+    $activity = (string)($input['activityLevel'] ?? 'moderate');
+
+    if ($name === '' || mb_strlen($name) > 100) sendError('Indica el nombre completo del paciente.', 422);
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL) || mb_strlen($email) > 120) sendError('Indica un correo electrónico válido.', 422);
+    $username = $requestedUsername !== '' ? $requestedUsername : explode('@', $email)[0];
+    if (mb_strlen($username) > 50) sendError('El nombre de usuario no puede superar 50 caracteres.', 422);
+    if ($password === '') $password = 'EatWell-' . bin2hex(random_bytes(4));
+    if (mb_strlen($password) < 8) sendError('La contraseña temporal debe tener al menos 8 caracteres.', 422);
+    if ($age < 1 || $age > 120) sendError('Indica una edad válida.', 422);
+    if (!in_array($gender, ['female', 'male', 'other'], true)) sendError('Indica un género válido.', 422);
+    if ($height <= 0 || $height > 300 || $weight <= 0 || $weight > 500) sendError('Revisa la estatura y el peso.', 422);
+    if (!in_array($goal, ['lose_weight', 'maintain', 'gain_muscle', 'improve_health'], true)) sendError('Indica un objetivo válido.', 422);
+    if (!in_array($activity, ['low', 'moderate', 'high'], true)) sendError('Indica un nivel de actividad válido.', 422);
+
+    $bmi = round($weight / (($height / 100) ** 2), 2);
+    $check = $pdo->prepare('SELECT id FROM users WHERE email=? LIMIT 1');
+    $check->execute([$email]);
+    if ($check->fetch()) sendError('Este correo ya está registrado.', 409);
+    $check = $pdo->prepare('SELECT id FROM users WHERE username=? LIMIT 1');
+    $check->execute([$username]);
+    if ($check->fetch()) sendError('Este nombre de usuario ya está en uso.', 409);
+
+    $stmt = $pdo->prepare(
+        'INSERT INTO users (name, username, email, password_hash, role, age, gender, height_cm, weight_kg, bmi, activity_level, goal)
+         VALUES (?, ?, ?, ?, \'patient\', ?, ?, ?, ?, ?, ?, ?)'
+    );
+    $stmt->execute([
+        $name,
+        $username,
+        $email,
+        password_hash($password, PASSWORD_DEFAULT),
+        $age,
+        $gender,
+        round($height, 2),
+        round($weight, 2),
+        $bmi,
+        $activity,
+        $goal,
+    ]);
+    $patientId = (int)$pdo->lastInsertId();
+
+    $measuredAt = (new DateTimeImmutable('now', new DateTimeZone('America/Mexico_City')))->format('Y-m-d H:i:s');
+    $pdo->prepare('INSERT INTO anthropometric_measurements (user_id, measured_at, weight_kg, height_cm) VALUES (?, ?, ?, ?)')
+        ->execute([$patientId, $measuredAt, round($weight, 2), round($height, 2)]);
+
+    sendJson([
+        'patient' => mapUser(getUserById($pdo, $patientId)),
+        'temporaryPassword' => $password,
+    ], 201);
+}
+
+function saveNutritionistPatientMeasurements(PDO $pdo, array $input): void
+{
+    requireNutritionist($pdo);
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendError('Metodo no permitido.', 405);
+    $patientId = (int)($input['patientId'] ?? 0);
+    if ($patientId <= 0) sendError('Selecciona un paciente válido.', 422);
+
+    $patient = $pdo->prepare("SELECT * FROM users WHERE id=? AND role='patient' LIMIT 1");
+    $patient->execute([$patientId]);
+    $row = $patient->fetch(PDO::FETCH_ASSOC);
+    if (!$row) sendError('Paciente no encontrado.', 404);
+
+    $weight = (float)($input['weightKg'] ?? 0);
+    $height = (float)($input['heightCm'] ?? $row['height_cm']);
+    if ($weight <= 0 || $weight > 500 || $height <= 0 || $height > 300) sendError('Revisa el peso y la estatura.', 422);
+
+    $bodyValues = [];
+    foreach (['waistCm' => 'waist_cm', 'hipCm' => 'hip_cm', 'armCm' => 'arm_cm', 'thighCm' => 'thigh_cm', 'neckCm' => 'neck_cm'] as $field => $column) {
+        $value = (float)($input[$field] ?? 0);
+        if ($value <= 0 || $value > 250) sendError('Completa las cinco medidas corporales con valores válidos.', 422);
+        $bodyValues[$column] = round($value, 2);
+    }
+
+    $pdo->beginTransaction();
+    try {
+        $bmi = round($weight / (($height / 100) ** 2), 2);
+        $bmiColumn = array_key_exists('bmi', $row) ? 'bmi' : 'imc';
+        $pdo->prepare("UPDATE users SET weight_kg=?, height_cm=?, {$bmiColumn}=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+            ->execute([round($weight, 2), round($height, 2), $bmi, $patientId]);
+
+        $measuredAt = (new DateTimeImmutable('now', new DateTimeZone('America/Mexico_City')))->format('Y-m-d H:i:s');
+        $pdo->prepare('INSERT INTO anthropometric_measurements (user_id, measured_at, weight_kg, height_cm) VALUES (?, ?, ?, ?)')
+            ->execute([$patientId, $measuredAt, round($weight, 2), round($height, 2)]);
+
+        $ensure = $pdo->query('SHOW COLUMNS FROM body_measurements')->fetchAll(PDO::FETCH_COLUMN);
+        if (!in_array('client_id', $ensure, true)) $pdo->exec('ALTER TABLE body_measurements ADD COLUMN client_id VARCHAR(64) NULL');
+        if (!in_array('height_cm', $ensure, true)) $pdo->exec('ALTER TABLE body_measurements ADD COLUMN height_cm DECIMAL(6,2) NOT NULL DEFAULT 170.00');
+        $clientId = bin2hex(random_bytes(16));
+        $pdo->prepare(
+            'INSERT INTO body_measurements (user_id, client_id, measured_at, waist_cm, hip_cm, arm_cm, thigh_cm, neck_cm, weight_kg, height_cm)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([
+            $patientId,
+            $clientId,
+            $measuredAt,
+            $bodyValues['waist_cm'],
+            $bodyValues['hip_cm'],
+            $bodyValues['arm_cm'],
+            $bodyValues['thigh_cm'],
+            $bodyValues['neck_cm'],
+            round($weight, 2),
+            round($height, 2),
+        ]);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
+    }
+    sendJson(['success' => true, 'patient' => mapUser(getUserById($pdo, $patientId))]);
+}
+
 function saveBodyMeasurementsForUser(PDO $pdo, array $input): void
 {
     $user = requireSessionUser($pdo);
@@ -558,7 +690,7 @@ function getNutritionistPatients(PDO $pdo): void
                 'measuredAt' => str_replace(' ', 'T', $latest['measured_at']),
                 'weightKg' => (float)$latest['weight_kg'],
                 'heightCm' => (float)$latest['height_cm'],
-                'imc' => (float)((float)$latest['weight_kg'] / max(1, ((float)$latest['height_cm'] / 100) ** 2)),
+                'imc' => number_format((float)$latest['weight_kg'] / max(1, ((float)$latest['height_cm'] / 100) ** 2), 1, '.', ''),
             ] : null,
             'bodyFatPercentage' => $bodyFat,
             'condition' => implode(' · ', $conditionParts),
@@ -589,7 +721,7 @@ function getNutritionistPatientDetail(PDO $pdo, int $patientId): void
             'measuredAt' => str_replace(' ', 'T', $record['measured_at']),
             'weightKg' => $weight,
             'heightCm' => $height,
-            'imc' => $height > 0 ? round($weight / (($height / 100) ** 2), 2) : null,
+            'imc' => $height > 0 ? number_format($weight / (($height / 100) ** 2), 1, '.', '') : null,
         ];
     }
 

@@ -22,7 +22,17 @@
 
     <section class="module-card">
       <div class="module-head"><div class="module-icon"><ion-icon name="medkit-outline"></ion-icon></div><h2>HISTORIAL CLÍNICO Y NUTRICIONAL</h2><button (click)="download('clinical')">↓ PDF</button></div>
-      <div class="clinical-text">{{ detail.clinicalHistory | json }}</div>
+      <details>
+        <summary>Historial clínico y nutricional</summary>
+        <div class="clinical-summary">
+          <div><span>Padecimientos / enfermedades</span><strong>{{ clinicalPadecimientos.length ? clinicalPadecimientos.join(', ') : 'Sin registros' }}</strong></div>
+          <div><span>Alergias</span><strong>{{ clinicalText('allergies') }}</strong></div>
+          <div><span>Intolerancias</span><strong>{{ clinicalText('otherAllergies') }}</strong></div>
+          <div><span>Medicamentos actuales</span><strong>{{ clinicalText('medications') }}</strong></div>
+          <div><span>Cirugías previas</span><strong>{{ clinicalText('surgeries') }}</strong></div>
+          <div><span>Hospitalizaciones</span><strong>{{ clinicalText('hospitalizations') }}</strong></div>
+        </div>
+      </details>
     </section>
 
     <section class="module-card">

@@ -94,7 +94,7 @@ function handleMeasurementHistory(PDO $pdo, array $input): void
     foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
         $weight = (float)$row['weight_kg']; $height = (float)$row['height_cm'];
         $measurements[] = ['id'=>(string)$row['id'],'measuredAt'=>str_replace(' ','T',$row['measured_at']),
-            'weightKg'=>$weight,'heightCm'=>$height,'imc'=>$weight > 0 && $height > 0 ? round($weight / (($height / 100) ** 2),2) : null];
+            'weightKg'=>$weight,'heightCm'=>$height,'imc'=>$weight > 0 && $height > 0 ? number_format($weight / (($height / 100) ** 2),1,'.','') : null];
     }
     sendJson(['measurements'=>$measurements,'timeZone'=>'America/Mexico_City']);
 }

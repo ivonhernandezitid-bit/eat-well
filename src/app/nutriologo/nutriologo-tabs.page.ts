@@ -12,8 +12,8 @@ import { Component } from '@angular/core';
     </ion-tabs>
   `,
   styles: [`
-    ion-tab-bar { --background: #fff; border-top: 1px solid #e7eee9; height: 68px; }
-    ion-tab-button { --color: #7a8a81; --color-selected: #1B4D3E; font-weight: 700; }
+    ion-tab-bar { --background: #fff; border-top: 1px solid #E2E8F0; height: 68px; }
+    ion-tab-button { --color: #64748B; --color-selected: #059669; font-weight: 700; }
   `],
   standalone: false,
 })

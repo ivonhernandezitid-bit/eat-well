@@ -53,6 +53,44 @@ export class NutriologoExpedientePage implements OnInit {
     return (this.detail?.patient.name || '').split(/\s+/).slice(0, 2).map(v => v[0]).join('').toUpperCase();
   }
 
+  get clinicalHistory(): Record<string, unknown> {
+    const response = this.detail?.clinicalHistory as { history?: Record<string, unknown> } | null;
+    return response?.history || {};
+  }
+
+  get clinicalPadecimientos(): string[] {
+    const labels: Record<string, string> = {
+      diagnosisDiabetes: 'Diabetes',
+      diagnosisHypertension: 'Hipertensión',
+      diagnosisFattyLiver: 'Hígado graso',
+      diagnosisSop: 'SOP',
+      diagnosisGout: 'Gota',
+      diagnosisHypothyroidism: 'Hipotiroidismo',
+      diagnosisHyperthyroidism: 'Hipertiroidismo',
+      diagnosisDyslipidemia: 'Dislipidemias',
+      diagnosisInsulinResistance: 'Resistencia a la insulina',
+      diagnosisChronicKidneyDisease: 'Enfermedad renal crónica',
+      diagnosisKidneyStones: 'Litiasis renal',
+      diagnosisCeliac: 'Celíaca',
+      diagnosisIrritableBowel: 'Intestino irritable',
+      diagnosisGastritis: 'Gastritis',
+      diagnosisUlcerativeColitis: 'Colitis ulcerosa',
+    };
+    const selected = Object.entries(labels)
+      .filter(([field]) => this.clinicalHistory[field] === true)
+      .map(([, label]) => label);
+    const other = String(this.clinicalHistory['otherDiagnoses'] || '').trim();
+    if (other) selected.push(other);
+    return selected;
+  }
+
+  clinicalText(field: string): string {
+    const value = this.clinicalHistory[field];
+    if (Array.isArray(value)) return value.length ? value.join(', ') : 'Sin registros';
+    const text = typeof value === 'string' ? value.trim() : '';
+    return text || 'Sin registros';
+  }
+
   download(module: PdfModule): void {
     if (this.detail) this.pdf.exportModule(this.detail, module);
   }
