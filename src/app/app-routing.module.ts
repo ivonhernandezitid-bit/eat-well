@@ -28,6 +28,15 @@ const routes: Routes = [
   {
     path: 'tabs',
     loadChildren: () => import('./tabs/tabs.module').then(m => m.TabsPageModule)
+  },
+  {
+    path: 'tabs/inicio',
+    redirectTo: 'tabs/home',
+    pathMatch: 'full'
+  },
+  {
+    path: 'nutriologo',
+    loadChildren: () => import('./nutriologo/nutriologo.module').then(m => m.NutriologoModule)
   }
 ];
 @NgModule({

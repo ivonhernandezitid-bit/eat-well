@@ -1,0 +1,26 @@
+<ion-content class="directory-page">
+  <div class="directory-shell">
+    <h1>PACIENTES REGISTRADOS</h1>
+    <div class="search-box"><ion-icon name="search-outline"></ion-icon><ion-input [(ngModel)]="search" placeholder="Buscar por nombre, correo o condición"></ion-input></div>
+    <div class="filters">
+      <button [class.active]="filter === 'all'" (click)="filter = 'all'">Todos</button>
+      <button [class.active]="filter === 'new'" (click)="filter = 'new'">Con nuevas medidas</button>
+      <button [class.active]="filter === 'condition'" (click)="filter = 'condition'">Condición médica</button>
+    </div>
+    <ion-spinner *ngIf="loading"></ion-spinner>
+    <article class="directory-card" *ngFor="let patient of filtered" (click)="openPatient(patient)">
+      <div class="patient-avatar">{{ patientInitials(patient.profile.name) }}</div>
+      <div class="patient-info">
+        <strong>{{ patient.profile.name }}</strong>
+        <span>{{ patient.profile.age || '—' }} años · {{ patient.profile.heightCm || '—' }} cm · {{ patient.profile.weightKg || '—' }} kg</span>
+        <small [class.alert]="patient.condition">{{ patient.condition || 'Sin condición registrada' }}</small>
+      </div>
+      <div class="patient-values">
+        <div><span>IMC</span><strong>{{ patient.latestMeasurement?.imc || patient.profile.imc || '—' }}</strong></div>
+        <div><span>GRASA</span><strong>{{ patient.bodyFatPercentage ?? '—' }}{{ patient.bodyFatPercentage !== null ? '%' : '' }}</strong></div>
+      </div>
+      <ion-icon name="chevron-forward-outline"></ion-icon>
+    </article>
+    <p class="empty" *ngIf="!loading && filtered.length === 0">No se encontraron pacientes.</p>
+  </div>
+</ion-content>

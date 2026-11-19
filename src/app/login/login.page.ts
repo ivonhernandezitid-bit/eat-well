@@ -36,7 +36,8 @@ export class LoginPage {
         email: identifier,
         password: this.password,
       });
-      await this.router.navigateByUrl('/tabs/home');
+      const activeUser = this.eatWellService.getActiveUser();
+      await this.router.navigateByUrl(activeUser?.role === 'nutritionist' ? '/nutriologo/inicio' : '/tabs/home');
     } catch (error) {
       await this.showAlert('No se pudo iniciar sesión', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }

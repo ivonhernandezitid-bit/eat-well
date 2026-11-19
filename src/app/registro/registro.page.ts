@@ -98,7 +98,8 @@ export class RegistroPage {
         especialidad: this.role === 'nutritionist' ? this.especialidad : undefined,
         consultorio: this.role === 'nutritionist' ? this.consultorio.trim() : undefined,
       });
-      await this.router.navigateByUrl('/datos-perfil?onboarding=1');
+      const activeUser = this.eatWellService.getActiveUser();
+      await this.router.navigateByUrl(activeUser?.role === 'nutritionist' ? '/nutriologo/inicio' : '/datos-perfil?onboarding=1');
     } catch (error) {
       await this.showAlert('No se pudo registrar', error instanceof Error ? error.message : 'Inténtalo de nuevo.');
     }

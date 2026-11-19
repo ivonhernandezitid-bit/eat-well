@@ -1,0 +1,40 @@
+<ion-content class="record-page">
+  <div class="record-shell" *ngIf="detail">
+    <header class="record-header"><button (click)="back()"><ion-icon name="chevron-back-outline"></ion-icon> Pacientes</button></header>
+    <section class="summary-card">
+      <div class="patient-avatar">{{ initials }}</div>
+      <div class="summary-main"><h1>{{ detail.patient.name }}</h1><p>{{ detail.patient.age }} años · {{ detail.patient.gender === 'female' ? 'Femenino' : detail.patient.gender === 'male' ? 'Masculino' : 'Otro' }}</p></div>
+      <div class="summary-values"><div><span>ESTATURA</span><strong>{{ detail.patient.heightCm }} cm</strong></div><div><span>PESO</span><strong>{{ detail.patient.weightKg }} kg</strong></div><div><span>IMC</span><strong>{{ detail.patient.imc }}</strong></div></div>
+    </section>
+    <ion-button expand="block" class="download-button" (click)="downloadComplete()">DESCARGAR EXPEDIENTE COMPLETO (PDF)</ion-button>
+
+    <section class="module-card">
+      <div class="module-head"><div class="module-icon"><ion-icon name="body-outline"></ion-icon></div><h2>COMPOSICIÓN Y MEDIDAS CORPORALES</h2><button (click)="download('measures')">↓ PDF</button></div>
+      <div class="metric-grid"><div><span>% GRASA CORPORAL</span><strong>{{ bodyFat ?? '—' }}{{ bodyFat !== null ? '%' : '' }}</strong></div><div><span>MASA MAGRA</span><strong>{{ leanMass ?? '—' }}{{ leanMass !== null ? ' kg' : '' }}</strong></div></div>
+      <div class="metric-grid" *ngIf="latestBody"><div><span>ÍNDICE CINTURA/CADERA</span><strong>{{ (latestBody.waistCm / latestBody.hipCm).toFixed(2) }}</strong></div><div><span>ÍNDICE CINTURA/ALTURA</span><strong>{{ (latestBody.waistCm / detail.patient.heightCm).toFixed(2) }}</strong></div></div>
+      <details *ngIf="firstBody && latestBody"><summary>Comparativa inicial vs. actual</summary><div class="compare-row"><span>Cintura</span><strong>{{ firstBody.waistCm }} / {{ latestBody.waistCm }} cm</strong></div><div class="compare-row"><span>Cadera</span><strong>{{ firstBody.hipCm }} / {{ latestBody.hipCm }} cm</strong></div><div class="compare-row"><span>Brazo</span><strong>{{ firstBody.armCm }} / {{ latestBody.armCm }} cm</strong></div><div class="compare-row"><span>Muslo</span><strong>{{ firstBody.thighCm }} / {{ latestBody.thighCm }} cm</strong></div><div class="compare-row"><span>Cuello</span><strong>{{ firstBody.neckCm }} / {{ latestBody.neckCm }} cm</strong></div></details>
+    </section>
+
+    <section class="module-card">
+      <div class="module-head"><div class="module-icon"><ion-icon name="person-outline"></ion-icon></div><h2>DATOS GENERALES Y ANTROPOMÉTRICOS</h2><button (click)="download('general')">↓ PDF</button></div>
+      <dl><div><dt>Edad</dt><dd>{{ detail.patient.age }} años</dd></div><div><dt>Género biológico</dt><dd>{{ detail.patient.gender }}</dd></div><div><dt>Estatura</dt><dd>{{ detail.patient.heightCm }} cm</dd></div><div><dt>Peso</dt><dd>{{ detail.patient.weightKg }} kg</dd></div><div><dt>IMC</dt><dd>{{ detail.patient.imc }}</dd></div></dl>
+    </section>
+
+    <section class="module-card">
+      <div class="module-head"><div class="module-icon"><ion-icon name="medkit-outline"></ion-icon></div><h2>HISTORIAL CLÍNICO Y NUTRICIONAL</h2><button (click)="download('clinical')">↓ PDF</button></div>
+      <div class="clinical-text">{{ detail.clinicalHistory | json }}</div>
+    </section>
+
+    <section class="module-card">
+      <div class="module-head"><div class="module-icon"><ion-icon name="restaurant-outline"></ion-icon></div><h2>RECORDATORIO 24 HORAS Y HORARIOS</h2><button (click)="download('recall')">↓ PDF</button></div>
+      <details><summary>Registro de alimentación y horarios</summary><pre>{{ detail.dietaryRecall | json }}</pre><pre>{{ detail.mealSchedule | json }}</pre></details>
+    </section>
+
+    <section class="module-card">
+      <div class="module-head"><div class="module-icon"><ion-icon name="heart-outline"></ion-icon></div><h2>ESTILO DE VIDA, METAS Y PREFERENCIAS</h2><button (click)="download('lifestyle')">↓ PDF</button></div>
+      <dl><div><dt>Nivel de actividad</dt><dd>{{ detail.patient.activityLevel }}</dd></div><div><dt>Objetivo</dt><dd>{{ detail.patient.goal }}</dd></div></dl>
+      <details><summary>Preferencias alimentarias completas</summary><pre>{{ detail.preferences | json }}</pre><pre>{{ detail.lifestyle | json }}</pre></details>
+    </section>
+  </div>
+  <ion-spinner *ngIf="loading" class="record-loading"></ion-spinner>
+</ion-content>

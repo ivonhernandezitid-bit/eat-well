@@ -30,6 +30,7 @@
     "@capgo/capacitor-pedometer": "^8.0.43",
     "@ionic/angular": "^8.8.19",
     "ionicons": "^7.0.0",
+    "jspdf": "^4.2.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"

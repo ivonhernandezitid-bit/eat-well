@@ -69,6 +69,45 @@ export interface UserAccount {
   password: string;
 }
 
+export interface NutritionistPatientSummary {
+  profile: UserProfile;
+  latestMeasurement: {
+    measuredAt: string;
+    weightKg: number;
+    heightCm: number;
+    imc: number;
+  } | null;
+  bodyFatPercentage: number | null;
+  condition: string;
+  updatedAt: string;
+}
+
+export interface NutritionistPatientDetail {
+  patient: UserProfile;
+  anthropometricMeasurements: Array<{
+    id: string;
+    measuredAt: string;
+    weightKg: number;
+    heightCm: number;
+    imc: number | null;
+  }>;
+  bodyMeasurements: Array<{
+    id: string;
+    measuredAt: string;
+    waistCm: number;
+    hipCm: number;
+    armCm: number;
+    thighCm: number;
+    neckCm: number;
+    weightKg: number;
+  }>;
+  clinicalHistory: unknown;
+  dietaryRecall: unknown;
+  mealSchedule: unknown;
+  preferences: unknown;
+  lifestyle: unknown;
+}
+
 export interface Recipe extends RecipeMetadata {
   id: string;
   title: string;

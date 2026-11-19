@@ -26,6 +26,8 @@ import {
   SuggestedFoodRecipe,
   UserProfile,
   UserRegistrationData,
+  NutritionistPatientSummary,
+  NutritionistPatientDetail,
   GeminiExercise,
   RoutineResult,
   CustomRoutineForm,
@@ -245,6 +247,25 @@ export class EatWellService {
     const user = this.getRequiredActiveUser();
     const response = await this.post<{ measurements: BodyMeasurement[] }>('body-measurements.save', { userId: user.id, measurement });
     return response.measurements;
+  }
+
+  async getNutritionistPatients(): Promise<NutritionistPatientSummary[]> {
+    const response = await this.get<{ patients: NutritionistPatientSummary[] }>('nutritionist.patients');
+    return response.patients;
+  }
+
+  async getNutritionistPatientDetail(patientId: string): Promise<NutritionistPatientDetail> {
+    return this.get<NutritionistPatientDetail>('nutritionist.patient_detail', { patientId });
+  }
+
+  async saveBodyMeasurements(measurements: { waistCm: number; hipCm: number; armCm: number; thighCm: number; neckCm: number }): Promise<void> {
+    await this.saveBodyMeasurement({
+      id: crypto.randomUUID?.() ?? `${Date.now()}`,
+      measuredAt: new Date().toISOString(),
+      weightKg: this.getRequiredActiveUser().weightKg,
+      heightCm: this.getRequiredActiveUser().heightCm,
+      ...measurements,
+    });
   }
 
   async getRecipePortions(recipeId: string, source: PortionRecipeSource, servings: number): Promise<RecipePortionPreview> {
@@ -624,7 +645,7 @@ export class EatWellService {
     return ['neck', 'shoulders', 'chest', 'arms', 'abdomen', 'back', 'hips', 'legs', 'calves', 'full_body'];
   }
 
-  private async get<T>(action: string, params: Record<string, string | number>): Promise<T> {
+  private async get<T>(action: string, params: Record<string, string | number> = {}): Promise<T> {
     try {
       const response = await firstValueFrom(
         this.http.get<T>(this.buildUrl(action, params), { headers: this.authHeaders(), observe: 'response' }),
@@ -754,7 +775,13 @@ export class EatWellService {
 
   private loadActiveUser(): UserProfile | null {
     const savedUser = localStorage.getItem(ACTIVE_USER_KEY);
-    return savedUser ? JSON.parse(savedUser) as UserProfile : null;
+    if (!savedUser) return null;
+    try {
+      return JSON.parse(savedUser) as UserProfile;
+    } catch {
+      localStorage.removeItem(ACTIVE_USER_KEY);
+      return null;
+    }
   }
 
   private loadExerciseCache(): Record<string, ExerciseCacheEntry> {

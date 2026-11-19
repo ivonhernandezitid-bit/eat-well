@@ -1,0 +1,39 @@
+<ion-content class="clinic-page">
+  <div class="page-shell">
+    <header class="top-header">
+      <div class="identity">
+        <div class="avatar">{{ initials }}</div>
+        <div><span>PANEL CLÍNICO · {{ today }}</span><h1>Hola, Nut. {{ user?.name }}</h1></div>
+      </div>
+      <button class="icon-button" (click)="logout()" aria-label="Cerrar sesión"><ion-icon name="log-out-outline"></ion-icon></button>
+    </header>
+
+    <section class="clinical-banner">
+      <div>
+        <span>RESUMEN CLÍNICO DEL DÍA</span>
+        <h2>{{ recentPatients.length }} pacientes tienen mediciones recientes listas para revisión</h2>
+      </div>
+      <ion-button class="pill-button" (click)="openUpdated()">Ver pacientes actualizados</ion-button>
+    </section>
+
+    <section class="kpi-grid">
+      <article class="kpi-card"><div class="kpi-icon"><ion-icon name="people-outline"></ion-icon></div><div><span>PACIENTES ACTIVOS</span><strong>{{ patients.length }}</strong></div></article>
+      <article class="kpi-card"><div class="kpi-icon"><ion-icon name="analytics-outline"></ion-icon></div><div><span>NUEVAS MEDIDAS (7 DÍAS)</span><strong>{{ recentPatients.length }}</strong></div></article>
+    </section>
+
+    <section class="recent-section">
+      <h2>ACTIVIDAD RECIENTE DE PACIENTES</h2>
+      <ion-spinner *ngIf="loading"></ion-spinner>
+      <article class="patient-card" *ngFor="let patient of recentPatients" (click)="openPatient(patient)">
+        <div class="patient-avatar">{{ patientInitials(patient.profile.name) }}</div>
+        <div class="patient-main"><strong>{{ patient.profile.name }}</strong><span>Actualizó medidas corporales</span></div>
+        <div class="patient-values">
+          <div><span>GRASA</span><strong>{{ patient.bodyFatPercentage ?? '—' }}{{ patient.bodyFatPercentage !== null ? '%' : '' }}</strong></div>
+          <div><span>IMC</span><strong>{{ patient.latestMeasurement?.imc || '—' }}</strong></div>
+        </div>
+        <ion-icon name="chevron-forward-outline"></ion-icon>
+      </article>
+      <p class="empty" *ngIf="!loading && recentPatients.length === 0">No hay mediciones recientes.</p>
+    </section>
+  </div>
+</ion-content>

@@ -49,6 +49,42 @@ try {
         ],
     );
 
+    // Add account role and professional validation columns automatically.
+    $existingUserColumns = $pdo->query('SHOW COLUMNS FROM users')->fetchAll(PDO::FETCH_COLUMN);
+    $userColumns = [
+        'role' => "VARCHAR(20) NOT NULL DEFAULT 'patient'",
+        'cedula_profesional' => 'VARCHAR(20) NULL',
+        'universidad' => 'VARCHAR(150) NULL',
+        'especialidad' => 'VARCHAR(100) NULL',
+        'consultorio' => 'VARCHAR(150) NULL',
+    ];
+    foreach ($userColumns as $column => $definition) {
+        if (!in_array($column, $existingUserColumns, true)) {
+            $pdo->exec("ALTER TABLE users ADD COLUMN `$column` $definition");
+        }
+    }
+
+    $pdo->exec("
+        CREATE TABLE IF NOT EXISTS body_measurements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            client_id VARCHAR(64) NULL,
+            measured_at DATETIME NOT NULL,
+            waist_cm DECIMAL(6,2) NOT NULL,
+            hip_cm DECIMAL(6,2) NOT NULL,
+            arm_cm DECIMAL(6,2) NOT NULL,
+            thigh_cm DECIMAL(6,2) NOT NULL,
+            neck_cm DECIMAL(6,2) NOT NULL,
+            weight_kg DECIMAL(6,2) NOT NULL,
+            height_cm DECIMAL(6,2) NOT NULL DEFAULT 170.00,
+            INDEX idx_body_measurements_user_date (user_id, measured_at),
+            UNIQUE KEY uq_body_measurements_client (user_id, client_id),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    ");
+    $bodyColumns = $pdo->query('SHOW COLUMNS FROM body_measurements')->fetchAll(PDO::FETCH_COLUMN);
+    if (!in_array('client_id', $bodyColumns, true)) $pdo->exec("ALTER TABLE body_measurements ADD COLUMN client_id VARCHAR(64) NULL");
+    if (!in_array('height_cm', $bodyColumns, true)) $pdo->exec("ALTER TABLE body_measurements ADD COLUMN height_cm DECIMAL(6,2) NOT NULL DEFAULT 170.00");
     // Auto-create user_tips table if not exists
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS user_tips (
@@ -271,6 +307,15 @@ try {
         case 'body-measurements.save':
             handleBodyMeasurements($pdo, $action, $input);
             break;
+        case 'body_measurements.save':
+            saveBodyMeasurementsForUser($pdo, $input);
+            break;
+        case 'nutritionist.patients':
+            getNutritionistPatients($pdo);
+            break;
+        case 'nutritionist.patient_detail':
+            getNutritionistPatientDetail($pdo, (int)($_GET['patientId'] ?? $input['patientId'] ?? 0));
+            break;
         case 'preferences.get':
         case 'preferences.save':
         case 'preferences.delete':
@@ -439,6 +484,144 @@ function loginUser(PDO $pdo, array $input): void
     if (!password_verify($plainPassword, $user['password_hash'])) sendError('La contraseña es incorrecta.', 401);
 
     sendJson(['user' => mapUser($user), 'authToken' => issueAuthToken($pdo, (int)$user['id'])]);
+}
+
+function requireNutritionist(PDO $pdo): array
+{
+    $user = requireSessionUser($pdo);
+    if (($user['role'] ?? 'patient') !== 'nutritionist') {
+        sendError('Solo los nutriólogos certificados pueden acceder a este recurso.', 403);
+    }
+    return $user;
+}
+
+function saveBodyMeasurementsForUser(PDO $pdo, array $input): void
+{
+    $user = requireSessionUser($pdo);
+    $userId = (int)$user['id'];
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') sendError('Metodo no permitido.', 405);
+    $values = [];
+    foreach (['waistCm' => 'waist_cm', 'hipCm' => 'hip_cm', 'armCm' => 'arm_cm', 'thighCm' => 'thigh_cm', 'neckCm' => 'neck_cm'] as $field => $column) {
+        $value = $input[$field] ?? null;
+        if (!is_numeric($value) || (float)$value <= 0 || (float)$value > 250) sendError('Completa las cinco medidas corporales con valores válidos.', 422);
+        $values[$column] = round((float)$value, 2);
+    }
+    $measuredAt = (new DateTimeImmutable('now', new DateTimeZone('America/Mexico_City')))->format('Y-m-d H:i:s');
+    $stmt = $pdo->prepare('INSERT INTO body_measurements (user_id, measured_at, waist_cm, hip_cm, arm_cm, thigh_cm, neck_cm, weight_kg) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    $stmt->execute([$userId, $measuredAt, $values['waist_cm'], $values['hip_cm'], $values['arm_cm'], $values['thigh_cm'], $values['neck_cm'], (float)$user['weight_kg']]);
+    sendJson(['success' => true]);
+}
+
+function getNutritionistPatients(PDO $pdo): void
+{
+    requireNutritionist($pdo);
+    $stmt = $pdo->prepare("SELECT * FROM users WHERE role = 'patient' ORDER BY name ASC");
+    $stmt->execute();
+    $patients = [];
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $user = mapUser($row);
+        $measurement = $pdo->prepare('SELECT measured_at, weight_kg, height_cm FROM anthropometric_measurements WHERE user_id=? ORDER BY measured_at DESC,id DESC LIMIT 1');
+        $measurement->execute([(int)$row['id']]);
+        $latest = $measurement->fetch(PDO::FETCH_ASSOC);
+
+        $body = $pdo->prepare('SELECT measured_at, waist_cm, hip_cm, arm_cm, thigh_cm, neck_cm, weight_kg FROM body_measurements WHERE user_id=? ORDER BY measured_at DESC,id DESC LIMIT 1');
+        $body->execute([(int)$row['id']]);
+        $bodyLatest = $body->fetch(PDO::FETCH_ASSOC);
+        $bodyFat = null;
+        if ($bodyLatest) {
+            $waist = (float)$bodyLatest['waist_cm'];
+            $hip = (float)$bodyLatest['hip_cm'];
+            $neck = (float)$bodyLatest['neck_cm'];
+            $height = (float)$row['height_cm'];
+            $gender = $row['gender'];
+            $denominator = $gender === 'female'
+                ? 1.29579 - 0.35004 * log10($waist + $hip - $neck) + 0.221 * log10($height)
+                : ($gender === 'male' ? 1.0324 - 0.19077 * log10($waist - $neck) + 0.15456 * log10($height) : null);
+            if ($denominator !== null) {
+                $bodyFat = 495 / $denominator - 450;
+                $bodyFat = is_finite($bodyFat) ? round($bodyFat, 1) : null;
+            }
+        }
+
+        ensureClinicalHistoryColumns($pdo);
+        $clinical = $pdo->prepare('SELECT food_allergies_json, other_diagnoses, medications FROM clinical_histories WHERE user_id=?');
+        $clinical->execute([(int)$row['id']]);
+        $clinicalRow = $clinical->fetch(PDO::FETCH_ASSOC);
+        $allergies = $clinicalRow ? json_decode((string)$clinicalRow['food_allergies_json'], true) : [];
+        $conditionParts = [];
+        if (is_array($allergies) && $allergies) $conditionParts[] = 'Alergia: ' . implode(', ', $allergies);
+        if ($clinicalRow && trim((string)$clinicalRow['other_diagnoses']) !== '') $conditionParts[] = trim((string)$clinicalRow['other_diagnoses']);
+        $updatedAt = $latest['measured_at'] ?? $row['updated_at'];
+        $patients[] = [
+            'profile' => $user,
+            'latestMeasurement' => $latest ? [
+                'measuredAt' => str_replace(' ', 'T', $latest['measured_at']),
+                'weightKg' => (float)$latest['weight_kg'],
+                'heightCm' => (float)$latest['height_cm'],
+                'imc' => (float)((float)$latest['weight_kg'] / max(1, ((float)$latest['height_cm'] / 100) ** 2)),
+            ] : null,
+            'bodyFatPercentage' => $bodyFat,
+            'condition' => implode(' · ', $conditionParts),
+            'updatedAt' => str_replace(' ', 'T', $updatedAt),
+        ];
+    }
+    sendJson(['patients' => $patients]);
+}
+
+function getNutritionistPatientDetail(PDO $pdo, int $patientId): void
+{
+    requireNutritionist($pdo);
+    if ($patientId <= 0) sendError('Paciente no valido.', 422);
+    $row = $pdo->prepare("SELECT * FROM users WHERE id=? AND role='patient' LIMIT 1");
+    $row->execute([$patientId]);
+    $patient = $row->fetch(PDO::FETCH_ASSOC);
+    if (!$patient) sendError('Paciente no encontrado.', 404);
+
+    ensureClinicalHistoryColumns($pdo);
+    $measurements = $pdo->prepare('SELECT id, measured_at, weight_kg, height_cm FROM anthropometric_measurements WHERE user_id=? ORDER BY measured_at ASC,id ASC');
+    $measurements->execute([$patientId]);
+    $anthropometric = [];
+    foreach ($measurements->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $weight = (float)$record['weight_kg'];
+        $height = (float)$record['height_cm'];
+        $anthropometric[] = [
+            'id' => (string)$record['id'],
+            'measuredAt' => str_replace(' ', 'T', $record['measured_at']),
+            'weightKg' => $weight,
+            'heightCm' => $height,
+            'imc' => $height > 0 ? round($weight / (($height / 100) ** 2), 2) : null,
+        ];
+    }
+
+    $body = $pdo->prepare('SELECT id, measured_at, waist_cm, hip_cm, arm_cm, thigh_cm, neck_cm, weight_kg FROM body_measurements WHERE user_id=? ORDER BY measured_at ASC,id ASC');
+    $body->execute([$patientId]);
+    $bodyMeasurements = [];
+    foreach ($body->fetchAll(PDO::FETCH_ASSOC) as $record) {
+        $bodyMeasurements[] = [
+            'id' => (string)$record['id'],
+            'measuredAt' => str_replace(' ', 'T', $record['measured_at']),
+            'waistCm' => (float)$record['waist_cm'],
+            'hipCm' => (float)$record['hip_cm'],
+            'armCm' => (float)$record['arm_cm'],
+            'thighCm' => (float)$record['thigh_cm'],
+            'neckCm' => (float)$record['neck_cm'],
+            'weightKg' => (float)$record['weight_kg'],
+        ];
+    }
+
+    $recall = initialRecallRecord($pdo, $patientId);
+    $recallData = $recall ? readDietaryRecall($pdo, $patientId, $recall['recall_date']) : ['recall' => null, 'recallDate' => null, 'completed' => false];
+
+    sendJson([
+        'patient' => mapUser($patient),
+        'anthropometricMeasurements' => $anthropometric,
+        'bodyMeasurements' => $bodyMeasurements,
+        'clinicalHistory' => readClinicalHistory($pdo, $patientId),
+        'dietaryRecall' => $recallData,
+        'mealSchedule' => readMealSchedule($pdo, $patientId),
+        'preferences' => mapFoodPreferences(getFoodPreferencesRecord($pdo, $patientId)),
+        'lifestyle' => readLifestyleGoals($pdo, $patientId),
+    ]);
 }
 
 function getProfile(PDO $pdo, int $userId): void
@@ -1157,8 +1340,6 @@ function requestGeminiFoodAnalysis(
     $responseBody = curl_exec($curl);
     $statusCode = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
     $curlError = curl_error($curl);
-    curl_close($curl);
-
     if ($responseBody === false) {
         sendError('No se pudo conectar con Google AI Studio: ' . $curlError, 502);
     }
@@ -1595,7 +1776,6 @@ function requestGeminiText(
         $responseBody = curl_exec($curl);
         $statusCode = (int)curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
         $curlError = curl_error($curl);
-        curl_close($curl);
         $response = is_string($responseBody) ? json_decode($responseBody, true) : [];
         $response = is_array($response) ? $response : [];
 

@@ -1,0 +1,17 @@
+<ion-content class="profile-page">
+  <div class="profile-shell">
+    <h1>PERFIL PROFESIONAL</h1>
+    <section class="profile-card">
+      <div class="avatar">{{ initials }}</div>
+      <h2>{{ user?.name }}</h2>
+      <p>{{ user?.especialidad || 'Nutrición General' }}</p>
+    </section>
+    <section class="details-card">
+      <div><ion-icon name="card-outline"></ion-icon><span><small>CÉDULA PROFESIONAL</small><strong>{{ user?.cedula_profesional || 'No registrada' }}</strong></span></div>
+      <div><ion-icon name="school-outline"></ion-icon><span><small>UNIVERSIDAD</small><strong>{{ user?.universidad || 'No registrada' }}</strong></span></div>
+      <div><ion-icon name="medkit-outline"></ion-icon><span><small>ESPECIALIDAD</small><strong>{{ user?.especialidad || 'No registrada' }}</strong></span></div>
+      <div><ion-icon name="business-outline"></ion-icon><span><small>CONSULTORIO</small><strong>{{ user?.consultorio || 'No registrado' }}</strong></span></div>
+    </section>
+    <ion-button expand="block" class="logout-button" (click)="logout()">Cerrar sesión</ion-button>
+  </div>
+</ion-content>
